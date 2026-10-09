@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../layouts/LegalLayout';
+import { env } from '../config/env';
 
 export const TermsPage: React.FC = () => {
   return (
@@ -114,7 +115,7 @@ export const TermsPage: React.FC = () => {
             <h2>8. Contact &amp; Governance</h2>
             <p>
               For inquiries regarding these Terms or to review tailored enterprise master subscription agreements, please contact our
-              compliance office at <code>legal@intellmeet-ai.internal</code>.
+              compliance office at <code>{env.legalEmail}</code>.
             </p>
           </section>
         </div>
