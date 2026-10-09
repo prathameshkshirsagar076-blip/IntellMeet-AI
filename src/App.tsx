@@ -1,69 +1,46 @@
-import { useState, useEffect } from 'react';
-import './App.css';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import AuthLayout from './layouts/AuthLayout';
+import LoginPage from './pages/LoginPage';
+import SignUpPage from './pages/SignUpPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import NotFoundPage from './pages/NotFoundPage';
 import LandingPage from './components/LandingPage';
-import LoginPanel from './components/LoginPanel';
-import RightPanel from './components/RightPanel';
+import RouteSwitcher from './components/RouteSwitcher';
+import './App.css';
 
-function App() {
-  const [view, setView] = useState<'landing' | 'login' | 'signup'>(() => {
-    const hash = window.location.hash.toLowerCase();
-    if (hash === '#/login') return 'login';
-    if (hash === '#/signup') return 'signup';
-    // Starting default is the Landing Page as requested!
-    return 'landing';
-  });
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash === '#/login') {
-        setView('login');
-      } else if (hash === '#/signup') {
-        setView('signup');
-      } else {
-        setView('landing');
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const navigateTo = (newView: 'landing' | 'login' | 'signup') => {
-    setView(newView);
-    if (newView === 'landing') {
-      window.location.hash = '';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      window.location.hash = `#/${newView}`;
-    }
-  };
-
-  // When on login or signup view: show the two-column enterprise workspace login interface
-  if (view === 'login' || view === 'signup') {
-    return (
-      <div className="intellmeet-app">
-        <aside className="im-left-panel" aria-label="Login panel">
-          <LoginPanel 
-            mode={view} 
-            onSwitchMode={(mode) => navigateTo(mode)} 
-            onBackToHome={() => navigateTo('landing')} 
-          />
-        </aside>
-        <main className="im-right-panel" aria-label="AI intelligence panel">
-          <RightPanel />
-        </main>
-      </div>
-    );
-  }
-
-  // Default view: Full Zoom-style IntellMeet Landing Page
+export const App: React.FC = () => {
   return (
-    <LandingPage 
-      onNavigateToLogin={() => navigateTo('login')}
-      onNavigateToSignUp={() => navigateTo('signup')}
-    />
+    <BrowserRouter>
+      {/* Centralized Enterprise Routing System */}
+      <Routes>
+        {/* Auth Flow: 2-column Desktop Layout with AI Showcase Panel */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        </Route>
+
+        {/* Legal & Policy Pages: Focused Reader Layout */}
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+
+        {/* Product Marketing Showcase */}
+        <Route path="/landing" element={<LandingPage />} />
+
+        {/* Default Root Redirect to /login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Custom 404 Catch-All Page */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+
+      {/* Floating Route Navigator (Enables immediate verification of all routes) */}
+      <RouteSwitcher />
+    </BrowserRouter>
   );
-}
+};
 
 export default App;

@@ -51,8 +51,71 @@
 }
 
 /* =============================================
-   Tablet  (900 px – 1100 px)
-   Keep side-by-side but shrink left column
+   Floating Route Switcher Bar
+   Helps user test & navigate pages directly
+   ============================================= */
+.im-floating-route-bar {
+  position: fixed;
+  bottom: 20px;
+  right: 24px;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+.im-route-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding-left: 8px;
+  padding-right: 4px;
+}
+
+.im-route-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6.5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 160ms ease;
+  white-space: nowrap;
+}
+
+.im-route-pill-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.im-route-pill-btn.active {
+  color: #ffffff;
+  background: #0e71eb;
+  box-shadow: 0 2px 10px rgba(14, 113, 235, 0.5);
+}
+
+.im-route-pill-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* =============================================
+   Tablet (900 px – 1100 px)
    ============================================= */
 @media (max-width: 1100px) {
   .intellmeet-app {
@@ -61,8 +124,7 @@
 }
 
 /* =============================================
-   Mobile  (≤ 700 px)
-   Single-column — login on top, panel below
+   Mobile (≤ 700 px)
    ============================================= */
 @media (max-width: 700px) {
   .intellmeet-app {
@@ -86,5 +148,23 @@
     height: auto;
     min-height: 480px;
     overflow: hidden;
+  }
+
+  .im-floating-route-bar {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    justify-content: space-between;
+  }
+
+  .im-route-label {
+    display: none;
+  }
+
+  .im-route-pill-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 11px;
   }
 }
