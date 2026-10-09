@@ -1,0 +1,340 @@
+/* =============================================
+   IntellMeet — Auth Pages & Shared Form Styles
+   Extends LoginPanel styling for SignUp, ForgotPassword, etc.
+   ============================================= */
+
+/* Error state styling for inputs */
+.login-field-group.has-error .login-input {
+  border-color: #ef4444;
+  background-color: #fffbfb;
+}
+
+.login-field-group.has-error .login-input:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.login-input.has-icon {
+  padding-left: 38px;
+}
+
+.login-input.has-toggle {
+  padding-right: 38px;
+}
+
+.im-required-indicator {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.im-field-helper {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* Inline Form Error */
+.im-form-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 4px;
+  animation: imFadeIn 180ms ease forwards;
+}
+
+.im-error-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #dc2626;
+}
+
+@keyframes imFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Notice Banners (Info, Success, Warning) */
+.im-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin-bottom: 14px;
+  position: relative;
+  animation: imFadeIn 200ms ease;
+}
+
+.im-notice-icon-wrapper {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.im-notice-icon-wrapper svg {
+  width: 16px;
+  height: 16px;
+}
+
+.im-notice-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.im-notice-title {
+  font-weight: 600;
+}
+
+.im-notice-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.im-notice-dismiss:hover {
+  opacity: 1;
+}
+
+/* Notice Variants */
+.im-notice-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+.im-notice-info .im-notice-icon-wrapper svg {
+  color: #2563eb;
+}
+
+.im-notice-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.im-notice-success .im-notice-icon-wrapper svg {
+  color: #16a34a;
+}
+
+.im-notice-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.im-notice-warning .im-notice-icon-wrapper svg {
+  color: #d97706;
+}
+
+/* Two-column responsive row in forms (e.g. for Name / Company or Password fields) */
+.im-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .im-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Button variants */
+.im-btn-secondary {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+
+.im-btn-secondary:hover {
+  background: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.im-btn-ghost {
+  background: transparent;
+  color: var(--accent-purple);
+  border: 1px solid #e0e7ff;
+  box-shadow: none;
+}
+
+.im-btn-ghost:hover {
+  background: #eef2ff;
+  color: var(--accent-purple-hover);
+}
+
+/* Spinner */
+.im-spinner {
+  animation: spin 1s linear infinite;
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Checkbox with Link */
+.login-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  margin-top: 2px;
+}
+
+.login-checkbox-label input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.login-checkbox-label input[type='checkbox']:checked {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+.login-checkbox-label input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.login-checkbox-label input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
+
+.login-checkbox-text {
+  font-size: 12.5px;
+  color: var(--panel-text-secondary);
+  line-height: 1.45;
+}
+
+.login-checkbox-text a {
+  color: var(--accent-purple);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.login-checkbox-text a:hover {
+  color: var(--accent-purple-hover);
+}
+
+/* Frontend Success State Card */
+.im-success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 20px;
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  animation: imFadeIn 250ms ease;
+}
+
+.im-success-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+.im-success-icon-badge svg {
+  width: 28px;
+  height: 28px;
+}
+
+.im-success-card h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.im-success-card p {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.55;
+  max-width: 380px;
+  margin-bottom: 12px;
+}
+
+.im-success-demo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 24px;
+}
+
+.im-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.im-success-actions .login-submit-btn {
+  text-decoration: none;
+}

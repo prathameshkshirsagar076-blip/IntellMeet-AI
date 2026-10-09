@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import './LandingPage.css';
 
 /* ---- SVG Icons ---- */
@@ -110,11 +111,14 @@ const MicIcon = () => (
 );
 
 interface LandingPageProps {
-  onNavigateToLogin: () => void;
-  onNavigateToSignUp: () => void;
+  onNavigateToLogin?: () => void;
+  onNavigateToSignUp?: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigateToSignUp }) => {
+  const navigate = useNavigate();
+  const handleLogin = onNavigateToLogin || (() => navigate('/login'));
+  const handleSignUp = onNavigateToSignUp || (() => navigate('/signup'));
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState<'meetings' | 'chat' | 'notes' | 'ai' | 'security'>('meetings');
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -181,7 +185,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
             <button 
               type="button" 
               className="lp-announcement-link" 
-              onClick={onNavigateToSignUp}
+              onClick={handleSignUp}
             >
               Start Free Trial &rarr;
             </button>
@@ -221,14 +225,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
             <button 
               type="button" 
               className="lp-btn-ghost lp-sales-btn" 
-              onClick={onNavigateToLogin}
+              onClick={handleLogin}
             >
               Contact Sales
             </button>
             <button 
               type="button" 
               className="lp-btn-ghost lp-signin-btn" 
-              onClick={onNavigateToLogin}
+              onClick={handleLogin}
               id="lp-nav-signin"
             >
               Sign In
@@ -236,7 +240,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
             <button 
               type="button" 
               className="lp-btn-primary lp-signup-btn" 
-              onClick={onNavigateToSignUp}
+              onClick={handleSignUp}
               id="lp-nav-signup"
             >
               Sign Up Free
@@ -268,7 +272,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <button 
                 type="button" 
                 className="lp-hero-btn-primary" 
-                onClick={onNavigateToSignUp}
+                onClick={handleSignUp}
                 id="lp-hero-signup"
               >
                 Sign Up Free
@@ -277,7 +281,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <button 
                 type="button" 
                 className="lp-hero-btn-outline" 
-                onClick={onNavigateToLogin}
+                onClick={handleLogin}
                 id="lp-hero-demo"
               >
                 Request a Demo
@@ -345,7 +349,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
             <button 
               type="button" 
               className="lp-spotlight-cta" 
-              onClick={onNavigateToSignUp}
+              onClick={handleSignUp}
             >
               Explore AI Companion &rarr;
             </button>
@@ -436,14 +440,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <div className="lp-triplet-badge">GARTNER RECOGNIZED</div>
               <h3>Named a 2026 Leader</h3>
               <p>Ranked #1 for Vision and Execution in Enterprise Meeting and Unified Collaboration Platforms.</p>
-              <a href="#gartner" onClick={(e) => { e.preventDefault(); onNavigateToSignUp(); }}>Read Report &rarr;</a>
+              <a href="#gartner" onClick={(e) => { e.preventDefault(); handleSignUp(); }}>Read Report &rarr;</a>
             </div>
 
             <div className="lp-triplet-card">
               <div className="lp-triplet-badge">CUSTOMER SUCCESS</div>
               <h3>Supercharge Support Teams</h3>
               <p>Deliver faster resolutions and seamless agent intelligence with real-time meeting transcription.</p>
-              <a href="#contact-center" onClick={(e) => { e.preventDefault(); onNavigateToSignUp(); }}>Learn More &rarr;</a>
+              <a href="#contact-center" onClick={(e) => { e.preventDefault(); handleSignUp(); }}>Learn More &rarr;</a>
             </div>
 
             <div className="lp-triplet-card">
@@ -453,7 +457,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               </div>
               <h3>99.99% Global Uptime</h3>
               <p>Distributed across 200+ edge locations worldwide for reliable, low-latency enterprise video.</p>
-              <a href="#network" onClick={(e) => { e.preventDefault(); onNavigateToSignUp(); }}>View Infrastructure &rarr;</a>
+              <a href="#network" onClick={(e) => { e.preventDefault(); handleSignUp(); }}>View Infrastructure &rarr;</a>
             </div>
           </div>
         </div>
@@ -521,7 +525,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                     <li><CheckIcon /> Automated closed captions and multi-language live translation</li>
                     <li><CheckIcon /> Dynamic speaker focus and intelligent spotlight view</li>
                   </ul>
-                  <button type="button" className="lp-tab-cta" onClick={onNavigateToSignUp}>
+                  <button type="button" className="lp-tab-cta" onClick={handleSignUp}>
                     Explore Virtual Meetings &rarr;
                   </button>
                 </>
@@ -536,7 +540,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                     <li><CheckIcon /> Rich media sharing, secure document vaults, and emoji reactions</li>
                     <li><CheckIcon /> Cross-platform synchronization across mobile, desktop, and web</li>
                   </ul>
-                  <button type="button" className="lp-tab-cta" onClick={onNavigateToSignUp}>
+                  <button type="button" className="lp-tab-cta" onClick={handleSignUp}>
                     Explore Team Chat &rarr;
                   </button>
                 </>
@@ -551,7 +555,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                     <li><CheckIcon /> Assign tasks directly with due dates and assignee notifications</li>
                     <li><CheckIcon /> Export instantly to Google Workspace, Notion, and Microsoft 365</li>
                   </ul>
-                  <button type="button" className="lp-tab-cta" onClick={onNavigateToSignUp}>
+                  <button type="button" className="lp-tab-cta" onClick={handleSignUp}>
                     Explore Smart Notes &rarr;
                   </button>
                 </>
@@ -566,7 +570,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                     <li><CheckIcon /> Catch up on missed meeting minutes in under 30 seconds</li>
                     <li><CheckIcon /> Automated follow-up email drafts created with one click</li>
                   </ul>
-                  <button type="button" className="lp-tab-cta" onClick={onNavigateToSignUp}>
+                  <button type="button" className="lp-tab-cta" onClick={handleSignUp}>
                     Learn About AI Companion &rarr;
                   </button>
                 </>
@@ -586,7 +590,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                     <li><CheckIcon /> Zero-Knowledge audio processing—audio is discarded post-synthesis</li>
                     <li><CheckIcon /> SOC 2 Type II, HIPAA, and GDPR compliance certifications</li>
                   </ul>
-                  <button type="button" className="lp-tab-cta" onClick={onNavigateToSignUp}>
+                  <button type="button" className="lp-tab-cta" onClick={handleSignUp}>
                     Explore Security Features &rarr;
                   </button>
                 </>
@@ -739,21 +743,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <div className="lp-impact-tag">WORKPLACE RESEARCH</div>
               <h3>How Hybrid Teams Boost Focus by 3.5x</h3>
               <p>Discover how autonomous AI summaries eliminate the need for non-essential status meetings.</p>
-              <button type="button" className="lp-impact-link" onClick={onNavigateToSignUp}>Read Report &rarr;</button>
+              <button type="button" className="lp-impact-link" onClick={handleSignUp}>Read Report &rarr;</button>
             </div>
 
             <div className="lp-impact-card">
               <div className="lp-impact-tag">ANNUAL AWARDS</div>
               <h3>Top Enterprise AI Platform of 2026</h3>
               <p>IntellMeet celebrated for pioneering zero-knowledge privacy and seamless workflow integration.</p>
-              <button type="button" className="lp-impact-link" onClick={onNavigateToSignUp}>View Award &rarr;</button>
+              <button type="button" className="lp-impact-link" onClick={handleSignUp}>View Award &rarr;</button>
             </div>
 
             <div className="lp-impact-card">
               <div className="lp-impact-tag">SECURITY BRIEF</div>
               <h3>Zero-Knowledge Architecture Standard</h3>
               <p>A deep dive into why enterprise security leaders choose our zero-data retention model.</p>
-              <button type="button" className="lp-impact-link" onClick={onNavigateToSignUp}>Download Whitepaper &rarr;</button>
+              <button type="button" className="lp-impact-link" onClick={handleSignUp}>Download Whitepaper &rarr;</button>
             </div>
           </div>
         </div>
@@ -771,7 +775,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <button 
                 type="button" 
                 className="lp-btn-cta-primary" 
-                onClick={onNavigateToSignUp}
+                onClick={handleSignUp}
                 id="lp-bottom-signup"
               >
                 Get Started Free
@@ -780,7 +784,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               <button 
                 type="button" 
                 className="lp-btn-cta-secondary" 
-                onClick={onNavigateToLogin}
+                onClick={handleLogin}
                 id="lp-bottom-signin"
               >
                 Sign In to Workspace
@@ -844,7 +848,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
                 <a href="#careers">Careers (We're Hiring!)</a>
                 <a href="#leadership">Leadership</a>
                 <a href="#press">Press &amp; Media</a>
-                <a href="#contact" onClick={onNavigateToLogin}>Contact Sales</a>
+                <a href="#contact" onClick={handleLogin}>Contact Sales</a>
               </div>
             </div>
           </div>
@@ -854,8 +858,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin, onNavigate
               &copy; 2026 IntellMeet AI Inc. All rights reserved.
             </div>
             <div className="lp-footer-legal">
-              <a href="#privacy">Privacy Statement</a>
-              <a href="#terms">Terms of Service</a>
+              <Link to="/privacy">Privacy Statement</Link>
+              <Link to="/terms">Terms of Service</Link>
               <a href="#trust">Trust Center</a>
               <a href="#cookies">Cookie Preferences</a>
             </div>
