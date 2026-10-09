@@ -1,34 +1,25 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
 import PrimaryButton from '../components/PrimaryButton';
-import SocialLoginButton, { type SSOProvider } from '../components/SocialLoginButton';
+import SocialLoginButton from '../components/SocialLoginButton';
+import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
+import { MailIcon, ShieldIcon } from '../components/icons';
+import { validateEmail, validatePassword } from '../utils/validation';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
 
-/* Mail SVG Icon */
-const MailIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-    <polyline points="22,6 12,13 2,6"/>
-  </svg>
-);
-
-/* Shield SVG Icon */
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-);
-
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
 
   // Form state
-  const [email, setEmail] = useState('elena.rostova@enterprise.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
 
@@ -41,20 +32,14 @@ export const LoginPage: React.FC = () => {
   const [demoNotice, setDemoNotice] = useState<string | null>(null);
 
   // Validation helper
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const nextErrors: { email?: string; password?: string } = {};
 
-    if (!email.trim()) {
-      nextErrors.email = 'Work email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      nextErrors.email = 'Please enter a valid work email address.';
-    }
+    const emailErr = validateEmail(email);
+    if (emailErr) nextErrors.email = emailErr;
 
-    if (!password) {
-      nextErrors.password = 'Password is required.';
-    } else if (password.length < 6) {
-      nextErrors.password = 'Password must be at least 6 characters.';
-    }
+    const passErr = validatePassword(password, { minLength: 6 });
+    if (passErr) nextErrors.password = passErr;
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -69,33 +54,61 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // Frontend validation passed
-    // NOTE: Strict requirement: "Since no backend authentication exists, do not pretend that a real login has succeeded."
-    setDemoNotice(
-      `Frontend Validation Succeeded: Credentials format verified for ${email}. Note: No backend authentication service is connected in this prototype. To explore registration, click "Create an Account".`
-    );
+    // Authenticate demo session
+    login(email);
+
+    // Determine target location (defaulting to /dashboard)
+    const state = location.state as { from?: { pathname: string } } | undefined;
+    const destination = state?.from?.pathname || '/dashboard';
+    navigate(destination, { replace: true });
   };
 
   const handleSSOClick = (provider: SSOProvider) => {
-    const providerNames: Record<SSOProvider, string> = {
-      google: 'Google Workspace',
-      microsoft: 'Microsoft Azure AD / 365',
-      saml: 'Single Sign-On (SAML 2.0)',
-    };
-
     setSsoNotice(
-      `SSO Integration Notice: Enterprise sign-in via ${providerNames[provider]} requires an active Identity Provider integration. In this frontend prototype, please use the email form or click "Create an Account" to test registration.`
+      `SSO Integration Notice: Enterprise sign-in via ${SSO_PROVIDER_NAMES[provider]} requires an active Identity Provider integration. In this frontend prototype, please use the email form or click "Create an Account" to test registration.`
     );
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (touched.email) {
+      setErrors((prev) => ({ ...prev, email: validateEmail(val) }));
+    }
+  };
+
+  const handleEmailBlur = () => {
+    setTouched((prev) => ({ ...prev, email: true }));
+    setErrors((prev) => ({ ...prev, email: validateEmail(email) }));
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setPassword(val);
+    if (touched.password) {
+      setErrors((prev) => ({
+        ...prev,
+        password: validatePassword(val, { minLength: 6 }),
+      }));
+    }
+  };
+
+  const handlePasswordBlur = () => {
+    setTouched((prev) => ({ ...prev, password: true }));
+    setErrors((prev) => ({
+      ...prev,
+      password: validatePassword(password, { minLength: 6 }),
+    }));
   };
 
   return (
     <div className="login-panel">
       {/* Top Bar with Brand & Back to Home */}
       <div className="login-top-bar">
-        <BrandLogo to="/login" />
+        <BrandLogo to="/" />
 
         <Link
-          to="/landing"
+          to="/"
           className="login-back-home-btn"
           aria-label="View Product Landing Page"
         >
@@ -103,7 +116,7 @@ export const LoginPage: React.FC = () => {
         </Link>
       </div>
 
-      {/* Mode Switch Tabs: Sign In & Sign Up buttons (Navigates between routes) */}
+      {/* Mode Switch Tabs: Sign In & Sign Up buttons */}
       <div className="login-mode-switch-wrapper" role="tablist" aria-label="Authentication modes">
         <button
           type="button"
@@ -193,26 +206,8 @@ export const LoginPage: React.FC = () => {
           label="Work Email"
           type="email"
           value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (touched.email) {
-              if (!e.target.value.trim()) {
-                setErrors((prev) => ({ ...prev, email: 'Work email is required.' }));
-              } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) {
-                setErrors((prev) => ({ ...prev, email: 'Please enter a valid work email address.' }));
-              } else {
-                setErrors((prev) => ({ ...prev, email: undefined }));
-              }
-            }
-          }}
-          onBlur={() => {
-            setTouched((prev) => ({ ...prev, email: true }));
-            if (!email.trim()) {
-              setErrors((prev) => ({ ...prev, email: 'Work email is required.' }));
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-              setErrors((prev) => ({ ...prev, email: 'Please enter a valid work email address.' }));
-            }
-          }}
+          onChange={handleEmailChange}
+          onBlur={handleEmailBlur}
           placeholder="name@company.com"
           autoComplete="email"
           icon={<MailIcon />}
@@ -225,26 +220,8 @@ export const LoginPage: React.FC = () => {
           id="im-password"
           label="Password"
           value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            if (touched.password) {
-              if (!e.target.value) {
-                setErrors((prev) => ({ ...prev, password: 'Password is required.' }));
-              } else if (e.target.value.length < 6) {
-                setErrors((prev) => ({ ...prev, password: 'Password must be at least 6 characters.' }));
-              } else {
-                setErrors((prev) => ({ ...prev, password: undefined }));
-              }
-            }
-          }}
-          onBlur={() => {
-            setTouched((prev) => ({ ...prev, password: true }));
-            if (!password) {
-              setErrors((prev) => ({ ...prev, password: 'Password is required.' }));
-            } else if (password.length < 6) {
-              setErrors((prev) => ({ ...prev, password: 'Password must be at least 6 characters.' }));
-            }
-          }}
+          onChange={handlePasswordChange}
+          onBlur={handlePasswordBlur}
           placeholder="••••••••••••"
           autoComplete="current-password"
           rightAction={

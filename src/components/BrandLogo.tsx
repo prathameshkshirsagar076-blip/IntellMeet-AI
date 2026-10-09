@@ -1,23 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { BrandIcon } from './icons';
 
-/* Brand Icon SVG matching original design */
-export const BrandIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-  >
-    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-    <path d="M2 17l10 5 10-5" />
-    <path d="M2 12l10 5 10-5" />
-  </svg>
-);
+export { BrandIcon };
 
 interface BrandLogoProps {
   to?: string;
@@ -26,7 +11,7 @@ interface BrandLogoProps {
 }
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
-  to = '/login',
+  to = '/',
   tagline = 'ENTERPRISE WORKSPACE',
   className = '',
 }) => {

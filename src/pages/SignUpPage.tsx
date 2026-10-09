@@ -4,59 +4,24 @@ import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
 import PrimaryButton from '../components/PrimaryButton';
-import SocialLoginButton, { type SSOProvider } from '../components/SocialLoginButton';
+import SocialLoginButton from '../components/SocialLoginButton';
+import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
+import {
+  UserIcon,
+  MailIcon,
+  BuildingIcon,
+  BriefcaseIcon,
+  ShieldIcon,
+  CheckCircleIcon,
+} from '../components/icons';
+import {
+  validateFullName,
+  validateEmail,
+  validatePassword,
+} from '../utils/validation';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
-
-/* Icons */
-const UserIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-const MailIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
-  </svg>
-);
-
-const BuildingIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
-    <line x1="9" y1="22" x2="9" y2="22.01" />
-    <line x1="15" y1="22" x2="15" y2="22.01" />
-    <line x1="9" y1="6" x2="9" y2="6.01" />
-    <line x1="15" y1="6" x2="15" y2="6.01" />
-    <line x1="9" y1="10" x2="9" y2="10.01" />
-    <line x1="15" y1="10" x2="15" y2="10.01" />
-    <line x1="9" y1="14" x2="9" y2="14.01" />
-    <line x1="15" y1="14" x2="15" y2="14.01" />
-  </svg>
-);
-
-const BriefcaseIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
-
-const CheckCircleIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
 
 interface FormErrors {
   fullName?: string;
@@ -97,29 +62,18 @@ export const SignUpPage: React.FC = () => {
   const validateAll = (): boolean => {
     const errs: FormErrors = {};
 
-    if (!fullName.trim()) {
-      errs.fullName = 'Full name is required.';
-    } else if (fullName.trim().length < 2) {
-      errs.fullName = 'Full name must be at least 2 characters.';
-    }
+    const nameErr = validateFullName(fullName);
+    if (nameErr) errs.fullName = nameErr;
 
-    if (!email.trim()) {
-      errs.email = 'Work email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errs.email = 'Please enter a valid work email address.';
-    }
+    const emailErr = validateEmail(email);
+    if (emailErr) errs.email = emailErr;
 
     if (!companyName.trim()) {
       errs.companyName = 'Company name is required.';
     }
 
-    if (!password) {
-      errs.password = 'Password is required.';
-    } else if (password.length < 8) {
-      errs.password = 'Password must be at least 8 characters.';
-    } else if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      errs.password = 'Password must include at least one letter and one number.';
-    }
+    const passErr = validatePassword(password, { minLength: 8, requireAlphaNum: true });
+    if (passErr) errs.password = passErr;
 
     if (!confirmPassword) {
       errs.confirmPassword = 'Please confirm your password.';
@@ -138,7 +92,6 @@ export const SignUpPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Mark all as touched
     setTouched({
       fullName: true,
       email: true,
@@ -152,9 +105,6 @@ export const SignUpPage: React.FC = () => {
       return;
     }
 
-    // Frontend-only success state!
-    // Never store passwords in localStorage/sessionStorage.
-    // Do not call nonexistent backend.
     setSubmittedData({
       name: fullName.trim(),
       email: email.trim(),
@@ -178,14 +128,8 @@ export const SignUpPage: React.FC = () => {
   };
 
   const handleSSOClick = (provider: SSOProvider) => {
-    const providerNames: Record<SSOProvider, string> = {
-      google: 'Google Workspace',
-      microsoft: 'Microsoft Azure AD / 365',
-      saml: 'Single Sign-On (SAML 2.0)',
-    };
-
     setSsoNotice(
-      `SSO Registration Notice: Self-service sign up with ${providerNames[provider]} requires enterprise domain federation. Please complete the registration form below to provision a demo workspace.`
+      `SSO Registration Notice: Self-service sign up with ${SSO_PROVIDER_NAMES[provider]} requires enterprise domain federation. Please complete the registration form below to provision a demo workspace.`
     );
   };
 
@@ -193,10 +137,10 @@ export const SignUpPage: React.FC = () => {
     <div className="login-panel">
       {/* Top Bar with Brand & Back to Home */}
       <div className="login-top-bar">
-        <BrandLogo to="/login" />
+        <BrandLogo to="/" />
 
         <Link
-          to="/landing"
+          to="/"
           className="login-back-home-btn"
           aria-label="View Product Landing Page"
         >
@@ -311,20 +255,15 @@ export const SignUpPage: React.FC = () => {
               type="text"
               value={fullName}
               onChange={(e) => {
-                setFullName(e.target.value);
+                const val = e.target.value;
+                setFullName(val);
                 if (touched.fullName) {
-                  if (!e.target.value.trim()) {
-                    setErrors((p) => ({ ...p, fullName: 'Full name is required.' }));
-                  } else {
-                    setErrors((p) => ({ ...p, fullName: undefined }));
-                  }
+                  setErrors((p) => ({ ...p, fullName: validateFullName(val) }));
                 }
               }}
               onBlur={() => {
                 setTouched((p) => ({ ...p, fullName: true }));
-                if (!fullName.trim()) {
-                  setErrors((p) => ({ ...p, fullName: 'Full name is required.' }));
-                }
+                setErrors((p) => ({ ...p, fullName: validateFullName(fullName) }));
               }}
               placeholder="Elena Rostova"
               autoComplete="name"
@@ -340,24 +279,15 @@ export const SignUpPage: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => {
-                setEmail(e.target.value);
+                const val = e.target.value;
+                setEmail(val);
                 if (touched.email) {
-                  if (!e.target.value.trim()) {
-                    setErrors((p) => ({ ...p, email: 'Work email is required.' }));
-                  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) {
-                    setErrors((p) => ({ ...p, email: 'Please enter a valid work email address.' }));
-                  } else {
-                    setErrors((p) => ({ ...p, email: undefined }));
-                  }
+                  setErrors((p) => ({ ...p, email: validateEmail(val) }));
                 }
               }}
               onBlur={() => {
                 setTouched((p) => ({ ...p, email: true }));
-                if (!email.trim()) {
-                  setErrors((p) => ({ ...p, email: 'Work email is required.' }));
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-                  setErrors((p) => ({ ...p, email: 'Please enter a valid work email address.' }));
-                }
+                setErrors((p) => ({ ...p, email: validateEmail(email) }));
               }}
               placeholder="elena.rostova@enterprise.com"
               autoComplete="email"
@@ -374,13 +304,13 @@ export const SignUpPage: React.FC = () => {
                 type="text"
                 value={companyName}
                 onChange={(e) => {
-                  setCompanyName(e.target.value);
+                  const val = e.target.value;
+                  setCompanyName(val);
                   if (touched.companyName) {
-                    if (!e.target.value.trim()) {
-                      setErrors((p) => ({ ...p, companyName: 'Company name is required.' }));
-                    } else {
-                      setErrors((p) => ({ ...p, companyName: undefined }));
-                    }
+                    setErrors((p) => ({
+                      ...p,
+                      companyName: val.trim() ? undefined : 'Company name is required.',
+                    }));
                   }
                 }}
                 onBlur={() => {
@@ -417,33 +347,24 @@ export const SignUpPage: React.FC = () => {
                 const val = e.target.value;
                 setPassword(val);
                 if (touched.password) {
-                  if (!val) {
-                    setErrors((p) => ({ ...p, password: 'Password is required.' }));
-                  } else if (val.length < 8) {
-                    setErrors((p) => ({ ...p, password: 'Password must be at least 8 characters.' }));
-                  } else if (!/[A-Za-z]/.test(val) || !/\d/.test(val)) {
-                    setErrors((p) => ({ ...p, password: 'Include at least one letter and one number.' }));
-                  } else {
-                    setErrors((p) => ({ ...p, password: undefined }));
-                  }
+                  setErrors((p) => ({
+                    ...p,
+                    password: validatePassword(val, { minLength: 8, requireAlphaNum: true }),
+                  }));
                 }
                 if (touched.confirmPassword && confirmPassword) {
-                  if (confirmPassword !== val) {
-                    setErrors((p) => ({ ...p, confirmPassword: 'Passwords do not match.' }));
-                  } else {
-                    setErrors((p) => ({ ...p, confirmPassword: undefined }));
-                  }
+                  setErrors((p) => ({
+                    ...p,
+                    confirmPassword: confirmPassword !== val ? 'Passwords do not match.' : undefined,
+                  }));
                 }
               }}
               onBlur={() => {
                 setTouched((p) => ({ ...p, password: true }));
-                if (!password) {
-                  setErrors((p) => ({ ...p, password: 'Password is required.' }));
-                } else if (password.length < 8) {
-                  setErrors((p) => ({ ...p, password: 'Password must be at least 8 characters.' }));
-                } else if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-                  setErrors((p) => ({ ...p, password: 'Include at least one letter and one number.' }));
-                }
+                setErrors((p) => ({
+                  ...p,
+                  password: validatePassword(password, { minLength: 8, requireAlphaNum: true }),
+                }));
               }}
               placeholder="Minimum 8 characters"
               autoComplete="new-password"

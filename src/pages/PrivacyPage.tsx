@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../layouts/LegalLayout';
+import { env } from '../config/env';
 
 export const PrivacyPage: React.FC = () => {
   return (
@@ -99,7 +100,7 @@ export const PrivacyPage: React.FC = () => {
             <h2>6. Policy Updates &amp; Privacy Inquiries</h2>
             <p>
               We may revise this placeholder policy as IntellMeet evolves. For privacy inquiries or questions regarding workspace data
-              retention options, please reach out to <code>privacy@intellmeet-ai.internal</code>.
+              retention options, please reach out to <code>{env.privacyEmail}</code>.
             </p>
           </section>
         </div>

@@ -3,29 +3,10 @@ import { Link } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PrimaryButton from '../components/PrimaryButton';
+import { MailIcon, MailCheckIcon, ShieldIcon } from '../components/icons';
+import { validateEmail } from '../utils/validation';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
-
-const MailIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
-  </svg>
-);
-
-const MailCheckIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9" />
-    <polyline points="22,6 12,13 2,6" />
-    <polyline points="16 19 19 22 24 17" />
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -34,17 +15,10 @@ export const ForgotPasswordPage: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
 
-  const validate = () => {
-    if (!email.trim()) {
-      setError('Work email is required.');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Please enter a valid work email address.');
-      return false;
-    }
-    setError(undefined);
-    return true;
+  const validate = (): boolean => {
+    const err = validateEmail(email);
+    setError(err);
+    return !err;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -55,17 +29,28 @@ export const ForgotPasswordPage: React.FC = () => {
       return;
     }
 
-    // Frontend-only confirmation state.
-    // Explicit requirement: "Do not claim that an actual email was sent."
     setSubmittedEmail(email.trim());
     setSubmitted(true);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (touched) {
+      setError(validateEmail(val));
+    }
+  };
+
+  const handleEmailBlur = () => {
+    setTouched(true);
+    validate();
   };
 
   return (
     <div className="login-panel">
       {/* Top Bar with Brand & Back to Home */}
       <div className="login-top-bar">
-        <BrandLogo to="/login" />
+        <BrandLogo to="/" />
 
         <Link
           to="/login"
@@ -119,22 +104,8 @@ export const ForgotPasswordPage: React.FC = () => {
             label="Work Email"
             type="email"
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (touched) {
-                if (!e.target.value.trim()) {
-                  setError('Work email is required.');
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) {
-                  setError('Please enter a valid work email address.');
-                } else {
-                  setError(undefined);
-                }
-              }
-            }}
-            onBlur={() => {
-              setTouched(true);
-              validate();
-            }}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
             placeholder="name@company.com"
             autoComplete="email"
             icon={<MailIcon />}
