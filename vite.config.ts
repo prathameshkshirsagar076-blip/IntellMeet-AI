@@ -10,6 +10,10 @@ export default defineConfig({
   ],
   server: {
     proxy: {
+      '/api/v1/chat': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'https://eikpbdtfv5.execute-api.eu-west-3.amazonaws.com',
         changeOrigin: true,

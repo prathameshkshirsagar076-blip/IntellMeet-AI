@@ -338,7 +338,7 @@ export const DashboardLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="im-main">
+      <div className={`im-main ${location.pathname.startsWith('/chat') ? 'im-main-chat-mode' : ''}`}>
         {/* Sticky Topbar */}
         <header className="im-topbar" role="banner">
           <div className="im-topbar-left">

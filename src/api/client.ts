@@ -58,11 +58,25 @@ export const apiClient = {
     }
     const primaryUrl = `${base}${cleanEndpoint}`;
 
+    const method = (options.method || 'GET').toUpperCase();
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       Accept: 'application/json',
       ...(options.headers as Record<string, string>),
     };
+
+    let bodyPayload = options.body;
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+      if (bodyPayload === undefined || bodyPayload === null) {
+        bodyPayload = '{}';
+      }
+      if (!headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+    } else if (bodyPayload !== undefined) {
+      if (!headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+    }
 
     // Attach Bearer token if available
     const token = getAccessToken();
@@ -76,6 +90,7 @@ export const apiClient = {
         response = await fetch(primaryUrl, {
           ...options,
           headers,
+          body: bodyPayload,
           credentials: 'include',
           signal: controller.signal,
         });
@@ -271,6 +286,14 @@ export const apiClient = {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  },
+
+  patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   },

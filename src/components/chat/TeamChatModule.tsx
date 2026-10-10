@@ -4,9 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useMeetings } from '../../context/MeetingContext';
 import { usersApi } from '../../api/users.api';
 import { chatApi } from '../../api/chat.api';
-import { chatSocketService } from '../../services/chatSocket.service';
+import { chatSocketService, type ConnectionStatus } from '../../services/chatSocket.service';
 import type { UserItem } from '../../types/user';
-import type { ChatConversation, ChatMessage } from '../../types/chat';
+import type {
+  ChatConversation,
+  ChatMessage,
+  ChatSearchItem,
+  RawChatMessageItem,
+} from '../../types/chat';
 import { toast } from '../toast/toast';
 import {
   SearchIcon,
@@ -15,6 +20,7 @@ import {
   ChatIcon,
   PaperclipIcon,
   ChevronLeftIcon,
+  UsersIcon,
 } from '../icons';
 
 export interface TeamChatModuleProps {
@@ -22,6 +28,58 @@ export interface TeamChatModuleProps {
   onClearSelectedRecipient?: () => void;
   fullHeight?: boolean;
 }
+
+const TrashIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+const EditIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const InfoIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="16" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+);
 
 function getInitials(name?: string): string {
   if (!name || !name.trim()) return 'U';
@@ -51,6 +109,42 @@ function formatChatTime(dateStr?: string | null): string {
   }
 }
 
+function normalizeRawMessage(raw: RawChatMessageItem, currentUserId?: string, fallbackOtherName = 'Teammate'): ChatMessage {
+  const senderIdStr =
+    typeof raw.senderId === 'object' && raw.senderId
+      ? String((raw.senderId as { id?: string; _id?: string }).id || (raw.senderId as { _id?: string })._id)
+      : String(raw.senderId || '');
+
+  const isMine = senderIdStr === currentUserId;
+  const senderName = isMine
+    ? 'You'
+    : typeof raw.senderId === 'object' && (raw.senderId as { name?: string })?.name
+    ? (raw.senderId as { name?: string }).name!
+    : fallbackOtherName;
+
+  let status: ChatMessage['status'] = 'sent';
+  if (raw.receipt?.readAt) {
+    status = 'read';
+  } else if (raw.receipt?.deliveredAt) {
+    status = 'delivered';
+  }
+
+  return {
+    id: String(raw.id || raw._id || `msg-${Math.random()}`),
+    conversationId: String(raw.conversationId),
+    senderId: senderIdStr,
+    senderName,
+    clientMessageId: raw.clientMessageId,
+    content: raw.isDeleted ? 'This message was deleted' : raw.content,
+    createdAt: raw.createdAt || new Date().toISOString(),
+    status,
+    isMine,
+    isDeleted: Boolean(raw.isDeleted),
+    editedAt: raw.editedAt || null,
+    receipt: raw.receipt,
+  };
+}
+
 export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   selectedRecipient,
   onClearSelectedRecipient,
@@ -60,22 +154,44 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   const { user: currentUser } = useAuth();
   const { createMeeting } = useMeetings();
 
-  // Search box state for searching all workspace users via API
+  // Search box state: integrates GET /api/v1/users?k=... & GET /chat/contacts & GET /chat/search?q=...
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<UserItem[]>([]);
-  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [userSearchResults, setUserSearchResults] = useState<UserItem[]>([]);
+  const [msgSearchResults, setMsgSearchResults] = useState<ChatSearchItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTab, setSearchTab] = useState<'users' | 'messages'>('users');
 
-  // Conversations list & active selection
+  // Conversations list & active selection (GET /chat/conversations & GET /chat/conversations/:id)
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<ChatConversation | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [conversationsError, setConversationsError] = useState<string | null>(null);
 
-  // Messages thread for currently active conversation
+  // Messages thread for currently active conversation (GET /chat/conversations/:id/messages)
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Pagination for message history (cursor pagination)
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+  // Highlight effect when jumping to a searched message
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+
+  // Editing message state (PATCH /chat/messages/:id)
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editInput, setEditInput] = useState('');
+
+  // Browse all teammates & contacts modal state (GET /chat/contacts & GET /api/v1/users)
+  const [browseModalOpen, setBrowseModalOpen] = useState(false);
+  const [browseModalTab, setBrowseModalTab] = useState<'contacts' | 'directory'>('contacts');
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [contactsList, setContactsList] = useState<UserItem[]>([]);
+  const [directoryList, setDirectoryList] = useState<UserItem[]>([]);
+  const [isLoadingModalList, setIsLoadingModalList] = useState(false);
 
   // Real-time presence & typing state
   const [presenceMap, setPresenceMap] = useState<Record<string, 'online' | 'offline'>>({});
@@ -83,6 +199,21 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
   // Mobile navigation pane toggle ('list' | 'chat')
   const [mobileActivePane, setMobileActivePane] = useState<'list' | 'chat'>('list');
+
+  // Socket.IO real-time connection status
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
+    chatSocketService.getConnectionStatus()
+  );
+
+  // Hide conversation confirmation modal
+  const [hideModalOpen, setHideModalOpen] = useState(false);
+  const [isHidingConv, setIsHidingConv] = useState(false);
+
+  // Message details modal (GET /chat/messages/:id)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsMessage, setDetailsMessage] = useState<RawChatMessageItem | null>(null);
+  const [detailsMsgId, setDetailsMsgId] = useState<string | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -96,7 +227,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     selectedConvRef.current = selectedConv;
   }, [selectedConv]);
 
-  // 1. Initial conversations load from backend API
+  // 1. Initial conversations load from backend API: GET /chat/conversations
   const loadConversations = useCallback(async () => {
     setIsLoadingConversations(true);
     setConversationsError(null);
@@ -129,26 +260,37 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       if (!incoming) return;
 
       const convId = String(incoming.conversationId);
+      const incomingMsgId = String(incoming.id || incoming._id);
       const senderIdStr =
         typeof incoming.senderId === 'object' && incoming.senderId
           ? String((incoming.senderId as { id?: string; _id?: string }).id || (incoming.senderId as { _id?: string })._id)
           : String(incoming.senderId || '');
       const isMine = senderIdStr === currentUser?.id;
 
+      // Automatically acknowledge delivery: POST /chat/messages/:id/delivered & Socket.IO message:delivered
+      if (!isMine && incomingMsgId) {
+        chatSocketService.markAsDelivered(incomingMsgId);
+        chatApi.markAsDelivered(incomingMsgId).catch(() => {});
+      }
+
       // Update messages thread if this message belongs to active conversation
       if (selectedConvRef.current && selectedConvRef.current.id === convId) {
         setMessages((prev) => {
-          // Prevent duplicates by clientMessageId or id
-          const incomingMsgId = String(incoming.id || incoming._id);
           const alreadyExists = prev.some(
             (m) =>
               m.id === incomingMsgId ||
+              (incoming.clientMessageId && m.clientMessageId === incoming.clientMessageId) ||
               (incoming.clientMessageId && m.id === incoming.clientMessageId)
           );
+
           if (alreadyExists) {
             return prev.map((m) =>
               m.id === incoming.clientMessageId || m.id === incomingMsgId
-                ? { ...m, id: incomingMsgId, status: 'delivered' }
+                ? {
+                    ...m,
+                    id: incomingMsgId,
+                    status: m.status === 'read' ? 'read' : incoming.receipt?.readAt ? 'read' : 'delivered',
+                  }
                 : m
             );
           }
@@ -168,13 +310,13 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
               senderName,
               content: incoming.content,
               createdAt: incoming.createdAt || new Date().toISOString(),
-              status: 'delivered',
+              status: isMine ? 'sent' : 'delivered',
               isMine,
             },
           ];
         });
 
-        // Acknowledge read receipt if peer sent it
+        // Acknowledge read receipt if peer sent it: POST /chat/conversations/:id/read & Socket.IO message:read
         if (!isMine) {
           chatSocketService.markAsRead(convId);
           chatApi.markAsRead(convId).catch(() => {});
@@ -198,7 +340,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
           const others = prev.filter((_, idx) => idx !== existingIdx);
           return [updated, ...others];
         } else {
-          // If conversation wasn't listed, refresh list from backend
+          // If brand new conversation, re-fetch list from backend
           chatApi.getConversations({ limit: 50 }).then((res) => {
             if (res?.data?.conversations) {
               setConversations(res.data.conversations);
@@ -207,6 +349,85 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
           return prev;
         }
       });
+    });
+
+    // Listener: Message edited (PATCH /chat/messages/:id response broadcast)
+    const unsubMsgEdited = chatSocketService.onMessageEdited((data) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === data.messageId
+            ? { ...m, content: data.content, editedAt: data.editedAt || new Date().toISOString() }
+            : m
+        )
+      );
+
+      // Also update snippet in conversations list if matching last message
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === data.conversationId
+            ? { ...c, lastMessage: data.content }
+            : c
+        )
+      );
+    });
+
+    // Listener: Message deleted (DELETE /chat/messages/:id response broadcast)
+    const unsubMsgDeleted = chatSocketService.onMessageDeleted((data) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === data.messageId
+            ? { ...m, content: 'This message was deleted', isDeleted: true }
+            : m
+        )
+      );
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === data.conversationId
+            ? { ...c, lastMessage: 'This message was deleted' }
+            : c
+        )
+      );
+    });
+
+    // Listener: Real-time Message Read Receipt
+    const unsubMsgRead = chatSocketService.onMessageRead((data) => {
+      if (selectedConvRef.current?.id === data.conversationId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.isMine
+              ? {
+                  ...m,
+                  status: 'read',
+                  receipt: {
+                    deliveredAt: m.receipt?.deliveredAt || data.readAt,
+                    readAt: data.readAt,
+                  },
+                }
+              : m
+          )
+        );
+      }
+    });
+
+    // Listener: Real-time Message Delivery Receipt
+    const unsubMsgDelivered = chatSocketService.onMessageDelivered((data) => {
+      if (selectedConvRef.current?.id === data.conversationId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === data.messageId && m.status !== 'read'
+              ? {
+                  ...m,
+                  status: 'delivered',
+                  receipt: {
+                    ...m.receipt,
+                    deliveredAt: data.deliveredAt,
+                  },
+                }
+              : m
+          )
+        );
+      }
     });
 
     // Listener: Peer typing indicator
@@ -224,62 +445,115 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       }));
     });
 
+    // Listener: Socket.IO Connection state tracking
+    const unsubConnStatus = chatSocketService.onConnectionChange((status) => {
+      setConnectionStatus(status);
+    });
+
     return () => {
       unsubMessage();
+      unsubMsgEdited();
+      unsubMsgDeleted();
+      unsubMsgRead();
+      unsubMsgDelivered();
       unsubTyping();
       unsubPresence();
+      unsubConnStatus();
     };
   }, [currentUser?.id]);
 
-  // 3. Load messages & join room whenever selected conversation changes
+  // 3. Load active conversation details & messages:
+  // Calls GET /chat/conversations/:id
+  // Calls GET /chat/conversations/:id/unread-count
+  // Calls GET /chat/conversations/:id/messages
+  // Calls POST /chat/conversations/:id/read
   useEffect(() => {
     if (!selectedConv) {
       setMessages([]);
+      setNextCursor(null);
+      setHasMoreMessages(false);
       return;
     }
 
     const convId = selectedConv.id;
     setIsLoadingMessages(true);
     setIsPeerTyping(false);
+    setEditingMsgId(null);
 
     // Join real-time Socket.IO room for this conversation
     chatSocketService.joinConversation(convId);
 
-    // Fetch conversation message history
+    // Query 1: Get Conversation Details: GET /chat/conversations/:id
+    chatApi.getConversationById(convId).then((res) => {
+      if (res?.data?.conversation) {
+        const fetchedConv = res.data.conversation;
+        setSelectedConv((prev) =>
+          prev && prev.id === convId
+            ? {
+                ...prev,
+                participants: fetchedConv.participants,
+                otherParticipant: fetchedConv.otherParticipant || prev.otherParticipant,
+                unreadCount: fetchedConv.unreadCount ?? 0,
+              }
+            : prev
+        );
+      }
+    }).catch(() => {});
+
+    // Query 2: Get Unread Count: GET /chat/conversations/:id/unread-count
+    chatApi.getUnreadCount(convId).then((res) => {
+      if (res?.data) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === convId ? { ...c, unreadCount: res.data.unreadCount } : c
+          )
+        );
+      }
+    }).catch(() => {});
+
+    // Query 3: Fetch conversation message history: GET /chat/conversations/:id/messages
     chatApi.getMessages(convId, { limit: 50 })
       .then((res) => {
         if (res?.data?.messages && Array.isArray(res.data.messages)) {
-          const mapped: ChatMessage[] = res.data.messages.map((m) => {
+          const rawList = res.data.messages;
+          const mapped: ChatMessage[] = rawList.map((m) =>
+            normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant.name)
+          );
+
+          setMessages(mapped);
+          setNextCursor(res.data.nextCursor || null);
+          setHasMoreMessages(Boolean(res.data.hasMore));
+
+          // Automatically acknowledge delivery for any undelivered incoming messages:
+          // POST /chat/messages/:id/delivered
+          rawList.forEach((m) => {
             const senderIdStr =
               typeof m.senderId === 'object' && m.senderId
                 ? String((m.senderId as { id?: string; _id?: string }).id || (m.senderId as { _id?: string })._id)
                 : String(m.senderId || '');
             const isMine = senderIdStr === currentUser?.id;
-            const senderName = isMine
-              ? 'You'
-              : typeof m.senderId === 'object' && (m.senderId as { name?: string })?.name
-              ? (m.senderId as { name?: string }).name!
-              : selectedConv.otherParticipant.name;
+            const messageId = String(m.id || m._id);
 
-            return {
-              id: String(m.id || m._id || `msg-${Math.random()}`),
-              conversationId: convId,
-              senderId: senderIdStr,
-              senderName,
-              content: m.content,
-              createdAt: m.createdAt,
-              status: 'sent',
-              isMine,
-            };
+            if (!isMine && !m.receipt?.deliveredAt && messageId) {
+              chatApi.markAsDelivered(messageId).catch(() => {});
+            }
           });
-          setMessages(mapped);
         } else {
           setMessages([]);
+          setNextCursor(null);
+          setHasMoreMessages(false);
         }
 
-        // Mark conversation as read
+        // Mark conversation as read: POST /chat/conversations/:id/read
         chatSocketService.markAsRead(convId);
-        chatApi.markAsRead(convId).catch(() => {});
+        chatApi.markAsRead(convId)
+          .then(() => {
+            // Patch unread count in conversations list to 0
+            setConversations((prev) =>
+              prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
+            );
+          })
+          .catch(() => {});
       })
       .catch(() => {
         setMessages([]);
@@ -294,17 +568,57 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConv?.id, currentUser?.id]);
 
-  // Scroll to bottom on message list change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping]);
+  // 4. Cursor Pagination - Load older messages: GET /chat/conversations/:id/messages?cursor=...
+  const handleLoadOlderMessages = async () => {
+    if (!selectedConv || !nextCursor || isLoadingOlder) return;
 
-  // 4. Debounced user search using the All Users API (GET /api/v1/users?k=...)
+    setIsLoadingOlder(true);
+    const convId = selectedConv.id;
+    try {
+      const res = await chatApi.getMessages(convId, {
+        cursor: nextCursor,
+        direction: 'before',
+        limit: 25,
+      });
+
+      if (res?.data?.messages && Array.isArray(res.data.messages)) {
+        const older = res.data.messages.map((m) =>
+          normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant.name)
+        );
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const filteredOlder = older.filter((m) => !existingIds.has(m.id));
+          return [...filteredOlder, ...prev];
+        });
+
+        setNextCursor(res.data.nextCursor || null);
+        setHasMoreMessages(Boolean(res.data.hasMore));
+      }
+    } catch {
+      toast.error('Failed to load older messages');
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  };
+
+  // Scroll to bottom on message list change unless loading older messages
+  useEffect(() => {
+    if (!isLoadingOlder) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isPeerTyping, isLoadingOlder]);
+
+  // 5. Integrated Search in Chat Search Box:
+  // Calls GET /api/v1/users?k=query (All Users API with search query parameter)
+  // Calls GET /chat/contacts?search=query (List Contacts API)
+  // Calls GET /chat/search?q=query (Chat Messages Search API)
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
-      setSearchResults([]);
-      setIsSearchingUsers(false);
+      setUserSearchResults([]);
+      setMsgSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
@@ -314,29 +628,70 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
     const controller = new AbortController();
     searchAbortRef.current = controller;
-    setIsSearchingUsers(true);
+    setIsSearching(true);
 
     const timer = setTimeout(async () => {
       try {
-        const res = await usersApi.getUsers({
+        // Query 1: Users API with query keyword 'k': GET /api/v1/users?k=...
+        const usersReq = usersApi.getUsers({
           k: trimmed,
-          limit: 10,
+          limit: 20,
           signal: controller.signal,
         });
+
+        // Query 2: Contacts API with query search: GET /chat/contacts?search=...
+        const contactsReq = chatApi.getContacts({
+          search: trimmed,
+          limit: 20,
+        }).catch(() => null);
+
+        // Query 3: Chat Search API with query 'q': GET /chat/search?q=...
+        const chatReq = chatApi.search({
+          q: trimmed,
+          limit: 20,
+        }).catch(() => null);
+
+        const [usersRes, contactsRes, chatRes] = await Promise.all([
+          usersReq,
+          contactsReq,
+          chatReq,
+        ]);
+
         if (controller.signal.aborted) return;
-        const usersList = (res?.data?.users || []).filter(
-          (u) => u.id !== currentUser?.id
-        );
-        setSearchResults(usersList);
+
+        // Combine Users API + Contacts API, deduplicate by user ID, filter out current user
+        const combinedMap = new Map<string, UserItem>();
+
+        (usersRes?.data?.users || []).forEach((u) => {
+          if (u.id !== currentUser?.id) {
+            combinedMap.set(u.id, u);
+          }
+        });
+
+        (contactsRes?.data?.contacts || []).forEach((c) => {
+          if (c.id !== currentUser?.id && !combinedMap.has(c.id)) {
+            combinedMap.set(c.id, c);
+          }
+        });
+
+        setUserSearchResults(Array.from(combinedMap.values()));
+
+        // Patch message search results: GET /chat/search
+        if (chatRes?.data?.messages && Array.isArray(chatRes.data.messages)) {
+          setMsgSearchResults(chatRes.data.messages);
+        } else {
+          setMsgSearchResults([]);
+        }
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return;
-        setSearchResults([]);
+        setUserSearchResults([]);
+        setMsgSearchResults([]);
       } finally {
         if (!controller.signal.aborted) {
-          setIsSearchingUsers(false);
+          setIsSearching(false);
         }
       }
-    }, 300);
+    }, 260);
 
     return () => {
       clearTimeout(timer);
@@ -344,11 +699,13 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     };
   }, [searchQuery, currentUser?.id]);
 
-  // 5. Select or start a conversation with a chosen user
+  // 6. Select or start a conversation with a chosen user: POST /chat/conversations
   const handleSelectUser = useCallback(
     async (recipient: UserItem) => {
       setSearchQuery('');
-      setSearchResults([]);
+      setUserSearchResults([]);
+      setMsgSearchResults([]);
+      setBrowseModalOpen(false);
       setMobileActivePane('chat');
 
       // Check if conversation already exists in current list
@@ -361,7 +718,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         return;
       }
 
-      // Create conversation on backend via POST /api/v1/chat/conversations
+      // Create or get conversation on backend: POST /chat/conversations
       try {
         const res = await chatApi.createConversation(recipient.id);
         const convData = res?.data?.conversation;
@@ -377,13 +734,14 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
             role: recipient.role,
             isActive: recipient.isActive,
           },
-          lastMessage: null,
-          lastMessageAt: new Date().toISOString(),
+          lastMessage: convData?.lastMessage || null,
+          lastMessageAt: convData?.lastMessageAt || new Date().toISOString(),
           unreadCount: 0,
           createdAt: convData?.createdAt || new Date().toISOString(),
         };
 
-        setConversations((prev) => [newConversation, ...prev]);
+        // Proper response patching: update conversations list and select active
+        setConversations((prev) => [newConversation, ...prev.filter((c) => c.id !== convId)]);
         setSelectedConv(newConversation);
       } catch (err: unknown) {
         toast.error((err as Error)?.message || 'Failed to initialize conversation');
@@ -392,7 +750,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     [conversations]
   );
 
-  // Sync external recipient prop (e.g., navigated from Team directory card)
+  // Sync external recipient prop (from Team & People page navigation)
   useEffect(() => {
     if (selectedRecipient) {
       handleSelectUser(selectedRecipient);
@@ -400,7 +758,107 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }
   }, [selectedRecipient, handleSelectUser, onClearSelectedRecipient]);
 
-  // 6. Handle input typing notification
+  // 7. Click on a searched message result:
+  // Calls GET /chat/messages/:messageId & GET /chat/conversations/:conversationId
+  const handleSelectSearchedMessage = async (searchItem: ChatSearchItem) => {
+    setSearchQuery('');
+    setMobileActivePane('chat');
+
+    try {
+      // 1. Fetch single message details: GET /chat/messages/:messageId
+      const msgRes = await chatApi.getMessageById(searchItem.id);
+      const rawMsg = msgRes?.data?.message;
+
+      // 2. Fetch conversation details if not active: GET /chat/conversations/:conversationId
+      if (!selectedConv || selectedConv.id !== searchItem.conversationId) {
+        let targetConv = conversations.find((c) => c.id === searchItem.conversationId);
+        if (!targetConv) {
+          const convRes = await chatApi.getConversationById(searchItem.conversationId);
+          if (convRes?.data?.conversation) {
+            const fetched = convRes.data.conversation;
+            const otherP =
+              fetched.otherParticipant ||
+              fetched.participants?.find((p) => p.id !== currentUser?.id) || {
+                id: 'unknown',
+                name: 'Teammate',
+                email: '',
+              };
+
+            targetConv = {
+              id: fetched.id,
+              type: 'direct',
+              otherParticipant: otherP,
+              lastMessage: fetched.lastMessage,
+              lastMessageAt: fetched.lastMessageAt,
+              unreadCount: 0,
+            };
+            setConversations((prev) => [targetConv!, ...prev]);
+          }
+        }
+
+        if (targetConv) {
+          setSelectedConv(targetConv);
+        }
+      }
+
+      // 3. Patch message into stream and highlight
+      if (rawMsg) {
+        const norm = normalizeRawMessage(rawMsg, currentUser?.id, selectedConv?.otherParticipant.name);
+        setMessages((prev) => {
+          if (!prev.some((m) => m.id === norm.id)) {
+            return [...prev, norm];
+          }
+          return prev;
+        });
+      }
+
+      setHighlightedMsgId(searchItem.id);
+      setTimeout(() => setHighlightedMsgId(null), 3000);
+    } catch {
+      toast.error('Unable to retrieve message details');
+    }
+  };
+
+  // 8. Open Browse Modal & Fetch Contacts (GET /chat/contacts) or Directory (GET /api/v1/users)
+  const handleOpenBrowseModal = async () => {
+    setBrowseModalOpen(true);
+    setBrowseModalTab('contacts');
+    setModalSearchQuery('');
+    loadModalData('contacts', '');
+  };
+
+  const loadModalData = async (tab: 'contacts' | 'directory', search: string) => {
+    setIsLoadingModalList(true);
+    try {
+      if (tab === 'contacts') {
+        // GET /chat/contacts
+        const res = await chatApi.getContacts({ search: search.trim() || undefined, limit: 50 });
+        const list = (res?.data?.contacts || []).filter((u) => u.id !== currentUser?.id);
+        setContactsList(list);
+      } else {
+        // GET /api/v1/users?k=...
+        const res = await usersApi.getUsers({ k: search.trim() || undefined, page: 1, limit: 50 });
+        const list = (res?.data?.users || []).filter((u) => u.id !== currentUser?.id);
+        setDirectoryList(list);
+      }
+    } catch {
+      toast.error('Failed to load teammates list');
+    } finally {
+      setIsLoadingModalList(false);
+    }
+  };
+
+  const handleModalTabChange = (tab: 'contacts' | 'directory') => {
+    setBrowseModalTab(tab);
+    loadModalData(tab, modalSearchQuery);
+  };
+
+  const handleModalSearchChange = (val: string) => {
+    setModalSearchQuery(val);
+    loadModalData(browseModalTab, val);
+  };
+
+  // 9. Typing Notification Handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setMessageInput(val);
@@ -424,10 +882,14 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }, 1500);
   };
 
-  // 7. Send message via Socket.IO
+  // 10. Send message via Socket.IO
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || messageInput).trim();
     if (!text || !selectedConv || isSending) return;
+    if (text.length > 5000) {
+      toast.warning('Message cannot exceed 5000 characters');
+      return;
+    }
 
     setIsSending(true);
     const convId = selectedConv.id;
@@ -444,6 +906,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       createdAt: nowIso,
       status: 'sending',
       isMine: true,
+      clientMessageId,
     };
 
     setMessages((prev) => [...prev, optimisticMsg]);
@@ -479,7 +942,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         if (ack?.success && ack.message) {
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === clientMessageId
+              m.id === clientMessageId || m.clientMessageId === clientMessageId
                 ? {
                     ...m,
                     id: String(ack.message?.id || clientMessageId),
@@ -495,7 +958,144 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     );
   };
 
-  // 8. Instant Quick Meeting action from chat header
+  // 11. Edit message: PATCH /chat/messages/:messageId
+  const handleSaveEditMessage = async (messageId: string) => {
+    const text = editInput.trim();
+    if (!text) {
+      toast.warning('Message content cannot be empty');
+      return;
+    }
+    if (text.length > 5000) {
+      toast.warning('Message cannot exceed 5000 characters');
+      return;
+    }
+
+    try {
+      const res = await chatApi.editMessage(messageId, text);
+      const updatedMsg = res?.data?.message;
+
+      // Patch message into state
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: text,
+                editedAt: updatedMsg?.editedAt || new Date().toISOString(),
+              }
+            : m
+        )
+      );
+
+      // If this was the last message, patch conversation preview
+      if (selectedConv) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConv.id ? { ...c, lastMessage: text } : c
+          )
+        );
+      }
+
+      setEditingMsgId(null);
+      setEditInput('');
+      toast.success('Message updated');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to edit message');
+    }
+  };
+
+  // 12. Delete message: DELETE /chat/messages/:messageId
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this message? This action will remove its content for all participants.')) return;
+
+    try {
+      await chatApi.deleteMessage(messageId);
+
+      // Proper response patching: mark deleted
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: 'This message was deleted', isDeleted: true }
+            : m
+        )
+      );
+
+      if (selectedConv) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConv.id ? { ...c, lastMessage: 'This message was deleted' } : c
+          )
+        );
+      }
+
+      toast.success('Message deleted');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to delete message');
+    }
+  };
+
+  // 13. Message Details: GET /chat/messages/:messageId
+  const handleViewMessageDetails = async (messageId: string) => {
+    setDetailsMsgId(messageId);
+    setDetailsModalOpen(true);
+    setDetailsLoading(true);
+    try {
+      const res = await chatApi.getMessageById(messageId);
+      if (res?.data?.message) {
+        setDetailsMessage(res.data.message);
+      } else {
+        const local = messages.find((m) => m.id === messageId);
+        if (local) {
+          setDetailsMessage({
+            id: local.id,
+            conversationId: local.conversationId,
+            senderId: local.senderId,
+            content: local.content,
+            createdAt: local.createdAt,
+            editedAt: local.editedAt,
+            deletedAt: local.deletedAt,
+            isDeleted: local.isDeleted,
+            receipt: local.receipt,
+          });
+        }
+      }
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to retrieve message details');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  // 14. Hide conversation: DELETE /chat/conversations/:conversationId
+  const handleConfirmHideConversation = async () => {
+    if (!selectedConv || isHidingConv) return;
+    setIsHidingConv(true);
+    const convId = selectedConv.id;
+    try {
+      await chatApi.deleteConversation(convId);
+
+      // Proper response patching: remove conversation from user's state
+      setConversations((prev) => {
+        const nextList = prev.filter((c) => c.id !== convId);
+        if (nextList.length > 0) {
+          setSelectedConv(nextList[0]);
+        } else {
+          setSelectedConv(null);
+        }
+        return nextList;
+      });
+
+      setMessages([]);
+      setHideModalOpen(false);
+      toast.success('Conversation hidden from inbox');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to hide conversation');
+    } finally {
+      setIsHidingConv(false);
+    }
+  };
+
+  // Quick 1:1 Instant Meeting
   const handleStartInstantMeet = () => {
     if (!selectedConv) return;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -519,76 +1119,91 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
   return (
     <div className={`im-chat-page-card ${fullHeight ? 'im-chat-page-container' : ''}`}>
-      {/* Module Header */}
-      <div className="im-chat-module-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 'var(--im-radius-lg)',
-              backgroundColor: 'rgba(2, 132, 199, 0.12)',
-              color: 'var(--im-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ChatIcon size={20} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--im-text-primary)' }}>
-                Team Direct Messaging & Chat
-              </h2>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: 'var(--im-radius-full)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  color: 'var(--im-success)',
-                }}
-              >
-                Live Direct
-              </span>
-            </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', margin: '2px 0 0 0' }}>
-              Real-time collaboration with teammates, presence status, and message history.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Main Split Container */}
       <div
         className={`im-chat-container ${
           mobileActivePane === 'chat' ? 'mobile-show-chat' : 'mobile-show-list'
         } ${fullHeight ? 'im-chat-page-container' : ''}`}
       >
-        {/* Left Sidebar: Conversations & Search */}
+        {/* Left Sidebar: Conversations & Integrated Search */}
         <div className="im-chat-sidebar">
           <div className="im-chat-sidebar-top">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--im-text-primary)' }}>
-                Conversations
-              </span>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: 'var(--im-text-muted)',
-                  backgroundColor: 'var(--im-bg-subtle)',
-                  padding: '1px 6px',
-                  borderRadius: 'var(--im-radius-full)',
-                }}
-              >
-                {conversations.length}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--im-text-primary)' }}>
+                  Conversations
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.625rem',
+                    padding: '1px 6px',
+                    borderRadius: 'var(--im-radius-full)',
+                    backgroundColor:
+                      connectionStatus === 'connected'
+                        ? 'rgba(16, 185, 129, 0.12)'
+                        : connectionStatus === 'connecting'
+                        ? 'rgba(245, 158, 11, 0.12)'
+                        : 'rgba(156, 163, 175, 0.12)',
+                    color:
+                      connectionStatus === 'connected'
+                        ? '#10b981'
+                        : connectionStatus === 'connecting'
+                        ? '#f59e0b'
+                        : '#9ca3af',
+                    fontWeight: 600,
+                  }}
+                  title={`Socket.IO Real-time: ${connectionStatus}`}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      backgroundColor:
+                        connectionStatus === 'connected'
+                          ? '#10b981'
+                          : connectionStatus === 'connecting'
+                          ? '#f59e0b'
+                          : '#9ca3af',
+                    }}
+                  />
+                  {connectionStatus === 'connected'
+                    ? 'Live'
+                    : connectionStatus === 'connecting'
+                    ? 'Connecting'
+                    : 'Offline'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: 'var(--im-text-muted)',
+                    backgroundColor: 'var(--im-bg-subtle)',
+                    padding: '1px 6px',
+                    borderRadius: 'var(--im-radius-full)',
+                  }}
+                >
+                  {conversations.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleOpenBrowseModal}
+                  className="im-btn im-btn-secondary im-btn-sm"
+                  style={{ height: 26, padding: '0 8px', fontSize: '0.7rem', borderRadius: 'var(--im-radius-md)' }}
+                  title="Browse contacts and team directory to chat"
+                >
+                  <UsersIcon size={12} />
+                  <span>New Chat</span>
+                </button>
+              </div>
             </div>
 
-            {/* Search Box on Top */}
+            {/* Search Box on Top: Queries GET /api/v1/users?k=... & GET /chat/contacts & GET /chat/search?q=... */}
             <div style={{ position: 'relative', width: '100%' }}>
               <span
                 style={{
@@ -612,10 +1227,10 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                   fontSize: '0.8125rem',
                   borderRadius: 'var(--im-radius-md)',
                 }}
-                placeholder="Search all users by name..."
+                placeholder="Search teammates or messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Search all users for chat"
+                aria-label="Search all users and chat messages"
               />
               {searchQuery && (
                 <button
@@ -639,79 +1254,181 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Search Mode Tabs (shown when typing search query) */}
+            {searchQuery.trim() && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setSearchTab('users')}
+                  style={{
+                    flex: 1,
+                    padding: '4px 0',
+                    fontSize: '0.7rem',
+                    fontWeight: searchTab === 'users' ? 700 : 500,
+                    borderRadius: 'var(--im-radius-sm)',
+                    backgroundColor: searchTab === 'users' ? 'var(--im-primary)' : 'var(--im-bg-subtle)',
+                    color: searchTab === 'users' ? '#ffffff' : 'var(--im-text-muted)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Teammates ({userSearchResults.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchTab('messages')}
+                  style={{
+                    flex: 1,
+                    padding: '4px 0',
+                    fontSize: '0.7rem',
+                    fontWeight: searchTab === 'messages' ? 700 : 500,
+                    borderRadius: 'var(--im-radius-sm)',
+                    backgroundColor: searchTab === 'messages' ? 'var(--im-primary)' : 'var(--im-bg-subtle)',
+                    color: searchTab === 'messages' ? '#ffffff' : 'var(--im-text-muted)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Messages ({msgSearchResults.length})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Conversation List / Search Results */}
           <div className="im-chat-conv-list">
-            {/* Case A: Searching users */}
+            {/* Case A: Searching users or messages */}
             {searchQuery.trim() ? (
               <div>
-                <div
-                  style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: 'var(--im-text-muted)',
-                    padding: '8px 8px 4px',
-                  }}
-                >
-                  {isSearchingUsers ? 'Searching Users...' : `Found ${searchResults.length} Users`}
-                </div>
-
-                {isSearchingUsers ? (
-                  <div style={{ padding: 16, textAlign: 'center', fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
-                    Searching workspace users...
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--im-text-muted)', fontSize: '0.8125rem' }}>
-                    No team members match &ldquo;{searchQuery}&rdquo;.
-                  </div>
-                ) : (
-                  searchResults.map((usr) => (
-                    <button
-                      key={usr.id}
-                      type="button"
-                      className="im-chat-conv-item"
-                      onClick={() => handleSelectUser(usr)}
+                {searchTab === 'users' ? (
+                  /* Users Search Results (GET /api/v1/users?k=... and GET /chat/contacts?search=...) */
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: 'var(--im-text-muted)',
+                        padding: '8px 8px 4px',
+                      }}
                     >
-                      <div
-                        className="im-avatar-pill"
-                        style={{
-                          width: 36,
-                          height: 36,
-                          fontSize: '0.75rem',
-                          marginLeft: 0,
-                          flexShrink: 0,
-                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
-                        }}
-                      >
-                        {getInitials(usr.name)}
+                      {isSearching ? 'Searching Users...' : `Found ${userSearchResults.length} Team Members`}
+                    </div>
+
+                    {isSearching ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
+                        Searching workspace users...
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--im-text-primary)' }}>
-                            {usr.name}
-                          </span>
-                          <span
+                    ) : userSearchResults.length === 0 ? (
+                      <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--im-text-muted)', fontSize: '0.8125rem' }}>
+                        No team members match &ldquo;{searchQuery}&rdquo;.
+                      </div>
+                    ) : (
+                      userSearchResults.map((usr) => (
+                        <button
+                          key={usr.id}
+                          type="button"
+                          className="im-chat-conv-item"
+                          onClick={() => handleSelectUser(usr)}
+                        >
+                          <div
+                            className="im-avatar-pill"
                             style={{
-                              fontSize: '0.65rem',
-                              padding: '1px 5px',
-                              borderRadius: 'var(--im-radius-full)',
-                              backgroundColor: usr.role === 'admin' ? 'rgba(124, 58, 237, 0.12)' : 'var(--im-bg-subtle)',
-                              color: usr.role === 'admin' ? '#7c3aed' : 'var(--im-text-muted)',
-                              textTransform: 'capitalize',
+                              width: 36,
+                              height: 36,
+                              fontSize: '0.75rem',
+                              marginLeft: 0,
+                              flexShrink: 0,
+                              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
                             }}
                           >
-                            {usr.role}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {usr.email}
-                        </div>
+                            {getInitials(usr.name)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--im-text-primary)' }}>
+                                {usr.name}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '0.65rem',
+                                  padding: '1px 5px',
+                                  borderRadius: 'var(--im-radius-full)',
+                                  backgroundColor: usr.role === 'admin' ? 'rgba(124, 58, 237, 0.12)' : 'var(--im-bg-subtle)',
+                                  color: usr.role === 'admin' ? '#7c3aed' : 'var(--im-text-muted)',
+                                  textTransform: 'capitalize',
+                                }}
+                              >
+                                {usr.role || 'Member'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {usr.email}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  /* Message Search Results (GET /chat/search?q=...) */
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: 'var(--im-text-muted)',
+                        padding: '8px 8px 4px',
+                      }}
+                    >
+                      {isSearching ? 'Searching Messages...' : `Found ${msgSearchResults.length} Messages`}
+                    </div>
+
+                    {isSearching ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
+                        Searching messages...
                       </div>
-                    </button>
-                  ))
+                    ) : msgSearchResults.length === 0 ? (
+                      <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--im-text-muted)', fontSize: '0.8125rem' }}>
+                        No messages match &ldquo;{searchQuery}&rdquo;.
+                      </div>
+                    ) : (
+                      msgSearchResults.map((m) => {
+                        const targetConv = conversations.find((c) => c.id === m.conversationId);
+                        const senderName =
+                          typeof m.senderId === 'object' && (m.senderId as { name?: string })?.name
+                            ? (m.senderId as { name?: string }).name
+                            : targetConv?.otherParticipant.name || 'Chat Message';
+
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className="im-chat-conv-item"
+                            onClick={() => handleSelectSearchedMessage(m)}
+                          >
+                            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--im-text-primary)' }}>
+                                  {senderName}
+                                </span>
+                                <span style={{ fontSize: '0.6875rem', color: 'var(--im-text-muted)' }}>
+                                  {formatChatTime(m.createdAt)}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {m.content}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
                 )}
               </div>
             ) : isLoadingConversations ? (
@@ -734,7 +1451,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                 </button>
               </div>
             ) : conversations.length === 0 ? (
-              /* Case D: Empty state */
+              /* Case D: Empty state with call-to-action */
               <div style={{ padding: '40px 16px', textAlign: 'center' }}>
                 <div
                   style={{
@@ -755,8 +1472,16 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                   No conversations yet
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', margin: '0 0 16px 0', lineHeight: 1.4 }}>
-                  Search any teammate in the box above to start chatting.
+                  Search any teammate in the box above or browse contacts.
                 </p>
+                <button
+                  type="button"
+                  className="im-btn im-btn-primary im-btn-sm"
+                  onClick={handleOpenBrowseModal}
+                >
+                  <UsersIcon size={14} />
+                  Start a Chat
+                </button>
               </div>
             ) : (
               /* Case E: Active conversations list */
@@ -809,7 +1534,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                       )}
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                         <span
                           style={{
@@ -927,7 +1652,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                   </div>
                 </div>
 
-                {/* Header Actions */}
+                {/* Header Actions: Quick Meet, Schedule, Delete Conversation */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button
                     type="button"
@@ -948,11 +1673,35 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                   >
                     Schedule
                   </button>
+                  <button
+                    type="button"
+                    className="im-btn im-btn-secondary im-btn-sm"
+                    onClick={() => setHideModalOpen(true)}
+                    title="Hide conversation (DELETE /chat/conversations/:id)"
+                    style={{ padding: '6px 10px', color: 'var(--im-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <TrashIcon size={13} />
+                    <span>Hide</span>
+                  </button>
                 </div>
               </div>
 
               {/* Messages Stream */}
               <div className="im-chat-messages-stream">
+                {/* Cursor Pagination: Load Earlier Messages Button */}
+                {hasMoreMessages && (
+                  <div className="im-chat-load-older">
+                    <button
+                      type="button"
+                      className="im-chat-load-older-btn"
+                      onClick={handleLoadOlderMessages}
+                      disabled={isLoadingOlder}
+                    >
+                      {isLoadingOlder ? 'Loading older messages...' : '↑ Load older messages'}
+                    </button>
+                  </div>
+                )}
+
                 <div className="im-chat-date-separator">
                   <span>Direct Message Thread</span>
                 </div>
@@ -1003,24 +1752,115 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                     </div>
                   </div>
                 ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`im-chat-bubble-row ${msg.isMine ? 'mine' : 'theirs'}`}
-                    >
-                      <div className={`im-chat-bubble ${msg.isMine ? 'mine' : 'theirs'}`}>
-                        {msg.content}
-                      </div>
-                      <div className="im-chat-bubble-meta">
-                        <span>{formatChatTime(msg.createdAt)}</span>
-                        {msg.isMine && (
-                          <span style={{ color: 'var(--im-primary)', fontWeight: 700 }} title={msg.status}>
-                            {msg.status === 'sending' ? '⏳' : '✓✓'}
-                          </span>
+                  messages.map((msg) => {
+                    const isHighlighted = highlightedMsgId === msg.id;
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`im-chat-bubble-row ${msg.isMine ? 'mine' : 'theirs'} ${
+                          isHighlighted ? 'highlighted' : ''
+                        }`}
+                      >
+                        {editingMsgId === msg.id ? (
+                          /* Editing form (PATCH /chat/messages/:id) */
+                          <div style={{ display: 'flex', gap: 6, width: '100%', maxWidth: 420 }}>
+                            <input
+                              type="text"
+                              className="im-input"
+                              style={{ height: 32, fontSize: '0.8125rem' }}
+                              value={editInput}
+                              onChange={(e) => setEditInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEditMessage(msg.id);
+                                if (e.key === 'Escape') setEditingMsgId(null);
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              className="im-btn im-btn-primary im-btn-sm"
+                              style={{ height: 32, padding: '0 8px' }}
+                              onClick={() => handleSaveEditMessage(msg.id)}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className="im-btn im-btn-secondary im-btn-sm"
+                              style={{ height: 32, padding: '0 8px' }}
+                              onClick={() => setEditingMsgId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={`im-chat-bubble ${msg.isMine ? 'mine' : 'theirs'}`}>
+                            {msg.content}
+                            {msg.editedAt && !msg.isDeleted && (
+                              <span style={{ fontSize: '0.65rem', opacity: 0.8, marginLeft: 6 }}>
+                                (edited)
+                              </span>
+                            )}
+                          </div>
                         )}
+
+                        <div className="im-chat-bubble-meta">
+                          <span>{formatChatTime(msg.createdAt)}</span>
+                          {msg.isMine && (
+                            <span
+                              style={{
+                                color: msg.status === 'read' ? '#0284c7' : 'var(--im-text-muted)',
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                              }}
+                              title={`Status: ${msg.status || 'sent'}`}
+                            >
+                              {msg.status === 'sending' ? '⏳' : msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
+                            </span>
+                          )}
+
+                          {/* Action buttons: Details for all messages, Edit/Delete for own messages */}
+                          <div className="im-chat-msg-actions">
+                            {!msg.isDeleted && (
+                              <button
+                                type="button"
+                                className="im-chat-msg-action-btn"
+                                onClick={() => handleViewMessageDetails(msg.id)}
+                                title="Message details (GET /chat/messages/:id)"
+                              >
+                                <InfoIcon size={12} />
+                              </button>
+                            )}
+
+                            {msg.isMine && !msg.isDeleted && editingMsgId !== msg.id && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="im-chat-msg-action-btn"
+                                  onClick={() => {
+                                    setEditingMsgId(msg.id);
+                                    setEditInput(msg.content);
+                                  }}
+                                  title="Edit message (PATCH /chat/messages/:id)"
+                                >
+                                  <EditIcon size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="im-chat-msg-action-btn danger"
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  title="Delete message (DELETE /chat/messages/:id)"
+                                >
+                                  <TrashIcon size={12} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
 
                 {/* Peer Typing Indicator Bubble */}
@@ -1127,10 +1967,316 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
               <p style={{ fontSize: '0.875rem', color: 'var(--im-text-muted)', margin: '0 0 24px 0', lineHeight: 1.5 }}>
                 Choose a conversation from the left sidebar, or type any team member&apos;s name in the search box to begin a 1:1 chat.
               </p>
+              <button
+                type="button"
+                className="im-btn im-btn-primary im-btn-sm"
+                onClick={handleOpenBrowseModal}
+              >
+                <UsersIcon size={14} />
+                Browse Contacts & Directory
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Browse All Contacts & Directory Modal (calls GET /chat/contacts and GET /api/v1/users) */}
+      {browseModalOpen && (
+        <div className="im-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="browse-users-title">
+          <div className="im-modal" style={{ maxWidth: 500 }}>
+            <div className="im-modal-header">
+              <h2 id="browse-users-title" className="im-modal-title">New Direct Message</h2>
+              <button
+                type="button"
+                className="im-modal-close"
+                onClick={() => setBrowseModalOpen(false)}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Tabs: Contacts vs All Directory */}
+            <div style={{ padding: '0 20px', marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--im-border)', paddingBottom: 8 }}>
+                <button
+                  type="button"
+                  className={`im-tab-btn ${browseModalTab === 'contacts' ? 'active' : ''}`}
+                  onClick={() => handleModalTabChange('contacts')}
+                >
+                  Chat Contacts (GET /chat/contacts)
+                </button>
+                <button
+                  type="button"
+                  className={`im-tab-btn ${browseModalTab === 'directory' ? 'active' : ''}`}
+                  onClick={() => handleModalTabChange('directory')}
+                >
+                  All Users (GET /api/v1/users)
+                </button>
+              </div>
+
+              {/* Live search input in modal */}
+              <div style={{ marginTop: 12, position: 'relative' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--im-text-muted)',
+                    display: 'flex',
+                  }}
+                >
+                  <SearchIcon size={14} />
+                </span>
+                <input
+                  type="text"
+                  className="im-input"
+                  style={{ paddingLeft: 32, height: 34, fontSize: '0.8125rem' }}
+                  placeholder={browseModalTab === 'contacts' ? 'Search contacts by name or email...' : 'Search workspace users...'}
+                  value={modalSearchQuery}
+                  onChange={(e) => handleModalSearchChange(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="im-modal-body" style={{ maxHeight: 360, overflowY: 'auto', padding: '16px 20px' }}>
+              {isLoadingModalList ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--im-text-muted)' }}>
+                  Loading {browseModalTab === 'contacts' ? 'contacts' : 'users directory'}...
+                </div>
+              ) : (browseModalTab === 'contacts' ? contactsList : directoryList).length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--im-text-muted)' }}>
+                  No members found in {browseModalTab === 'contacts' ? 'chat contacts' : 'directory'}.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {(browseModalTab === 'contacts' ? contactsList : directoryList).map((usr) => (
+                    <button
+                      key={usr.id}
+                      type="button"
+                      className="im-chat-conv-item"
+                      style={{ padding: '8px 10px' }}
+                      onClick={() => handleSelectUser(usr)}
+                    >
+                      <div
+                        className="im-avatar-pill"
+                        style={{
+                          width: 36,
+                          height: 36,
+                          fontSize: '0.75rem',
+                          marginLeft: 0,
+                          flexShrink: 0,
+                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
+                        }}
+                      >
+                        {getInitials(usr.name)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--im-text-primary)' }}>
+                            {usr.name}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              padding: '1px 5px',
+                              borderRadius: 'var(--im-radius-full)',
+                              backgroundColor: usr.role === 'admin' ? 'rgba(124, 58, 237, 0.12)' : 'var(--im-bg-subtle)',
+                              color: usr.role === 'admin' ? '#7c3aed' : 'var(--im-text-muted)',
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {usr.role || 'Member'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {usr.email}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="im-modal-footer">
+              <button
+                type="button"
+                className="im-btn im-btn-secondary"
+                onClick={() => setBrowseModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hide Conversation Confirmation Modal (DELETE /chat/conversations/:id) */}
+      {hideModalOpen && selectedConv && (
+        <div className="im-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="hide-conv-title">
+          <div className="im-modal" style={{ maxWidth: 440 }}>
+            <div className="im-modal-header">
+              <h2 id="hide-conv-title" className="im-modal-title">Hide Conversation</h2>
+              <button
+                type="button"
+                className="im-modal-close"
+                onClick={() => setHideModalOpen(false)}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="im-modal-body" style={{ padding: '20px' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--im-text-primary)', margin: '0 0 10px 0', lineHeight: 1.5 }}>
+                Are you sure you want to hide this conversation with <strong>{selectedConv.otherParticipant.name}</strong>?
+              </p>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', margin: 0, lineHeight: 1.45 }}>
+                This will remove the conversation from your active inbox without deleting message history for the other participant. New incoming messages will restore it to your inbox automatically.
+              </p>
+            </div>
+            <div className="im-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                className="im-btn im-btn-secondary"
+                onClick={() => setHideModalOpen(false)}
+                disabled={isHidingConv}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn-danger"
+                onClick={handleConfirmHideConversation}
+                disabled={isHidingConv}
+                style={{ backgroundColor: 'var(--im-danger, #ef4444)', color: '#ffffff' }}
+              >
+                {isHidingConv ? 'Hiding...' : 'Hide Conversation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Details Modal (GET /chat/messages/:id) */}
+      {detailsModalOpen && (
+        <div className="im-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="msg-details-title">
+          <div className="im-modal" style={{ maxWidth: 480 }}>
+            <div className="im-modal-header">
+              <h2 id="msg-details-title" className="im-modal-title">Message Details</h2>
+              <button
+                type="button"
+                className="im-modal-close"
+                onClick={() => {
+                  setDetailsModalOpen(false);
+                  setDetailsMessage(null);
+                  setDetailsMsgId(null);
+                }}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="im-modal-body" style={{ padding: '20px' }}>
+              {detailsLoading ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--im-text-muted)', fontSize: '0.875rem' }}>
+                  Loading message metadata...
+                </div>
+              ) : detailsMessage ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: '0.8125rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--im-text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Content
+                    </span>
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        backgroundColor: 'var(--im-bg-subtle)',
+                        borderRadius: 'var(--im-radius-md)',
+                        color: 'var(--im-text-primary)',
+                        lineHeight: 1.45,
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {detailsMessage.content}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <span style={{ fontWeight: 600, color: 'var(--im-text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: 2 }}>
+                        Sent Time
+                      </span>
+                      <span style={{ color: 'var(--im-text-primary)' }}>
+                        {detailsMessage.createdAt ? new Date(detailsMessage.createdAt).toLocaleString() : 'N/A'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span style={{ fontWeight: 600, color: 'var(--im-text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: 2 }}>
+                        Edited
+                      </span>
+                      <span style={{ color: 'var(--im-text-primary)' }}>
+                        {detailsMessage.editedAt ? new Date(detailsMessage.editedAt).toLocaleString() : 'No'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span style={{ fontWeight: 600, color: 'var(--im-text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: 2 }}>
+                        Delivered
+                      </span>
+                      <span style={{ color: 'var(--im-text-primary)' }}>
+                        {detailsMessage.receipt?.deliveredAt ? new Date(detailsMessage.receipt.deliveredAt).toLocaleString() : 'Delivered'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span style={{ fontWeight: 600, color: 'var(--im-text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: 2 }}>
+                        Read
+                      </span>
+                      <span style={{ color: detailsMessage.receipt?.readAt ? 'var(--im-primary)' : 'var(--im-text-muted)' }}>
+                        {detailsMessage.receipt?.readAt ? new Date(detailsMessage.receipt.readAt).toLocaleString() : 'Unread'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--im-border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--im-text-muted)' }}>Message ID:</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--im-text-secondary)' }}>
+                        {String(detailsMessage.id || detailsMessage._id || detailsMsgId)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--im-text-muted)' }}>Conversation ID:</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--im-text-secondary)' }}>
+                        {String(detailsMessage.conversationId || selectedConv?.id)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--im-text-muted)' }}>
+                  Message details not available.
+                </div>
+              )}
+            </div>
+            <div className="im-modal-footer">
+              <button
+                type="button"
+                className="im-btn im-btn-secondary"
+                onClick={() => {
+                  setDetailsModalOpen(false);
+                  setDetailsMessage(null);
+                  setDetailsMsgId(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
