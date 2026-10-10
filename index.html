@@ -10,6 +10,27 @@
     <title>IntellMeet — Enterprise Workspace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      (function() {
+        try {
+          var raw = localStorage.getItem('intellmeet_preferences_v2');
+          if (raw) {
+            var p = JSON.parse(raw);
+            var dark = p.theme === 'dark' || (p.theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.classList.add('dark-mode');
+            if (p.themePreset) document.documentElement.setAttribute('data-theme', p.themePreset);
+            if (p.accentColor) document.documentElement.setAttribute('data-accent', p.accentColor);
+            if (p.highContrast) document.documentElement.classList.add('high-contrast');
+            if (p.reducedMotion) document.documentElement.classList.add('reduced-motion');
+            if (p.accentColor === 'custom' && p.customAccentHex) {
+              document.documentElement.style.setProperty('--im-primary', p.customAccentHex);
+              document.documentElement.style.setProperty('--im-border-focus', p.customAccentHex);
+              document.documentElement.style.setProperty('--color-primary', p.customAccentHex);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

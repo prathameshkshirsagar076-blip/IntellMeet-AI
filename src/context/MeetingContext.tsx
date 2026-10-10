@@ -11,6 +11,7 @@ import type {
   TeamMember,
 } from '../types/meeting';
 import { toast as globalToast } from '../components/toast/toast';
+import { applyThemeToDom, DEFAULT_THEME_PRESET_ID } from '../config/themePresets';
 
 interface ToastData {
   id: string;
@@ -340,7 +341,9 @@ const INITIAL_TEAM: TeamMember[] = [];
 
 const INITIAL_PREFERENCES: UserPreferences = {
   theme: 'light',
-  accentColor: 'indigo',
+  themePreset: DEFAULT_THEME_PRESET_ID,
+  accentColor: 'preset',
+  customAccentHex: '#4f46e5',
   highContrast: false,
   reducedMotion: false,
   microphoneDevice: 'Default - MacBook Pro Microphone (Built-in)',
@@ -405,6 +408,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...INITIAL_PREFERENCES,
           ...parsed,
+          themePreset: parsed.themePreset || DEFAULT_THEME_PRESET_ID,
+          accentColor: parsed.accentColor || 'preset',
+          customAccentHex: parsed.customAccentHex || '#4f46e5',
         };
       }
     } catch {
@@ -454,44 +460,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.PREFERENCES, JSON.stringify(preferences));
-
-      const updateDomTheme = () => {
-        let isDark = false;
-        if (preferences.theme === 'dark') {
-          isDark = true;
-        } else if (preferences.theme === 'system') {
-          isDark =
-            typeof window !== 'undefined' &&
-            window.matchMedia &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
-
-        if (isDark) {
-          document.documentElement.classList.add('dark-mode');
-        } else {
-          document.documentElement.classList.remove('dark-mode');
-        }
-
-        document.documentElement.setAttribute('data-accent', preferences.accentColor || 'indigo');
-
-        if (preferences.highContrast) {
-          document.documentElement.classList.add('high-contrast');
-        } else {
-          document.documentElement.classList.remove('high-contrast');
-        }
-
-        if (preferences.reducedMotion) {
-          document.documentElement.classList.add('reduced-motion');
-        } else {
-          document.documentElement.classList.remove('reduced-motion');
-        }
-      };
-
-      updateDomTheme();
+      applyThemeToDom(preferences);
 
       if (preferences.theme === 'system' && typeof window !== 'undefined' && window.matchMedia) {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        const handler = () => updateDomTheme();
+        const handler = () => applyThemeToDom(preferences);
         mediaQuery.addEventListener('change', handler);
         return () => mediaQuery.removeEventListener('change', handler);
       }

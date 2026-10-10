@@ -68,11 +68,34 @@ export interface ActivityItem {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AccentColor = 'indigo' | 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'teal' | 'cyan';
+
+export type ThemePresetId =
+  | 'signature'
+  | 'ocean'
+  | 'emerald'
+  | 'midnight'
+  | 'arctic'
+  | 'royal'
+  | 'sunset'
+  | 'graphite';
+
+export type AccentColor =
+  | 'preset'
+  | 'indigo'
+  | 'blue'
+  | 'emerald'
+  | 'violet'
+  | 'rose'
+  | 'amber'
+  | 'teal'
+  | 'cyan'
+  | 'custom';
 
 export interface UserPreferences {
   theme: ThemeMode;
+  themePreset?: ThemePresetId;
   accentColor?: AccentColor;
+  customAccentHex?: string;
   highContrast?: boolean;
   reducedMotion?: boolean;
   microphoneDevice: string;
