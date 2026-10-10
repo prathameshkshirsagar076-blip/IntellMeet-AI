@@ -1,0 +1,1302 @@
+/* =========================================================================
+   IntellMeet Live Meeting Room — Zoom Workplace Style (Pure CSS)
+   ========================================================================= */
+
+.zm-live-meeting-viewport {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #121212;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+/* =========================================================================
+   1. Workplace Top Navigation Header
+   ========================================================================= */
+.zm-wp-header {
+  height: 50px;
+  background-color: #ffffff;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.zm-wp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.zm-wp-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zm-wp-brand-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.zm-wp-brand-name {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.zm-wp-brand-intell {
+  color: #0f172a;
+}
+
+.zm-wp-brand-meet {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.zm-wp-brand-tag {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+  margin-left: 2px;
+}
+
+.zm-wp-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.zm-wp-nav-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zm-wp-nav-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.zm-wp-arrows {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #94a3b8;
+}
+
+.zm-wp-arrow-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.zm-wp-arrow-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.zm-wp-search-bar {
+  display: flex;
+  align-items: center;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 5px 12px;
+  gap: 8px;
+  width: 280px;
+  color: #64748b;
+}
+
+.zm-wp-search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12.5px;
+  color: #0f172a;
+  width: 100%;
+}
+
+.zm-wp-kbd {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #e2e8f0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.zm-wp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.zm-wp-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  padding: 4px 8px;
+}
+
+.zm-wp-link:hover {
+  color: #0f172a;
+}
+
+.zm-wp-upgrade-btn {
+  background: #0e71eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.zm-wp-upgrade-btn:hover {
+  background: #0260d2;
+}
+
+.zm-wp-avatar-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.zm-wp-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  position: relative;
+  overflow: hidden;
+  background: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+}
+
+.zm-wp-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zm-wp-avatar-fallback {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.zm-wp-status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 1.5px solid #ffffff;
+}
+
+/* =========================================================================
+   2. Main Layout (Left Rail + Meeting Area)
+   ========================================================================= */
+.zm-wp-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Narrow App Rail (Dark theme in meeting) */
+.zm-wp-rail {
+  width: 62px;
+  background-color: #161616;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 0 14px;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.zm-wp-rail-top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zm-wp-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: #8c8c8c;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 400;
+  transition: all 0.15s ease;
+  position: relative;
+  width: 100%;
+}
+
+.zm-wp-rail-item:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.zm-wp-rail-item.active {
+  color: #ffffff;
+}
+
+.zm-wp-rail-item.active svg {
+  stroke: #ffffff;
+}
+
+.zm-wp-rail-bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================================================
+   3. Meeting Canvas & Stage Area
+   ========================================================================= */
+.zm-call-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #1c1c1e;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Meeting Sub-Header Bar (Dark Inside Meeting) */
+.zm-call-topbar {
+  height: 40px;
+  background-color: #161616;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  z-index: 30;
+}
+
+.zm-call-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zm-call-info-btn {
+  background: none;
+  border: 1.5px solid #8c8c8c;
+  color: #8c8c8c;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zm-call-info-btn:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.zm-call-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e5e5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zm-call-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zm-call-top-btn {
+  background: none;
+  border: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.zm-call-top-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zm-call-top-shield {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zm-call-zm-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2e2e2e;
+  color: #e5e5e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: default;
+}
+
+/* Meeting Stage / Video Grid Viewport */
+.zm-stage-body {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  background-color: #242424;
+}
+
+.zm-video-main-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Centered Speaker Video Canvas */
+.zm-speaker-tile {
+  width: 100%;
+  height: 100%;
+  background-color: #242424;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* User Profile Image / Avatar Centered (Zoom Exact Style) */
+.zm-center-avatar-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: zmScaleFade 0.3s ease;
+}
+
+.zm-center-avatar-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Live Webcam Video Feed Element */
+.zm-live-video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000000;
+  transform: scaleX(-1); /* Mirror camera */
+}
+
+/* Active Speaker Bottom-Left Tag Pill */
+.zm-speaker-tag {
+  position: absolute;
+  bottom: 18px;
+  left: 20px;
+  background: rgba(18, 18, 20, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #f3f4f6;
+  z-index: 10;
+}
+
+.zm-speaker-mic-red {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+}
+
+.zm-speaker-mic-green {
+  color: #10b981;
+  display: flex;
+  align-items: center;
+}
+
+/* Gallery Grid View */
+.zm-gallery-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 14px;
+  padding: 10px;
+}
+
+.zm-gallery-tile {
+  background-color: #0a0a0a;
+  border-radius: 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zm-gallery-tile.speaking {
+  border: 2px solid #10b981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+}
+
+/* Floating Emoji Reactions Stream */
+.zm-floating-reactions-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 25;
+}
+
+.zm-floating-emoji {
+  position: absolute;
+  font-size: 42px;
+  animation: zmFloatUp 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes zmFloatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-260px) scale(1.4);
+  }
+}
+
+/* Screen Sharing Active Banner */
+.zm-screen-share-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #15803d;
+  color: #ffffff;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.zm-stop-share-btn {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.zm-stop-share-btn:hover {
+  background: #dc2626;
+}
+
+/* =========================================================================
+   4. Bottom Meeting Controls Dock (Exact Zoom Style)
+   ========================================================================= */
+.zm-bottom-dock {
+  height: 68px;
+  background-color: #161616;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 35;
+  position: relative;
+}
+
+.zm-dock-left,
+.zm-dock-center,
+.zm-dock-right {
+  display: flex;
+  align-items: center;
+}
+
+.zm-dock-left {
+  gap: 6px;
+}
+
+.zm-dock-center {
+  gap: 8px;
+}
+
+.zm-dock-right {
+  gap: 8px;
+}
+
+/* Individual Meeting Dock Control Button */
+.zm-dock-btn-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.zm-dock-btn {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 58px;
+}
+
+.zm-dock-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.zm-dock-btn.active {
+  color: #38bdf8;
+}
+
+.zm-dock-btn-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.zm-dock-btn-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: #d1d5db;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+}
+
+/* Chevron Menu Trigger on Mute & Video Buttons */
+.zm-dock-chevron-btn {
+  background: none;
+  border: none;
+  color: #8c8c8c;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.zm-dock-chevron-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Badge on Participants */
+.zm-dock-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Share Screen Button Accent */
+.zm-dock-btn-share {
+  color: #d1d5db;
+}
+
+.zm-dock-btn-share:hover {
+  color: #ffffff;
+}
+
+/* Zoom Exact End Button (Red circle with white ✕, label below) */
+.zm-dock-end-btn {
+  color: #ffffff;
+}
+
+.zm-dock-end-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.zm-dock-end-btn:hover .zm-dock-end-icon {
+  background-color: #ef4444;
+}
+
+.zm-dock-end-btn .zm-dock-btn-label {
+  color: #ffffff;
+}
+
+/* =========================================================================
+   5. Interactive Drawers (Participants, Chat, AI Notes)
+   ========================================================================= */
+.zm-side-drawer {
+  width: 360px;
+  background-color: #1e1e1e;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 28;
+  animation: zmDrawerSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes zmDrawerSlide {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.zm-drawer-header {
+  height: 48px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zm-drawer-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.zm-drawer-close-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zm-drawer-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zm-drawer-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Participants List in Drawer */
+.zm-participant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.zm-participant-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zm-p-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zm-p-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.zm-p-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.zm-p-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+}
+
+.zm-drawer-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 10px;
+}
+
+.zm-drawer-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zm-drawer-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Chat Stream in Drawer */
+.zm-chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.zm-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zm-chat-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+}
+
+.zm-chat-sender {
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.zm-chat-time {
+  color: #64748b;
+}
+
+.zm-chat-bubble {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #f1f5f9;
+  line-height: 1.4;
+  max-width: 90%;
+  word-break: break-word;
+}
+
+.zm-chat-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zm-chat-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.zm-chat-input:focus {
+  border-color: #0e71eb;
+}
+
+.zm-chat-send-btn {
+  background: #0e71eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Reactions Bar Popover */
+.zm-reactions-tray {
+  position: absolute;
+  bottom: 74px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  animation: zmScaleFade 0.15s ease;
+}
+
+.zm-reaction-emoji-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: transform 0.15s ease;
+}
+
+.zm-reaction-emoji-btn:hover {
+  transform: scale(1.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.zm-raise-hand-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.zm-raise-hand-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Meeting Info Dropdown Popover (Top-Left) */
+.zm-meeting-info-card {
+  position: absolute;
+  top: 48px;
+  left: 16px;
+  width: 320px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zm-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zm-info-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.zm-info-val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  word-break: break-all;
+}
+
+.zm-copy-link-btn {
+  background: #0e71eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.zm-copy-link-btn:hover {
+  background: #0260d2;
+}
+
+/* Audio / Video Settings Popup Menus */
+.zm-dock-menu {
+  position: absolute;
+  bottom: 74px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 240px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zm-dock-menu-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  padding: 6px 10px 4px;
+  letter-spacing: 0.5px;
+}
+
+.zm-dock-menu-item {
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 12.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zm-dock-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.zm-dock-menu-item.active {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.zm-dock-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+/* End Meeting Modal Dialog */
+.zm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.zm-dialog-box {
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+  animation: zmScaleFade 0.2s ease;
+}
+
+.zm-dialog-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zm-dialog-desc {
+  font-size: 13.5px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.zm-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.zm-dialog-btn-danger {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zm-dialog-btn-danger:hover {
+  background: #dc2626;
+}
+
+.zm-dialog-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zm-dialog-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.zm-dialog-btn-cancel {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zm-dialog-btn-cancel:hover {
+  color: #ffffff;
+}
+
+/* Whiteboard Overlay */
+.zm-whiteboard-overlay {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+}
+
+.zm-wb-toolbar {
+  height: 48px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.zm-wb-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zm-wb-tool-btn {
+  background: none;
+  border: 1px solid #cbd5e1;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.zm-wb-tool-btn.active {
+  background: #0e71eb;
+  color: #ffffff;
+  border-color: #0e71eb;
+}
+
+.zm-wb-canvas {
+  flex: 1;
+  cursor: crosshair;
+  background: #ffffff;
+}
+
+@keyframes zmScaleFade {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* =========================================================================
+   Responsive Breakpoints for Live Meeting
+   ========================================================================= */
+@media (max-width: 900px) {
+  .zm-wp-header {
+    padding: 0 10px;
+  }
+  .zm-wp-nav-links,
+  .zm-wp-search-bar,
+  .zm-wp-header-right .zm-wp-link {
+    display: none;
+  }
+  .zm-side-drawer {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    bottom: 68px;
+    width: 100%;
+    max-width: 340px;
+  }
+}
+
+@media (max-width: 640px) {
+  .zm-wp-rail {
+    display: none;
+  }
+  .zm-bottom-dock {
+    padding: 0 8px;
+  }
+  .zm-dock-btn {
+    padding: 4px 6px;
+    min-width: 48px;
+  }
+  .zm-dock-btn-label {
+    font-size: 10px;
+  }
+  .zm-end-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}

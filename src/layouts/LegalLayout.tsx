@@ -15,7 +15,7 @@ export const LegalLayout: React.FC<LegalLayoutProps> = ({ children, activeDoc })
       <header className="im-legal-navbar">
         <div className="im-legal-nav-container">
           <div className="im-legal-brand-wrapper">
-            <BrandLogo to="/login" />
+            <BrandLogo to="/" />
           </div>
 
           <div className="im-legal-doc-switcher" role="tablist" aria-label="Legal document tabs">

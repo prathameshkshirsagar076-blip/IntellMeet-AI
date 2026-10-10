@@ -165,7 +165,7 @@ export const DashboardLayout: React.FC = () => {
       isInstant: true,
     });
     showToast(`Instant meeting created: ${meeting.meetingCode}`, 'success');
-    navigate(`/meetings/${meeting.id}`);
+    navigate(`/meeting/${meeting.id}`);
   };
 
   const handleGlobalSearch = (e: React.FormEvent) => {

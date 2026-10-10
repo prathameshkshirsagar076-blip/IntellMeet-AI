@@ -1,16 +1,21 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import { ArrowLeftIcon } from '../components/icons';
 import './NotFoundPage.css';
 
 export const NotFoundPage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const returnPath = isAuthenticated ? '/dashboard' : '/';
+  const returnLabel = isAuthenticated ? 'Return to Dashboard' : 'Return to Home';
+
   return (
     <div className="im-404-root">
       <header className="im-404-navbar">
-        <BrandLogo to="/login" />
-        <Link to="/login" className="im-legal-nav-btn secondary">
-          Sign In
+        <BrandLogo to={returnPath} />
+        <Link to={isAuthenticated ? '/dashboard' : '/login'} className="im-legal-nav-btn secondary">
+          {isAuthenticated ? 'Dashboard' : 'Sign In'}
         </Link>
       </header>
 
@@ -28,9 +33,9 @@ export const NotFoundPage: React.FC = () => {
           </p>
 
           <div className="im-404-actions">
-            <Link to="/login" className="im-404-primary-btn" id="im-404-return-btn">
+            <Link to={returnPath} className="im-404-primary-btn" id="im-404-return-btn">
               <ArrowLeftIcon />
-              <span>Return to Sign In</span>
+              <span>{returnLabel}</span>
             </Link>
 
             <div className="im-404-links-group">
