@@ -89,21 +89,31 @@
 }
 
 .login-brand-logo {
-  width: 38px;
-  height: 38px;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.login-brand-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(37, 99, 235, 0.4));
+}
+
+.login-brand-image-banner {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
 }
 
 .login-brand-logo svg {
-  width: 20px;
-  height: 20px;
-  color: #fff;
+  width: 24px;
+  height: 24px;
 }
 
 .login-brand-text {
@@ -113,20 +123,32 @@
 }
 
 .login-brand-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--panel-text-primary);
-  letter-spacing: -0.3px;
-  line-height: 1;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.login-brand-intell {
+  color: var(--panel-text-primary, #ffffff);
+}
+
+.login-brand-meet {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .login-brand-tag {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--accent-purple);
-  letter-spacing: 1.3px;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
   line-height: 1;
+  margin-top: 2px;
 }
 
 /* ---- Welcome Heading ---- */
@@ -504,7 +526,7 @@
 
 @media (max-width: 860px) {
   .login-panel {
-    padding: 20px 28px 16px;
+    padding: 24px 28px 20px;
   }
   .login-heading-block h1 {
     font-size: 21px;
@@ -515,5 +537,33 @@
   .login-panel {
     padding: 28px 24px 20px;
     min-height: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-panel {
+    padding: 20px 16px 24px;
+  }
+  .login-top-bar {
+    margin-bottom: 18px;
+  }
+  .login-heading-block h1 {
+    font-size: 20px;
+  }
+  .login-social-group {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .login-social-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .login-options-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .login-mode-switch-wrapper {
+    margin-bottom: 20px;
   }
 }

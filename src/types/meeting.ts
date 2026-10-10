@@ -66,8 +66,14 @@ export interface ActivityItem {
   iconType: string;
 }
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type AccentColor = 'indigo' | 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'teal' | 'cyan';
+
 export interface UserPreferences {
-  theme: 'light' | 'dark';
+  theme: ThemeMode;
+  accentColor?: AccentColor;
+  highContrast?: boolean;
+  reducedMotion?: boolean;
   microphoneDevice: string;
   cameraDevice: string;
   speakerDevice: string;

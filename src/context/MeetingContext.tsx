@@ -396,6 +396,9 @@ const INITIAL_TEAM: TeamMember[] = [
 
 const INITIAL_PREFERENCES: UserPreferences = {
   theme: 'light',
+  accentColor: 'indigo',
+  highContrast: false,
+  reducedMotion: false,
   microphoneDevice: 'Default - MacBook Pro Microphone (Built-in)',
   cameraDevice: 'Default - FaceTime HD Camera (1080p)',
   speakerDevice: 'Default - Internal Speakers (Stereo)',
@@ -453,7 +456,13 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [preferences, setPreferences] = useState<UserPreferences>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PREFERENCES);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...INITIAL_PREFERENCES,
+          ...parsed,
+        };
+      }
     } catch {
       // ignore
     }
@@ -498,10 +507,46 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.PREFERENCES, JSON.stringify(preferences));
-      if (preferences.theme === 'dark') {
-        document.documentElement.classList.add('dark-mode');
-      } else {
-        document.documentElement.classList.remove('dark-mode');
+
+      const updateDomTheme = () => {
+        let isDark = false;
+        if (preferences.theme === 'dark') {
+          isDark = true;
+        } else if (preferences.theme === 'system') {
+          isDark =
+            typeof window !== 'undefined' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+
+        if (isDark) {
+          document.documentElement.classList.add('dark-mode');
+        } else {
+          document.documentElement.classList.remove('dark-mode');
+        }
+
+        document.documentElement.setAttribute('data-accent', preferences.accentColor || 'indigo');
+
+        if (preferences.highContrast) {
+          document.documentElement.classList.add('high-contrast');
+        } else {
+          document.documentElement.classList.remove('high-contrast');
+        }
+
+        if (preferences.reducedMotion) {
+          document.documentElement.classList.add('reduced-motion');
+        } else {
+          document.documentElement.classList.remove('reduced-motion');
+        }
+      };
+
+      updateDomTheme();
+
+      if (preferences.theme === 'system' && typeof window !== 'undefined' && window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => updateDomTheme();
+        mediaQuery.addEventListener('change', handler);
+        return () => mediaQuery.removeEventListener('change', handler);
       }
     } catch {
       // ignore

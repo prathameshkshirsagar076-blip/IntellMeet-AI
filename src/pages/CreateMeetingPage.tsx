@@ -168,7 +168,7 @@ export const CreateMeetingPage: React.FC = () => {
             </div>
 
             {/* Date and Start Time Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="im-form-row">
               <div className="im-form-group">
                 <label htmlFor="meeting-date" className="im-form-label">
                   Date <span style={{ color: 'var(--im-danger)' }}>*</span>

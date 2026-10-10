@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  BrandIcon,
   SparkleIcon,
   CheckIcon,
   ArrowRightIcon,
@@ -28,6 +27,7 @@ const StarFilledIcon = () => (
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFeatureTab, setActiveFeatureTab] = useState<'summaries' | 'transcription' | 'actionItems' | 'collaboration' | 'video' | 'security'>('summaries');
 
   const scrollToSection = (id: string) => {
@@ -68,11 +68,21 @@ export const LandingPage: React.FC = () => {
       <header className="lp-navbar">
         <div className="lp-nav-container">
           <div className="lp-nav-left">
-            <Link to="/" className="lp-brand-logo" title="IntellMeet AI Platform">
+            <Link to="/" className="lp-brand-logo" title="IntellMeet — Meet Smarter With AI">
               <div className="lp-brand-icon" aria-hidden="true">
-                <BrandIcon />
+                <img
+                  src="/intellmeet-icon.png"
+                  alt="IntellMeet"
+                  className="lp-brand-icon-img"
+                />
               </div>
-              <span className="lp-brand-name">IntellMeet</span>
+              <div className="lp-brand-text-block">
+                <span className="lp-brand-name">
+                  <span className="lp-brand-intell">Intell</span>
+                  <span className="lp-brand-meet">Meet</span>
+                </span>
+                <span className="lp-brand-tagline">MEET SMARTER WITH AI</span>
+              </div>
             </Link>
 
             <nav className="lp-nav-menu" aria-label="Main Navigation">
@@ -114,6 +124,91 @@ export const LandingPage: React.FC = () => {
             <Link to="/signup" className="lp-btn-primary lp-signup-btn" id="lp-nav-signup">
               Get Started
             </Link>
+            <button
+              type="button"
+              className="lp-mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Drawer */}
+        <div className={`lp-mobile-drawer ${mobileMenuOpen ? 'open' : ''}`}>
+          <div className="lp-mobile-drawer-inner">
+            <nav className="lp-mobile-nav-links" aria-label="Mobile Navigation">
+              <button
+                type="button"
+                className="lp-mobile-nav-item"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('features');
+                }}
+              >
+                Features
+              </button>
+              <button
+                type="button"
+                className="lp-mobile-nav-item"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('ai-intelligence');
+                }}
+              >
+                AI Intelligence
+              </button>
+              <button
+                type="button"
+                className="lp-mobile-nav-item"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('security');
+                }}
+              >
+                Security
+              </button>
+              <button
+                type="button"
+                className="lp-mobile-nav-item"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('about');
+                }}
+              >
+                About
+              </button>
+            </nav>
+
+            <div className="lp-mobile-nav-actions">
+              <Link
+                to="/login"
+                className="lp-btn-ghost lp-mobile-btn"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="lp-btn-primary lp-mobile-btn"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Get Started Free &rarr;
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -637,9 +732,19 @@ export const LandingPage: React.FC = () => {
             <div className="lp-footer-brand-col">
               <div className="lp-brand-logo footer-logo">
                 <div className="lp-brand-icon">
-                  <BrandIcon />
+                  <img
+                    src="/intellmeet-icon.png"
+                    alt="IntellMeet"
+                    className="lp-brand-icon-img"
+                  />
                 </div>
-                <span className="lp-brand-name">IntellMeet</span>
+                <div className="lp-brand-text-block">
+                  <span className="lp-brand-name">
+                    <span className="lp-brand-intell">Intell</span>
+                    <span className="lp-brand-meet">Meet</span>
+                  </span>
+                  <span className="lp-brand-tagline">MEET SMARTER WITH AI</span>
+                </div>
               </div>
               <p className="lp-footer-mission">
                 The AI-first meeting and collaboration platform for modern distributed enterprises.

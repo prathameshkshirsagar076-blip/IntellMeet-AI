@@ -130,7 +130,7 @@ export const AiNotesPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="im-notes-list-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filteredSummaries.length === 0 ? (
               <div
                 style={{
