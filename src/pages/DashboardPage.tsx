@@ -20,12 +20,68 @@ import {
   ClockIcon,
   UsersIcon,
   ShieldCheckIcon,
+  LayoutDashboardIcon,
 } from '../components/icons';
 import './DashboardPage.css';
 
 /* =========================================================================
-   Custom Clean SVG Icons for Dashboard Workplace Showcase
+   Custom Clean SVG Icons for Dashboard Workplace Showcase & Navigation
    ========================================================================= */
+const HistoryClockIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l4 2" />
+  </svg>
+);
+
+const MenuBurgerIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+  >
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+const CloseIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
 const LaurelWreathIcon: React.FC<{ size?: number; className?: string }> = ({ size = 32, className }) => (
   <svg
     viewBox="0 0 48 48"
@@ -191,6 +247,58 @@ export const DashboardPage: React.FC = () => {
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
   const [meetingModalMode, setMeetingModalMode] = useState<'instant' | 'join'>('instant');
   const [meetingRoomId, setMeetingRoomId] = useState('');
+
+  // Active Navigation & Mobile Drawer states
+  const [activeNavSection, setActiveNavSection] = useState<string>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navSections = [
+    { key: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboardIcon },
+    { key: 'meetings', label: 'Meetings', shortLabel: 'Meetings', icon: VideoIcon },
+    { key: 'schedule', label: 'My Schedule', shortLabel: 'Schedule', icon: CalendarIcon },
+    { key: 'history', label: 'Meeting History', shortLabel: 'History', icon: HistoryClockIcon },
+    { key: 'notes', label: 'AI Notes & Summaries', shortLabel: 'AI Notes', icon: SparkleIcon },
+    { key: 'team', label: 'Team & Collaboration', shortLabel: 'Team', icon: UsersIcon },
+    { key: 'settings', label: 'Settings', shortLabel: 'Settings', icon: SettingsIcon },
+  ];
+
+  const handleNavClick = (sectionKey: string) => {
+    setActiveNavSection(sectionKey);
+    setMobileMenuOpen(false);
+
+    switch (sectionKey) {
+      case 'dashboard':
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        break;
+      case 'meetings':
+        setActiveTab('meetings');
+        document.getElementById('solutions')?.scrollIntoView({ behavior: 'smooth' });
+        showToast('Meetings: 4K Ultra-HD Video & Spatial Audio loaded.');
+        break;
+      case 'schedule':
+        showToast('My Schedule: 3 upcoming AI-synced meetings on your calendar today.');
+        break;
+      case 'history':
+        showToast('Meeting History: 14 recent recordings & AI transcripts available.');
+        break;
+      case 'notes':
+        setActiveTab('notes');
+        document.getElementById('ai-companion')?.scrollIntoView({ behavior: 'smooth' });
+        showToast('AI Notes & Summaries: Executive summaries & auto-action items ready.');
+        break;
+      case 'team':
+        setActiveTab('chat');
+        document.getElementById('solutions')?.scrollIntoView({ behavior: 'smooth' });
+        showToast('Team & Collaboration: Real-time workspace channels active.');
+        break;
+      case 'settings':
+        setProfileMenuOpen(true);
+        showToast('Settings: Workspace encryption & audio devices preferences.');
+        break;
+      default:
+        break;
+    }
+  };
 
   // Interactive Carousel state
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -376,37 +484,51 @@ export const DashboardPage: React.FC = () => {
         <div className="zm-topbar-container">
           {/* Left: Brand & Main Navigation Links */}
           <div className="zm-topbar-left">
+            {/* Mobile / Drawer Menu Trigger */}
+            <button
+              type="button"
+              className="zm-mobile-menu-trigger"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle Navigation Menu"
+              aria-expanded={mobileMenuOpen}
+              title="Open Navigation Menu"
+            >
+              {mobileMenuOpen ? <CloseIcon size={19} /> : <MenuBurgerIcon size={19} />}
+            </button>
+
             <button
               type="button"
               className="zm-brand-link"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              onClick={() => handleNavClick('dashboard')}
               title="IntellMeet Workplace Dashboard"
             >
               <div className="zm-brand-icon" aria-hidden="true">
-                <BrandIcon />
+                <VideoIcon size={20} />
               </div>
               <div className="zm-brand-typography">
-                <span className="zm-brand-title">intellmeet</span>
+                <span className="zm-brand-title">IntellMeet</span>
                 <span className="zm-brand-pill">WORKPLACE</span>
               </div>
             </button>
 
             <nav className="zm-nav-links" aria-label="Workplace Navigation">
-              <a href="#overview" className="zm-nav-link active">
-                Products
-              </a>
-              <a href="#ai-companion" className="zm-nav-link">
-                AI Companion
-              </a>
-              <a href="#solutions" className="zm-nav-link">
-                Solutions
-              </a>
-              <a href="#plans" className="zm-nav-link">
-                Plans &amp; Pricing
-              </a>
-              <a href="#resources" className="zm-nav-link">
-                Resources
-              </a>
+              {navSections.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeNavSection === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`zm-nav-link ${isActive ? 'active' : ''}`}
+                    onClick={() => handleNavClick(item.key)}
+                    id={`zm-nav-${item.key}`}
+                    title={item.label}
+                  >
+                    <IconComponent size={15} />
+                    <span>{item.shortLabel}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
 
@@ -545,6 +667,65 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Slide-in Navigation Drawer (Matching User Screenshot) */}
+      {mobileMenuOpen && (
+        <div className="zm-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <aside className="zm-drawer-sidebar" onClick={(e) => e.stopPropagation()}>
+            <div className="zm-drawer-header">
+              <div className="zm-drawer-brand">
+                <div className="zm-drawer-brand-icon">
+                  <VideoIcon size={20} />
+                </div>
+                <span className="zm-drawer-brand-title">IntellMeet</span>
+              </div>
+              <div className="zm-drawer-header-actions">
+                <button
+                  type="button"
+                  className="zm-icon-action-btn"
+                  onClick={() => showToast('You have 2 new AI meeting summaries ready to review.')}
+                  aria-label="Notifications"
+                >
+                  <BellIcon size={17} />
+                  <span className="zm-notification-dot" />
+                </button>
+                <div className="zm-avatar-circle" style={{ width: 32, height: 32, fontSize: 11 }}>
+                  <span>{user?.avatar || 'ER'}</span>
+                </div>
+              </div>
+            </div>
+
+            <nav className="zm-drawer-nav">
+              {navSections.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeNavSection === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`zm-drawer-nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => handleNavClick(item.key)}
+                  >
+                    <IconComponent size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="zm-drawer-footer">
+              <button
+                type="button"
+                className="zm-drawer-logout-btn"
+                onClick={handleLogout}
+              >
+                <LogOutIcon size={18} />
+                <span>Log out</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* =====================================================================
           2. Hero Section: "Find out what's possible when work connects"
