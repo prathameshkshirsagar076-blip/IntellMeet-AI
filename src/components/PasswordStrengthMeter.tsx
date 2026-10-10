@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useMemo } from 'react';
 
 interface PasswordStrengthMeterProps {
@@ -10,13 +11,13 @@ export const evaluatePasswordSecurity = (password: string) => {
     hasUpper: /[A-Z]/.test(password),
     hasLower: /[a-z]/.test(password),
     hasNumber: /[0-9]/.test(password),
-    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password),
+    hasSpecial: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`]/.test(password),
   };
 
   const score = Object.values(rules).filter(Boolean).length;
 
-  let label: 'weak' | 'fair' | 'good' | 'strong' = 'weak';
-  let activeSegments = 1;
+  let label: 'weak' | 'fair' | 'good' | 'strong';
+  let activeSegments: number;
 
   if (password.length === 0) {
     activeSegments = 0;

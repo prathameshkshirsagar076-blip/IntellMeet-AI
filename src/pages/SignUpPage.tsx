@@ -23,6 +23,7 @@ import {
   validateEmail,
   validatePassword,
 } from '../utils/validation';
+import { toast } from '../components/toast/toast';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
 
@@ -130,6 +131,7 @@ export const SignUpPage: React.FC = () => {
           refreshToken: response.data.refreshToken,
         });
         setIsSuccess(true);
+        toast.success(response.message || 'Account created successfully!');
       } else {
         throw new Error(response?.message || 'Registration was not successful.');
       }
@@ -142,13 +144,13 @@ export const SignUpPage: React.FC = () => {
 
       if (isConflict) {
         setIsEmailConflict(true);
-        setApiError(
-          `An account with the email ${email} already exists. Would you like to sign in instead?`
-        );
+        const msg = `An account with the email ${email} already exists. Would you like to sign in instead?`;
+        setApiError(msg);
+        toast.error('An account with this email address already exists.');
       } else {
-        setApiError(
-          error.message || 'Unable to complete registration. Please check your network and try again.'
-        );
+        const msg = error.message || 'Unable to complete registration. Please check your network and try again.';
+        setApiError(msg);
+        toast.error(msg);
       }
     } finally {
       setIsSubmitting(false);

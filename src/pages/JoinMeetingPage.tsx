@@ -82,7 +82,7 @@ export const JoinMeetingPage: React.FC = () => {
   // Lobby device toggles
   const [isMicOn, setIsMicOn] = useState(!preferences.autoMuteOnJoin);
   const [isCameraOn, setIsCameraOn] = useState(!preferences.autoTurnOffCameraOnJoin);
-  const [displayName, setDisplayName] = useState(user?.name || 'Alex Morgan');
+  const [displayName, setDisplayName] = useState(user?.name || 'Guest User');
   const [selectedMic, setSelectedMic] = useState(preferences.microphoneDevice);
   const [selectedCam, setSelectedCam] = useState(preferences.cameraDevice);
 

@@ -14,7 +14,6 @@ import {
   BellIcon,
   PlusIcon,
   LogOutIcon,
-  CheckCircleIcon,
   ChevronDownIcon,
 } from '../components/icons';
 import '../styles/dashboard.css';
@@ -86,7 +85,6 @@ export const DashboardLayout: React.FC = () => {
     markNotificationAsRead,
     markAllNotificationsAsRead,
     clearAllNotifications,
-    toast,
     createMeeting,
     showToast,
   } = useMeetings();
@@ -169,9 +167,9 @@ export const DashboardLayout: React.FC = () => {
     return 'Dashboard';
   };
 
-  const displayName = user?.name || 'Alex Morgan';
-  const displayAvatar = user?.avatar || 'AM';
-  const displayEmail = user?.email || 'alex.morgan@intellmeet.com';
+  const displayName = user?.name || 'Workspace User';
+  const displayAvatar = user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'U');
+  const displayEmail = user?.email || '';
 
   return (
     <div className="im-shell">
@@ -292,7 +290,7 @@ export const DashboardLayout: React.FC = () => {
           <div className="im-sidebar-workspace-card">
             <div className="im-sidebar-workspace-avatar">ENT</div>
             <div className="im-sidebar-workspace-info">
-              <div className="im-sidebar-workspace-name">{user?.company || 'IntellMeet HQ'}</div>
+              <div className="im-sidebar-workspace-name">{user?.company || user?.companyName || 'Enterprise Workspace'}</div>
               <div className="im-sidebar-workspace-plan">Enterprise Tier</div>
             </div>
           </div>
@@ -501,15 +499,7 @@ export const DashboardLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Global Toast Message */}
-      {toast && (
-        <div className="im-toast-container">
-          <div className={`im-toast ${toast.type}`}>
-            <CheckCircleIcon size={18} />
-            <span>{toast.message}</span>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

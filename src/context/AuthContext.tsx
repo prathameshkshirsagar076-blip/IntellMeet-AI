@@ -7,7 +7,17 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import type { AuthUser, RegisterPayload, RegisterResponse, LoginPayload, LoginResponse } from '../types/auth';
+import type {
+  AuthUser,
+  RegisterPayload,
+  RegisterResponse,
+  LoginPayload,
+  LoginResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
+} from '../types/auth';
 import {
   getStoredUser,
   getAccessToken,
@@ -17,6 +27,7 @@ import {
   isJwtExpired,
 } from '../utils/tokenStorage';
 import { AuthService, normalizeAuthUser } from '../services/auth.service';
+import { authApi } from '../api/auth.api';
 
 export interface UserProfile extends AuthUser {
   company: string;
@@ -24,65 +35,70 @@ export interface UserProfile extends AuthUser {
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isLoading: boolean;
   user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
+  login: (payload: LoginPayload) => Promise<LoginResponse>;
   register: (payload: RegisterPayload) => Promise<RegisterResponse>;
-  login: (email: string, name?: string, company?: string) => void;
-  loginWithCredentials: (payload: LoginPayload) => Promise<LoginResponse>;
+  forgotPassword: (payload: ForgotPasswordPayload) => Promise<ForgotPasswordResponse>;
+  resetPassword: (payload: ResetPasswordPayload) => Promise<ResetPasswordResponse>;
   setAuthSessionState: (user: AuthUser, accessToken: string, refreshToken: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/**
- * Derives a human-friendly display name from an email address
- */
-const deriveNameFromEmail = (email: string): string => {
-  const localPart = email.split('@')[0] || 'User';
-  return localPart
-    .split(/[._-]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ');
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize state from persistent localStorage
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const stored = getStoredUser();
-    if (stored) return stored;
-
-    // Check legacy sessionStorage if present
-    try {
-      const demoStored = sessionStorage.getItem('intellmeet_demo_auth_session');
-      if (demoStored) {
-        return normalizeAuthUser(JSON.parse(demoStored));
-      }
-    } catch {
-      // Ignore
-    }
-    return null;
-  });
-
+  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
   const [accessToken, setAccessToken] = useState<string | null>(() => getAccessToken());
   const [refreshToken, setRefreshToken] = useState<string | null>(() => getRefreshToken());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Check valid token expiration on mount
+  // Synchronize and validate session on mount
   useEffect(() => {
-    const currentToken = getAccessToken();
-    if (currentToken && isJwtExpired(currentToken)) {
-      // If access token is expired and no valid refresh, clear
-      // For now, if refresh token exists, we keep session alive
-      const currentRefresh = getRefreshToken();
-      if (!currentRefresh) {
-        clearAuthSession();
-        setUser(null);
-        setAccessToken(null);
-        setRefreshToken(null);
+    const initializeAuth = async () => {
+      try {
+        const storedToken = getAccessToken();
+        const storedRefresh = getRefreshToken();
+        const storedProfile = getStoredUser();
+
+        if (storedToken && !isJwtExpired(storedToken) && storedProfile) {
+          setUser(storedProfile);
+          setAccessToken(storedToken);
+          setRefreshToken(storedRefresh);
+
+          // Verify session in background with /auth/me
+          authApi.getCurrentUser()
+            .then((res) => {
+              if (res?.data?.user) {
+                const normalized = normalizeAuthUser(res.data.user);
+                setUser(normalized);
+                if (storedToken && storedRefresh) {
+                  storeAuthSession(storedToken, storedRefresh, normalized);
+                }
+              }
+            })
+            .catch(() => {
+              // Ignore background sync errors; let interceptor handle if token expires
+            });
+        } else if (storedRefresh) {
+          // Access token expired but refresh token exists - keep profile, apiClient refreshes token on demand
+          if (!storedToken) {
+            setUser(storedProfile);
+          }
+        } else {
+          clearAuthSession();
+          setUser(null);
+          setAccessToken(null);
+          setRefreshToken(null);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    initializeAuth();
   }, []);
 
   const setAuthSessionState = useCallback(
@@ -93,6 +109,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRefreshToken(newRefreshToken);
     },
     []
+  );
+
+  const login = useCallback(
+    async (payload: LoginPayload): Promise<LoginResponse> => {
+      const response = await AuthService.login(payload);
+      if (response?.data) {
+        setAuthSessionState(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
+      }
+      return response;
+    },
+    [setAuthSessionState]
   );
 
   const register = useCallback(
@@ -110,49 +141,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [setAuthSessionState]
   );
 
-  const loginWithCredentials = useCallback(
-    async (payload: LoginPayload): Promise<LoginResponse> => {
-      const response = await AuthService.login(payload);
-      if (response?.data) {
-        setAuthSessionState(
-          response.data.user,
-          response.data.accessToken,
-          response.data.refreshToken
-        );
-      }
-      return response;
+  const forgotPassword = useCallback(
+    async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+      return AuthService.forgotPassword(payload);
     },
-    [setAuthSessionState]
+    []
   );
 
-  const login = useCallback(
-    (email: string, name?: string, company?: string) => {
-      const formattedEmail = email.trim();
-      const formattedName = name?.trim() || deriveNameFromEmail(formattedEmail);
-      const formattedCompany = company?.trim() || 'Enterprise Workspace';
-
-      const newUser: AuthUser = normalizeAuthUser({
-        name: formattedName,
-        email: formattedEmail,
-        company: formattedCompany,
-        jobTitle: 'Product Lead',
-      });
-
-      // Dummy tokens for demo fallback if needed
-      const dummyToken = 'demo-token-' + Date.now();
-      setAuthSessionState(newUser, dummyToken, dummyToken);
+  const resetPassword = useCallback(
+    async (payload: ResetPasswordPayload): Promise<ResetPasswordResponse> => {
+      return AuthService.resetPassword(payload);
     },
-    [setAuthSessionState]
+    []
   );
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-    AuthService.logout().catch(() => {
-      // Cleanup locally regardless
+  const logout = useCallback(async () => {
+    try {
+      await AuthService.logout();
+    } catch {
+      // Local session cleaned up regardless
+    } finally {
+      setUser(null);
+      setAccessToken(null);
+      setRefreshToken(null);
       clearAuthSession();
-    });
+    }
   }, []);
 
   const isAuthenticated = Boolean(user && accessToken);
@@ -160,23 +173,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = useMemo(
     () => ({
       isAuthenticated,
+      isLoading,
       user,
       accessToken,
       refreshToken,
-      register,
       login,
-      loginWithCredentials,
+      register,
+      forgotPassword,
+      resetPassword,
       setAuthSessionState,
       logout,
     }),
     [
       isAuthenticated,
+      isLoading,
       user,
       accessToken,
       refreshToken,
-      register,
       login,
-      loginWithCredentials,
+      register,
+      forgotPassword,
+      resetPassword,
       setAuthSessionState,
       logout,
     ]
