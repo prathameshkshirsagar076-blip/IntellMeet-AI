@@ -336,68 +336,7 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
   },
 ];
 
-const INITIAL_TEAM: TeamMember[] = [
-  {
-    id: 'tm-1',
-    name: 'Alex Morgan',
-    email: 'alex.morgan@intellmeet.com',
-    role: 'Product Lead & Architect',
-    department: 'Product',
-    avatar: 'AM',
-    isOnline: true,
-    lastActive: 'Active now',
-  },
-  {
-    id: 'tm-2',
-    name: 'Elena Rostova',
-    email: 'elena.rostova@intellmeet.com',
-    role: 'VP of Engineering',
-    department: 'Engineering',
-    avatar: 'ER',
-    isOnline: true,
-    lastActive: 'Active now',
-  },
-  {
-    id: 'tm-3',
-    name: 'Marcus Chen',
-    email: 'marcus.chen@intellmeet.com',
-    role: 'Principal Realtime Systems Engineer',
-    department: 'Infrastructure',
-    avatar: 'MC',
-    isOnline: true,
-    lastActive: 'Active now',
-  },
-  {
-    id: 'tm-4',
-    name: 'Sophia Wu',
-    email: 'sophia.wu@intellmeet.com',
-    role: 'Lead Product & UI/UX Designer',
-    department: 'Design',
-    avatar: 'SW',
-    isOnline: false,
-    lastActive: '15 mins ago',
-  },
-  {
-    id: 'tm-5',
-    name: 'Liam Davies',
-    email: 'liam.davies@intellmeet.com',
-    role: 'AI & Speech Recognition Specialist',
-    department: 'AI Research',
-    avatar: 'LD',
-    isOnline: true,
-    lastActive: 'Active now',
-  },
-  {
-    id: 'tm-6',
-    name: 'Amara Patel',
-    email: 'amara.patel@intellmeet.com',
-    role: 'Enterprise Solutions Director',
-    department: 'Operations',
-    avatar: 'AP',
-    isOnline: false,
-    lastActive: '1 hour ago',
-  },
-];
+const INITIAL_TEAM: TeamMember[] = [];
 
 const INITIAL_PREFERENCES: UserPreferences = {
   theme: 'light',

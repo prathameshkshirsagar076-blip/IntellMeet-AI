@@ -41,9 +41,21 @@ export const apiClient = {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), env.apiTimeoutMs);
 
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort();
+      } else {
+        options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+      }
+    }
+
     // Endpoint resolution
     const base = env.apiBaseUrl.replace(/\/+$/, '');
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    if (base.endsWith('/api/v1') && cleanEndpoint.startsWith('/api/v1')) {
+      cleanEndpoint = cleanEndpoint.slice(7);
+      if (!cleanEndpoint.startsWith('/')) cleanEndpoint = `/${cleanEndpoint}`;
+    }
     const primaryUrl = `${base}${cleanEndpoint}`;
 
     const headers: Record<string, string> = {
@@ -154,6 +166,9 @@ export const apiClient = {
       clearTimeout(timeoutId);
       const err = error as Error & { status?: number };
       if (err.name === 'AbortError') {
+        if (options.signal?.aborted) {
+          throw error;
+        }
         throw new ApiError('Request timed out. Please check your connection and try again.', 408);
       }
       throw error;

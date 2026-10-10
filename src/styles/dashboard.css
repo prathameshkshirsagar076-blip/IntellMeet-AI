@@ -2524,3 +2524,130 @@ body {
 .im-quick-swatch.active {
   box-shadow: 0 0 0 2px var(--im-text-primary);
 }
+
+/* Team Directory Enhancements */
+@keyframes imSkeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.im-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--im-bg-subtle) 25%,
+    var(--im-border) 37%,
+    var(--im-bg-subtle) 63%
+  );
+  background-size: 200% 100%;
+  animation: imSkeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: var(--im-radius-sm);
+}
+
+.im-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 16px 0 8px 0;
+  margin-top: 24px;
+  border-top: 1px solid var(--im-border);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.im-pagination-info {
+  font-size: 0.8125rem;
+  color: var(--im-text-secondary);
+}
+
+.im-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.im-pagination-limit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--im-text-secondary);
+}
+
+.im-pagination-select {
+  height: 32px;
+  padding: 2px 8px;
+  font-size: 0.8125rem;
+  border-radius: var(--im-radius-md);
+  border: 1px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  color: var(--im-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.im-pagination-select:focus {
+  border-color: var(--im-primary);
+  box-shadow: 0 0 0 2px var(--im-primary-light);
+}
+
+.im-pagination-page-indicator {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--im-text-primary);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.im-role-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--im-radius-full);
+  text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.im-role-badge-admin {
+  background-color: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+}
+
+.im-role-badge-user {
+  background-color: var(--im-bg-subtle);
+  color: var(--im-text-secondary);
+  border: 1px solid var(--im-border);
+}
+
+.im-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.im-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.im-status-dot.active {
+  background-color: var(--im-success);
+}
+
+.im-status-dot.inactive {
+  background-color: var(--im-text-muted);
+}
+
