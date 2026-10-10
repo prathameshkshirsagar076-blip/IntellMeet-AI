@@ -1,0 +1,1096 @@
+/* =========================================================================
+   IntellMeet Enterprise Theme Presets & Global Semantic Tokens
+   ========================================================================= */
+
+/* Core Semantic Tokens mapped to project CSS variables */
+:root {
+  --im-secondary: #7c3aed;
+  --im-accent: #6366f1;
+
+  --color-primary: var(--im-primary);
+  --color-primary-hover: var(--im-primary-hover);
+  --color-secondary: var(--im-secondary);
+  --color-accent: var(--im-accent);
+  --color-background: var(--im-bg-canvas);
+  --color-surface: var(--im-bg-surface);
+  --color-surface-elevated: var(--im-bg-surface);
+  --color-text-primary: var(--im-text-primary);
+  --color-text-secondary: var(--im-text-secondary);
+  --color-border: var(--im-border);
+  --color-success: var(--im-success);
+  --color-warning: var(--im-warning);
+  --color-danger: var(--im-danger);
+  --color-focus-ring: var(--im-border-focus);
+
+  /* Bridge to global panel styles */
+  --panel-bg: var(--im-bg-surface);
+  --panel-text-primary: var(--im-text-primary);
+  --panel-text-secondary: var(--im-text-secondary);
+  --panel-border: var(--im-border);
+  --accent-purple: var(--im-primary);
+  --accent-purple-hover: var(--im-primary-hover);
+  --accent-purple-light: var(--im-primary-light);
+}
+
+/* =========================================================================
+   1. IntellMeet Signature Preset
+   ========================================================================= */
+:root,
+[data-theme="signature"] {
+  --im-primary: #4f46e5;
+  --im-primary-hover: #4338ca;
+  --im-primary-light: #eef2ff;
+  --im-primary-text: #4338ca;
+  --im-secondary: #7c3aed;
+  --im-accent: #6366f1;
+
+  --im-bg-canvas: #f8fafc;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #f1f5f9;
+  --im-bg-subtle: #f8fafc;
+  --im-bg-sidebar: #0a0f24;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #4f46e5;
+
+  --im-text-primary: #0f172a;
+  --im-text-secondary: #334155;
+  --im-text-muted: #64748b;
+  --im-text-sidebar: #94a3b8;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #e2e8f0;
+  --im-border-subtle: #f1f5f9;
+  --im-border-focus: #4f46e5;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode,
+.dark-mode[data-theme="signature"],
+.dark-mode [data-theme="signature"] {
+  --im-primary: #6366f1;
+  --im-primary-hover: #4f46e5;
+  --im-primary-light: rgba(99, 102, 241, 0.22);
+  --im-primary-text: #a5b4fc;
+  --im-secondary: #a855f7;
+  --im-accent: #818cf8;
+
+  --im-bg-canvas: #090d16;
+  --im-bg-surface: #111827;
+  --im-bg-surface-hover: #1f2937;
+  --im-bg-subtle: #161e2e;
+  --im-bg-sidebar: #060911;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #6366f1;
+
+  --im-text-primary: #f8fafc;
+  --im-text-secondary: #cbd5e1;
+  --im-text-muted: #94a3b8;
+  --im-text-sidebar: #94a3b8;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #1f2937;
+  --im-border-subtle: #172033;
+  --im-border-focus: #6366f1;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   2. Ocean Professional Preset
+   ========================================================================= */
+[data-theme="ocean"] {
+  --im-primary: #0284c7;
+  --im-primary-hover: #0369a1;
+  --im-primary-light: #e0f2fe;
+  --im-primary-text: #0284c7;
+  --im-secondary: #0ea5e9;
+  --im-accent: #06b6d4;
+
+  --im-bg-canvas: #f0f9ff;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #e0f2fe;
+  --im-bg-subtle: #f8fafc;
+  --im-bg-sidebar: #082f49;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #0284c7;
+
+  --im-text-primary: #082f49;
+  --im-text-secondary: #0c4a6e;
+  --im-text-muted: #475569;
+  --im-text-sidebar: #7dd3fc;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #bae6fd;
+  --im-border-subtle: #e0f2fe;
+  --im-border-focus: #0284c7;
+  --im-border-sidebar: rgba(255, 255, 255, 0.12);
+}
+
+.dark-mode[data-theme="ocean"],
+.dark-mode [data-theme="ocean"] {
+  --im-primary: #38bdf8;
+  --im-primary-hover: #0284c7;
+  --im-primary-light: rgba(2, 132, 199, 0.22);
+  --im-primary-text: #7dd3fc;
+  --im-secondary: #0ea5e9;
+  --im-accent: #22d3ee;
+
+  --im-bg-canvas: #031726;
+  --im-bg-surface: #082f49;
+  --im-bg-surface-hover: #0c4a6e;
+  --im-bg-subtle: #0a3d5e;
+  --im-bg-sidebar: #02111b;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #38bdf8;
+
+  --im-text-primary: #f0f9ff;
+  --im-text-secondary: #bae6fd;
+  --im-text-muted: #7dd3fc;
+  --im-text-sidebar: #7dd3fc;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #0e4973;
+  --im-border-subtle: #0a3857;
+  --im-border-focus: #38bdf8;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   3. Emerald Executive Preset
+   ========================================================================= */
+[data-theme="emerald"] {
+  --im-primary: #059669;
+  --im-primary-hover: #047857;
+  --im-primary-light: #ecfdf5;
+  --im-primary-text: #059669;
+  --im-secondary: #10b981;
+  --im-accent: #34d399;
+
+  --im-bg-canvas: #f2fbf7;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #ecfdf5;
+  --im-bg-subtle: #f8fafc;
+  --im-bg-sidebar: #064e3b;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #059669;
+
+  --im-text-primary: #064e3b;
+  --im-text-secondary: #065f46;
+  --im-text-muted: #4b5563;
+  --im-text-sidebar: #a7f3d0;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #a7f3d0;
+  --im-border-subtle: #d1fae5;
+  --im-border-focus: #059669;
+  --im-border-sidebar: rgba(255, 255, 255, 0.12);
+}
+
+.dark-mode[data-theme="emerald"],
+.dark-mode [data-theme="emerald"] {
+  --im-primary: #34d399;
+  --im-primary-hover: #059669;
+  --im-primary-light: rgba(5, 150, 105, 0.22);
+  --im-primary-text: #6ee7b7;
+  --im-secondary: #10b981;
+  --im-accent: #6ee7b7;
+
+  --im-bg-canvas: #02241b;
+  --im-bg-surface: #064e3b;
+  --im-bg-surface-hover: #065f46;
+  --im-bg-subtle: #04382a;
+  --im-bg-sidebar: #011711;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #34d399;
+
+  --im-text-primary: #ecfdf5;
+  --im-text-secondary: #a7f3d0;
+  --im-text-muted: #6ee7b7;
+  --im-text-sidebar: #a7f3d0;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #0a634c;
+  --im-border-subtle: #074535;
+  --im-border-focus: #34d399;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   4. Midnight Pro Preset
+   ========================================================================= */
+[data-theme="midnight"] {
+  --im-primary: #312e81;
+  --im-primary-hover: #1e1b4b;
+  --im-primary-light: #e0e7ff;
+  --im-primary-text: #312e81;
+  --im-secondary: #4338ca;
+  --im-accent: #6366f1;
+
+  --im-bg-canvas: #f8fafc;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #eef2ff;
+  --im-bg-subtle: #f1f5f9;
+  --im-bg-sidebar: #0f172a;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #312e81;
+
+  --im-text-primary: #0f172a;
+  --im-text-secondary: #1e293b;
+  --im-text-muted: #64748b;
+  --im-text-sidebar: #cbd5e1;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #cbd5e1;
+  --im-border-subtle: #e2e8f0;
+  --im-border-focus: #312e81;
+  --im-border-sidebar: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode[data-theme="midnight"],
+.dark-mode [data-theme="midnight"] {
+  --im-primary: #818cf8;
+  --im-primary-hover: #6366f1;
+  --im-primary-light: rgba(99, 102, 241, 0.25);
+  --im-primary-text: #c7d2fe;
+  --im-secondary: #a5b4fc;
+  --im-accent: #c7d2fe;
+
+  --im-bg-canvas: #030712;
+  --im-bg-surface: #0b0f19;
+  --im-bg-surface-hover: #131b2e;
+  --im-bg-subtle: #0f172a;
+  --im-bg-sidebar: #02040a;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #818cf8;
+
+  --im-text-primary: #f8fafc;
+  --im-text-secondary: #e2e8f0;
+  --im-text-muted: #94a3b8;
+  --im-text-sidebar: #cbd5e1;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #1e293b;
+  --im-border-subtle: #111827;
+  --im-border-focus: #818cf8;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   5. Arctic Minimal Preset
+   ========================================================================= */
+[data-theme="arctic"] {
+  --im-primary: #0284c7;
+  --im-primary-hover: #0369a1;
+  --im-primary-light: #f0f9ff;
+  --im-primary-text: #0284c7;
+  --im-secondary: #64748b;
+  --im-accent: #38bdf8;
+
+  --im-bg-canvas: #f8fafc;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #f1f5f9;
+  --im-bg-subtle: #f8fafc;
+  --im-bg-sidebar: #1e293b;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #0284c7;
+
+  --im-text-primary: #0f172a;
+  --im-text-secondary: #334155;
+  --im-text-muted: #64748b;
+  --im-text-sidebar: #cbd5e1;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #e2e8f0;
+  --im-border-subtle: #f1f5f9;
+  --im-border-focus: #0284c7;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode[data-theme="arctic"],
+.dark-mode [data-theme="arctic"] {
+  --im-primary: #38bdf8;
+  --im-primary-hover: #0284c7;
+  --im-primary-light: rgba(56, 189, 248, 0.2);
+  --im-primary-text: #7dd3fc;
+  --im-secondary: #94a3b8;
+  --im-accent: #7dd3fc;
+
+  --im-bg-canvas: #0b111a;
+  --im-bg-surface: #121a26;
+  --im-bg-surface-hover: #1c2838;
+  --im-bg-subtle: #15202e;
+  --im-bg-sidebar: #080c12;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #38bdf8;
+
+  --im-text-primary: #f1f5f9;
+  --im-text-secondary: #cbd5e1;
+  --im-text-muted: #94a3b8;
+  --im-text-sidebar: #94a3b8;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #1e293b;
+  --im-border-subtle: #162130;
+  --im-border-focus: #38bdf8;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   6. Royal Purple Preset
+   ========================================================================= */
+[data-theme="royal"] {
+  --im-primary: #7e22ce;
+  --im-primary-hover: #6b21a8;
+  --im-primary-light: #f3e8ff;
+  --im-primary-text: #7e22ce;
+  --im-secondary: #9333ea;
+  --im-accent: #a855f7;
+
+  --im-bg-canvas: #faf5ff;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #f3e8ff;
+  --im-bg-subtle: #faf5ff;
+  --im-bg-sidebar: #3b0764;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #7e22ce;
+
+  --im-text-primary: #3b0764;
+  --im-text-secondary: #581c87;
+  --im-text-muted: #6b7280;
+  --im-text-sidebar: #e9d5ff;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #e9d5ff;
+  --im-border-subtle: #f3e8ff;
+  --im-border-focus: #7e22ce;
+  --im-border-sidebar: rgba(255, 255, 255, 0.12);
+}
+
+.dark-mode[data-theme="royal"],
+.dark-mode [data-theme="royal"] {
+  --im-primary: #c084fc;
+  --im-primary-hover: #a855f7;
+  --im-primary-light: rgba(168, 85, 247, 0.22);
+  --im-primary-text: #d8b4fe;
+  --im-secondary: #d8b4fe;
+  --im-accent: #e9d5ff;
+
+  --im-bg-canvas: #140524;
+  --im-bg-surface: #260b42;
+  --im-bg-surface-hover: #381161;
+  --im-bg-subtle: #1f0936;
+  --im-bg-sidebar: #0e0319;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #c084fc;
+
+  --im-text-primary: #faf5ff;
+  --im-text-secondary: #e9d5ff;
+  --im-text-muted: #c084fc;
+  --im-text-sidebar: #e9d5ff;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #3b0764;
+  --im-border-subtle: #2c084a;
+  --im-border-focus: #c084fc;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   7. Sunset Coral Preset
+   ========================================================================= */
+[data-theme="sunset"] {
+  --im-primary: #ea580c;
+  --im-primary-hover: #c2410c;
+  --im-primary-light: #ffedd5;
+  --im-primary-text: #ea580c;
+  --im-secondary: #f97316;
+  --im-accent: #fb923c;
+
+  --im-bg-canvas: #fffaf5;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #fff1e6;
+  --im-bg-subtle: #fff7ed;
+  --im-bg-sidebar: #431407;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #ea580c;
+
+  --im-text-primary: #431407;
+  --im-text-secondary: #7c2d12;
+  --im-text-muted: #78716c;
+  --im-text-sidebar: #fed7aa;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #fed7aa;
+  --im-border-subtle: #ffedd5;
+  --im-border-focus: #ea580c;
+  --im-border-sidebar: rgba(255, 255, 255, 0.12);
+}
+
+.dark-mode[data-theme="sunset"],
+.dark-mode [data-theme="sunset"] {
+  --im-primary: #fb923c;
+  --im-primary-hover: #ea580c;
+  --im-primary-light: rgba(234, 88, 12, 0.22);
+  --im-primary-text: #fdba74;
+  --im-secondary: #f97316;
+  --im-accent: #fdba74;
+
+  --im-bg-canvas: #1c0b05;
+  --im-bg-surface: #2c1208;
+  --im-bg-surface-hover: #3e1a0b;
+  --im-bg-subtle: #240f06;
+  --im-bg-sidebar: #130703;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #fb923c;
+
+  --im-text-primary: #fff7ed;
+  --im-text-secondary: #fed7aa;
+  --im-text-muted: #fdba74;
+  --im-text-sidebar: #fed7aa;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #431407;
+  --im-border-subtle: #351006;
+  --im-border-focus: #fb923c;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   8. Graphite Elite Preset
+   ========================================================================= */
+[data-theme="graphite"] {
+  --im-primary: #475569;
+  --im-primary-hover: #334155;
+  --im-primary-light: #f1f5f9;
+  --im-primary-text: #334155;
+  --im-secondary: #64748b;
+  --im-accent: #0284c7;
+
+  --im-bg-canvas: #f8fafc;
+  --im-bg-surface: #ffffff;
+  --im-bg-surface-hover: #f1f5f9;
+  --im-bg-subtle: #f8fafc;
+  --im-bg-sidebar: #0f172a;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #475569;
+
+  --im-text-primary: #0f172a;
+  --im-text-secondary: #334155;
+  --im-text-muted: #64748b;
+  --im-text-sidebar: #94a3b8;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #cbd5e1;
+  --im-border-subtle: #e2e8f0;
+  --im-border-focus: #475569;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode[data-theme="graphite"],
+.dark-mode [data-theme="graphite"] {
+  --im-primary: #94a3b8;
+  --im-primary-hover: #64748b;
+  --im-primary-light: rgba(148, 163, 184, 0.2);
+  --im-primary-text: #cbd5e1;
+  --im-secondary: #cbd5e1;
+  --im-accent: #38bdf8;
+
+  --im-bg-canvas: #090d14;
+  --im-bg-surface: #111622;
+  --im-bg-surface-hover: #1a2030;
+  --im-bg-subtle: #151c2b;
+  --im-bg-sidebar: #06080e;
+  --im-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --im-bg-sidebar-active: #94a3b8;
+
+  --im-text-primary: #f8fafc;
+  --im-text-secondary: #cbd5e1;
+  --im-text-muted: #94a3b8;
+  --im-text-sidebar: #94a3b8;
+  --im-text-sidebar-active: #ffffff;
+
+  --im-border: #1e293b;
+  --im-border-subtle: #172033;
+  --im-border-focus: #94a3b8;
+  --im-border-sidebar: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================================
+   Accent Color Overrides (When accentColor != 'preset')
+   ========================================================================= */
+[data-accent="indigo"] {
+  --im-primary: #4f46e5;
+  --im-primary-hover: #4338ca;
+  --im-primary-light: #eef2ff;
+  --im-primary-text: #4338ca;
+  --im-border-focus: #4f46e5;
+}
+.dark-mode[data-accent="indigo"],
+.dark-mode [data-accent="indigo"] {
+  --im-primary-light: rgba(79, 70, 229, 0.22);
+  --im-primary-text: #818cf8;
+}
+
+[data-accent="blue"] {
+  --im-primary: #0284c7;
+  --im-primary-hover: #0369a1;
+  --im-primary-light: #e0f2fe;
+  --im-primary-text: #0284c7;
+  --im-border-focus: #0284c7;
+}
+.dark-mode[data-accent="blue"],
+.dark-mode [data-accent="blue"] {
+  --im-primary-light: rgba(2, 132, 199, 0.22);
+  --im-primary-text: #38bdf8;
+}
+
+[data-accent="emerald"] {
+  --im-primary: #059669;
+  --im-primary-hover: #047857;
+  --im-primary-light: #ecfdf5;
+  --im-primary-text: #059669;
+  --im-border-focus: #059669;
+}
+.dark-mode[data-accent="emerald"],
+.dark-mode [data-accent="emerald"] {
+  --im-primary-light: rgba(5, 150, 105, 0.22);
+  --im-primary-text: #34d399;
+}
+
+[data-accent="violet"] {
+  --im-primary: #7c3aed;
+  --im-primary-hover: #6d28d9;
+  --im-primary-light: #f5f3ff;
+  --im-primary-text: #7c3aed;
+  --im-border-focus: #7c3aed;
+}
+.dark-mode[data-accent="violet"],
+.dark-mode [data-accent="violet"] {
+  --im-primary-light: rgba(124, 58, 237, 0.22);
+  --im-primary-text: #a78bfa;
+}
+
+[data-accent="rose"] {
+  --im-primary: #e11d48;
+  --im-primary-hover: #be123c;
+  --im-primary-light: #ffe4e6;
+  --im-primary-text: #e11d48;
+  --im-border-focus: #e11d48;
+}
+.dark-mode[data-accent="rose"],
+.dark-mode [data-accent="rose"] {
+  --im-primary-light: rgba(225, 29, 72, 0.22);
+  --im-primary-text: #fb7185;
+}
+
+[data-accent="amber"] {
+  --im-primary: #d97706;
+  --im-primary-hover: #b45309;
+  --im-primary-light: #fef3c7;
+  --im-primary-text: #d97706;
+  --im-border-focus: #d97706;
+}
+.dark-mode[data-accent="amber"],
+.dark-mode [data-accent="amber"] {
+  --im-primary-light: rgba(217, 119, 6, 0.22);
+  --im-primary-text: #fbbf24;
+}
+
+[data-accent="teal"] {
+  --im-primary: #0d9488;
+  --im-primary-hover: #0f766e;
+  --im-primary-light: #ccfbf1;
+  --im-primary-text: #0d9488;
+  --im-border-focus: #0d9488;
+}
+.dark-mode[data-accent="teal"],
+.dark-mode [data-accent="teal"] {
+  --im-primary-light: rgba(13, 148, 136, 0.22);
+  --im-primary-text: #2dd4bf;
+}
+
+[data-accent="cyan"] {
+  --im-primary: #0891b2;
+  --im-primary-hover: #0e7490;
+  --im-primary-light: #cffafe;
+  --im-primary-text: #0891b2;
+  --im-border-focus: #0891b2;
+}
+.dark-mode[data-accent="cyan"],
+.dark-mode [data-accent="cyan"] {
+  --im-primary-light: rgba(8, 145, 178, 0.22);
+  --im-primary-text: #22d3ee;
+}
+
+/* =========================================================================
+   Theme Preview Cards & Miniature Dashboard Interface Preview
+   ========================================================================= */
+.im-theme-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.im-theme-preview-card {
+  border-radius: var(--im-radius-lg);
+  border: 2px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  text-align: left;
+  outline: none;
+}
+
+.im-theme-preview-card:hover {
+  border-color: var(--im-primary);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+}
+
+.im-theme-preview-card:focus-visible {
+  box-shadow: 0 0 0 3px var(--im-primary-light), 0 0 0 5px var(--im-primary);
+}
+
+.im-theme-preview-card.selected {
+  border-color: var(--im-primary);
+  box-shadow: 0 0 0 1px var(--im-primary), 0 8px 24px -4px rgba(79, 70, 229, 0.18);
+  background-color: var(--im-bg-surface);
+}
+
+/* Selected Badge */
+.im-theme-selected-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--im-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  animation: imBadgePop 0.18s ease;
+}
+
+@keyframes imBadgePop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Miniature Dashboard UI Preview Box */
+.im-mini-dashboard-preview {
+  width: 100%;
+  height: 124px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+.im-mini-sidebar {
+  width: 38px;
+  height: 100%;
+  padding: 8px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.im-mini-logo-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.im-mini-nav-item {
+  width: 100%;
+  height: 6px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.im-mini-nav-item.active {
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.im-mini-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.im-mini-topbar {
+  height: 22px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.im-mini-search {
+  width: 50%;
+  height: 8px;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.im-mini-avatar {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.im-mini-content {
+  flex: 1;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.im-mini-hero {
+  height: 26px;
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.im-mini-hero-line {
+  width: 45%;
+  height: 5px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.im-mini-hero-pill {
+  width: 22px;
+  height: 8px;
+  border-radius: 3px;
+  background-color: #ffffff;
+}
+
+.im-mini-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.im-mini-card-tile {
+  height: 22px;
+  border-radius: 4px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.im-mini-tile-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.im-mini-tile-line {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.im-mini-meeting-row {
+  height: 18px;
+  border-radius: 4px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.im-mini-row-left {
+  width: 55%;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.im-mini-row-badge {
+  width: 16px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+/* Palette Swatches Bar */
+.im-theme-palette-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.im-theme-palette-swatch-item {
+  flex: 1;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.im-theme-palette-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--im-text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.im-theme-card-info {
+  margin-top: 2px;
+}
+
+.im-theme-card-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--im-text-primary);
+  margin: 0 0 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.im-theme-card-tagline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--im-primary);
+  margin-bottom: 4px;
+}
+
+.im-theme-card-desc {
+  font-size: 0.78rem;
+  color: var(--im-text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* =========================================================================
+   Redesigned Theme Popover in Topbar
+   ========================================================================= */
+.im-theme-popover-pro {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 350px;
+  max-width: calc(100vw - 24px);
+  background-color: var(--im-bg-surface);
+  border: 1px solid var(--im-border);
+  border-radius: 16px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 250;
+  animation: imDropdownFade 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.im-theme-popover-header {
+  padding: 14px 16px;
+  background-color: var(--im-bg-subtle);
+  border-bottom: 1px solid var(--im-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.im-theme-popover-header-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--im-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.im-theme-popover-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--im-primary);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.im-theme-popover-link:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
+.im-theme-popover-body {
+  padding: 14px 16px;
+  max-height: 440px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.im-popover-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--im-text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Preset grid inside Popover */
+.im-popover-preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.im-popover-preset-tile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1.5px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  cursor: pointer;
+  transition: var(--im-transition);
+  text-align: left;
+  outline: none;
+}
+
+.im-popover-preset-tile:hover {
+  border-color: var(--im-primary);
+  background-color: var(--im-bg-surface-hover);
+}
+
+.im-popover-preset-tile.active {
+  border-color: var(--im-primary);
+  background-color: var(--im-primary-light);
+}
+
+.im-popover-preset-dots {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.im-popover-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.im-popover-preset-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--im-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.im-popover-preset-check {
+  color: var(--im-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Quick Accents with Native Color Picker */
+.im-popover-accents-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.im-accent-swatch-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+
+.im-accent-swatch-chip:hover {
+  transform: scale(1.1);
+}
+
+.im-accent-swatch-chip.active {
+  box-shadow: 0 0 0 2px var(--im-bg-surface), 0 0 0 4px var(--im-primary);
+}
+
+.im-custom-color-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px dashed var(--im-border);
+  background-color: var(--im-bg-surface);
+  color: var(--im-text-secondary);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.im-custom-color-btn:hover {
+  border-color: var(--im-primary);
+  color: var(--im-primary);
+}
+
+.im-native-color-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.im-theme-popover-footer {
+  padding: 10px 16px;
+  background-color: var(--im-bg-subtle);
+  border-top: 1px solid var(--im-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
