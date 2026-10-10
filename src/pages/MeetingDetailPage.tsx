@@ -112,7 +112,7 @@ export const MeetingDetailPage: React.FC = () => {
               {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                 <button
                   className="im-btn im-btn-primary"
-                  onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode}`)}
+                  onClick={() => navigate(`/meeting/${meeting.id}`)}
                 >
                   <VideoIcon size={16} />
                   Join Meeting Now

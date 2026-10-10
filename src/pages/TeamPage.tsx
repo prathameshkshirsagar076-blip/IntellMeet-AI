@@ -40,7 +40,7 @@ export const TeamPage: React.FC = () => {
       isInstant: true,
     });
     showToast(`Instant 1:1 meeting started with ${member.name}!`, 'success');
-    navigate(`/meetings/${meeting.id}`);
+    navigate(`/meeting/${meeting.id}`);
   };
 
   const handleSendInvite = (e: React.FormEvent) => {

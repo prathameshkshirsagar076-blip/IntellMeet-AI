@@ -305,7 +305,7 @@ export const MeetingsPage: React.FC = () => {
                     {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                       <button
                         className="im-btn im-btn-primary im-btn-sm"
-                        onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode}`)}
+                        onClick={() => navigate(`/meeting/${meeting.id}`)}
                       >
                         Join
                       </button>

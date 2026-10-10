@@ -20,7 +20,7 @@ import MeetingHistoryPage from './pages/MeetingHistoryPage';
 import AiNotesPage from './pages/AiNotesPage';
 import TeamPage from './pages/TeamPage';
 import SettingsPage from './pages/SettingsPage';
-import DashboardPage from './pages/DashboardPage';
+import LiveMeetingRoomPage from './pages/LiveMeetingRoomPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -62,15 +62,17 @@ export const App: React.FC = () => {
               <Route path="/ai-notes" element={<AiNotesPage />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              {/* Preserved workplace promotional showcase */}
-              <Route path="/workplace-showcase" element={<DashboardPage />} />
             </Route>
 
-            {/* 4. Legal & Policy Documentation */}
+            {/* 4. Live Meeting Room (Zoom Workplace UI) */}
+            <Route path="/meeting/:meetingId" element={<LiveMeetingRoomPage />} />
+            <Route path="/meeting" element={<LiveMeetingRoomPage />} />
+
+            {/* 5. Legal & Policy Documentation */}
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
 
-            {/* 5. Custom 404 Catch-All Route */}
+            {/* 6. Custom 404 Catch-All Route */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>

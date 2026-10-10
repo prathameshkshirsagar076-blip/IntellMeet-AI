@@ -120,7 +120,7 @@ export const DashboardOverviewPage: React.FC = () => {
       isInstant: true,
     });
     showToast(`Instant meeting started with code ${newMeeting.meetingCode}`, 'success');
-    navigate(`/meetings/${newMeeting.id}`);
+    navigate(`/meeting/${newMeeting.id}`);
   };
 
   const handleConfirmCancel = () => {
@@ -292,8 +292,8 @@ export const DashboardOverviewPage: React.FC = () => {
                       <div className="im-meeting-actions">
                         <button
                           className="im-btn im-btn-primary im-btn-sm"
-                          onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode}`)}
-                          title="Join demo lobby"
+                          onClick={() => navigate(`/meeting/${meeting.id}`)}
+                          title="Join live meeting"
                         >
                           Join
                         </button>

@@ -128,11 +128,10 @@ export const JoinMeetingPage: React.FC = () => {
       setIsConnecting(false);
       if (matchedMeeting) {
         showToast(`Connected to room: "${matchedMeeting.title}"`, 'success');
-        navigate(`/meetings/${matchedMeeting.id}`);
+        navigate(`/meeting/${matchedMeeting.id}`);
       } else {
-        // Allow joining with any code in demo mode
-        showToast(`Joined session "${targetCode}" in Demo Mode`, 'success');
-        navigate(`/meetings/mtg-101`);
+        showToast(`Joined session "${targetCode}" in Live Room`, 'success');
+        navigate(`/meeting/${targetCode}`);
       }
     }, 800);
   };
