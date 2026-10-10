@@ -10,6 +10,7 @@ import {
   PlusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChatIcon,
 } from '../components/icons';
 
 
@@ -54,6 +55,8 @@ export const TeamPage: React.FC = () => {
   const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+
 
   // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -161,6 +164,10 @@ export const TeamPage: React.FC = () => {
     toast.info(`Prefilled scheduling for ${user.name}`);
   };
 
+  const handleChatWith = (user: UserItem) => {
+    navigate('/chat', { state: { recipient: user } });
+  };
+
   const handleSendInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
@@ -172,7 +179,7 @@ export const TeamPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="im-team-page">
       {/* Page Header */}
       <div className="im-page-header">
         <div className="im-page-title-group">
@@ -450,7 +457,7 @@ export const TeamPage: React.FC = () => {
                     {user.email}
                   </div>
 
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
                       className="im-btn im-btn-primary im-btn-sm"
@@ -459,6 +466,15 @@ export const TeamPage: React.FC = () => {
                     >
                       <VideoIcon size={14} />
                       Quick Meet
+                    </button>
+                    <button
+                      type="button"
+                      className="im-btn im-btn-secondary im-btn-sm"
+                      onClick={() => handleChatWith(user)}
+                      title={`Chat with ${user.name}`}
+                    >
+                      <ChatIcon size={14} />
+                      Chat
                     </button>
                     <button
                       type="button"
@@ -531,6 +547,8 @@ export const TeamPage: React.FC = () => {
           </div>
         </div>
       )}
+
+
 
       {/* Invite Modal */}
       {inviteModalOpen && (

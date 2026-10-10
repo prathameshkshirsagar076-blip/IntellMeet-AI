@@ -17,6 +17,7 @@ import {
   PaletteIcon,
   SunIcon,
   MoonIcon,
+  ChatIcon,
 } from '../components/icons';
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
@@ -168,6 +169,7 @@ export const DashboardLayout: React.FC = () => {
     if (path.startsWith('/history')) return 'Meeting History';
     if (path.startsWith('/ai-notes')) return 'AI Notes & Summaries';
     if (path.startsWith('/team')) return 'Team & Directory';
+    if (path.startsWith('/chat')) return 'Direct Messaging & Chat';
     if (path.startsWith('/settings')) return 'Preferences & Settings';
     return 'Dashboard';
   };
@@ -287,6 +289,16 @@ export const DashboardLayout: React.FC = () => {
               <UsersIcon size={18} />
             </span>
             <span className="im-nav-item-label">Team & People</span>
+          </NavLink>
+
+          <NavLink
+            to="/chat"
+            className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <span className="im-nav-item-icon">
+              <ChatIcon size={18} />
+            </span>
+            <span className="im-nav-item-label">Chat</span>
           </NavLink>
 
           <NavLink
@@ -565,7 +577,16 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* Content Outlet */}
-        <main className="im-content" role="main">
+        <main
+          className={`im-content ${
+            location.pathname.startsWith('/chat')
+              ? 'im-chat-content-mode'
+              : location.pathname.startsWith('/team')
+              ? 'im-team-content-mode'
+              : ''
+          }`}
+          role="main"
+        >
           <Outlet />
         </main>
       </div>
