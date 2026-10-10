@@ -1,57 +1,76 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { MeetingProvider } from './context/MeetingContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
+import DashboardLayout from './layouts/DashboardLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import DashboardOverviewPage from './pages/DashboardOverviewPage';
+import MeetingsPage from './pages/MeetingsPage';
+import CreateMeetingPage from './pages/CreateMeetingPage';
+import JoinMeetingPage from './pages/JoinMeetingPage';
+import MeetingDetailPage from './pages/MeetingDetailPage';
+import MeetingHistoryPage from './pages/MeetingHistoryPage';
+import AiNotesPage from './pages/AiNotesPage';
+import TeamPage from './pages/TeamPage';
+import SettingsPage from './pages/SettingsPage';
 import DashboardPage from './pages/DashboardPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import NotFoundPage from './pages/NotFoundPage';
-import RouteSwitcher from './components/RouteSwitcher';
 import './App.css';
 
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        {/* Centralized Enterprise Routing Architecture */}
-        <Routes>
-          {/* 1. Public Landing Page as Root Entry Point */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/landing" element={<Navigate to="/" replace />} />
+      <MeetingProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* 1. Public Landing Page */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<Navigate to="/" replace />} />
 
-          {/* 2. Authentication Flow: 2-column Desktop Layout with AI Showcase */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          </Route>
+            {/* 2. Authentication Flow */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            </Route>
 
-          {/* 3. Protected Dashboard (Guarded in demo mode) */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
+            {/* 3. Protected Dashboard Shell & Subroutes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<DashboardOverviewPage />} />
+              <Route path="/meetings" element={<MeetingsPage />} />
+              <Route path="/meetings/new" element={<CreateMeetingPage />} />
+              <Route path="/meetings/join" element={<JoinMeetingPage />} />
+              <Route path="/meetings/:meetingId" element={<MeetingDetailPage />} />
+              <Route path="/history" element={<MeetingHistoryPage />} />
+              <Route path="/ai-notes" element={<AiNotesPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              {/* Preserved workplace promotional showcase */}
+              <Route path="/workplace-showcase" element={<DashboardPage />} />
+            </Route>
 
-          {/* 4. Legal & Policy Documentation */}
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
+            {/* 4. Legal & Policy Documentation */}
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
 
-          {/* 5. Custom 404 Catch-All Route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-
-        {/* Floating Route Switcher (Enables fast inspection & verification of all journeys) */}
-        <RouteSwitcher />
-      </BrowserRouter>
+            {/* 5. Custom 404 Catch-All Route */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </BrowserRouter>
+      </MeetingProvider>
     </AuthProvider>
   );
 };
