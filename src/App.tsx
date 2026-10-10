@@ -19,6 +19,7 @@ import MeetingDetailPage from './pages/MeetingDetailPage';
 import MeetingHistoryPage from './pages/MeetingHistoryPage';
 import AiNotesPage from './pages/AiNotesPage';
 import TeamPage from './pages/TeamPage';
+import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import LiveMeetingRoomPage from './pages/LiveMeetingRoomPage';
 import TermsPage from './pages/TermsPage';
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
               <Route path="/history" element={<MeetingHistoryPage />} />
               <Route path="/ai-notes" element={<AiNotesPage />} />
               <Route path="/team" element={<TeamPage />} />
+              <Route path="/chat" element={<ChatPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
