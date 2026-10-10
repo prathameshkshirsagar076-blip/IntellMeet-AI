@@ -4,23 +4,48 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
   size?: number | string;
 }
 
-export const BrandIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+export const BrandIcon: React.FC<IconProps> = ({ size = 24, className, style, ...props }) => (
   <svg
-    viewBox="0 0 24 24"
+    viewBox="0 0 32 32"
     fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
     width={size}
     height={size}
     className={className}
+    style={style}
     aria-hidden="true"
     {...props}
   >
-    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-    <path d="M2 17l10 5 10-5" />
-    <path d="M2 12l10 5 10-5" />
+    <defs>
+      <linearGradient id="im-brand-svg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#0284c7" />
+        <stop offset="50%" stopColor="#2563eb" />
+        <stop offset="100%" stopColor="#7c3aed" />
+      </linearGradient>
+    </defs>
+    {/* Camera rounded body */}
+    <rect x="2" y="5.5" width="18" height="21" rx="5" fill="url(#im-brand-svg-grad)" />
+    {/* Camera right projection lens */}
+    <path
+      d="M20 13.5l8.5-5.2c.65-.4 1.5.07 1.5.85v13.7c0 .78-.85 1.25-1.5.85L20 18.5v-5z"
+      fill="url(#im-brand-svg-grad)"
+    />
+    {/* Sparkle star top-right */}
+    <path
+      d="M21.5 2.5l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9.9-2.2z"
+      fill="#60a5fa"
+    />
+    {/* Center participant avatar */}
+    <circle cx="11" cy="13.5" r="2.5" fill="#ffffff" />
+    <path
+      d="M6.8 21.5a4.2 4.2 0 0 1 8.4 0"
+      stroke="#ffffff"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      fill="none"
+    />
+    {/* Side participant avatars */}
+    <circle cx="6" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
+    <circle cx="16" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
   </svg>
 );
 
@@ -660,5 +685,71 @@ export const UsersIcon: React.FC<IconProps> = ({ size, className, ...props }) =>
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+export const PaletteIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z" />
+  </svg>
+);
+
+export const SunIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+export const MoonIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </svg>
 );

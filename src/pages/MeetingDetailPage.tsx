@@ -150,7 +150,7 @@ export const MeetingDetailPage: React.FC = () => {
       </div>
 
       {/* Two Column Specs */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>
+      <div className="im-detail-grid">
         {/* Left: Meeting Specifications & Schedule */}
         <div className="im-card">
           <div className="im-card-header">

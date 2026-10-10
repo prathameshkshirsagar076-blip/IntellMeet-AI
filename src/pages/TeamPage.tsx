@@ -99,7 +99,7 @@ export const TeamPage: React.FC = () => {
       </div>
 
       {/* Team Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+      <div className="im-team-grid">
         {filteredMembers.map((member) => (
           <div key={member.id} className="im-card" style={{ marginBottom: 0 }}>
             <div className="im-card-body" style={{ padding: 20 }}>

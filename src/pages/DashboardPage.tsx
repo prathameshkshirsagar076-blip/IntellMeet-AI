@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  BrandIcon,
   SparkleIcon,
   BrainIcon,
   CheckIcon,
@@ -503,10 +502,17 @@ export const DashboardPage: React.FC = () => {
               title="IntellMeet Workplace Dashboard"
             >
               <div className="zm-brand-icon" aria-hidden="true">
-                <VideoIcon size={20} />
+                <img
+                  src="/intellmeet-icon.png"
+                  alt="IntellMeet"
+                  className="zm-brand-icon-img"
+                />
               </div>
               <div className="zm-brand-typography">
-                <span className="zm-brand-title">IntellMeet</span>
+                <span className="zm-brand-title">
+                  <span className="zm-brand-intell">Intell</span>
+                  <span className="zm-brand-meet">Meet</span>
+                </span>
                 <span className="zm-brand-pill">WORKPLACE</span>
               </div>
             </button>
@@ -1766,8 +1772,13 @@ export const DashboardPage: React.FC = () => {
             {/* Brand Column & Region Pickers */}
             <div className="zm-footer-brand-col">
               <div className="zm-footer-logo-row">
-                <BrandIcon size={28} />
-                <span className="zm-footer-logo-text">intellmeet</span>
+                <img
+                  src="/intellmeet-icon.png"
+                  alt="IntellMeet"
+                  className="zm-footer-logo-img"
+                  style={{ width: 28, height: 28, objectFit: 'contain' }}
+                />
+                <span className="zm-footer-logo-text">IntellMeet</span>
               </div>
               <p className="zm-footer-tagline">
                 AI-First Unified Communication &amp; Meeting Intelligence Platform.

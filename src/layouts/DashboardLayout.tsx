@@ -3,7 +3,6 @@ import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-do
 import { useAuth } from '../context/AuthContext';
 import { useMeetings } from '../context/MeetingContext';
 import {
-  BrandIcon,
   LayoutDashboardIcon,
   VideoIcon,
   CalendarIcon,
@@ -15,8 +14,24 @@ import {
   PlusIcon,
   LogOutIcon,
   ChevronDownIcon,
+  PaletteIcon,
+  SunIcon,
+  MoonIcon,
 } from '../components/icons';
+import type { AccentColor } from '../types/meeting';
 import '../styles/dashboard.css';
+
+// Quick accent color presets for topbar palette
+const QUICK_ACCENTS: { id: AccentColor; hex: string; label: string }[] = [
+  { id: 'indigo', hex: '#4f46e5', label: 'Indigo' },
+  { id: 'blue', hex: '#0284c7', label: 'Ocean' },
+  { id: 'emerald', hex: '#059669', label: 'Emerald' },
+  { id: 'violet', hex: '#7c3aed', label: 'Violet' },
+  { id: 'rose', hex: '#e11d48', label: 'Rose' },
+  { id: 'amber', hex: '#d97706', label: 'Amber' },
+  { id: 'teal', hex: '#0d9488', label: 'Teal' },
+  { id: 'cyan', hex: '#0891b2', label: 'Cyan' },
+];
 
 // SVG Icons for Shell
 const HistoryClockIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className }) => (
@@ -87,16 +102,20 @@ export const DashboardLayout: React.FC = () => {
     clearAllNotifications,
     createMeeting,
     showToast,
+    preferences,
+    updatePreferences,
   } = useMeetings();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notifPopoverOpen, setNotifPopoverOpen] = useState(false);
+  const [themePopoverOpen, setThemePopoverOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const themePopoverRef = useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
   useEffect(() => {
@@ -106,6 +125,9 @@ export const DashboardLayout: React.FC = () => {
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifPopoverOpen(false);
+      }
+      if (themePopoverRef.current && !themePopoverRef.current.contains(e.target as Node)) {
+        setThemePopoverOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -156,6 +178,7 @@ export const DashboardLayout: React.FC = () => {
   // Determine active breadcrumb title
   const getBreadcrumbTitle = () => {
     const path = location.pathname;
+    if (location.search.includes('tab=theme')) return 'Theme & Styling';
     if (path.startsWith('/meetings/new')) return 'Schedule Meeting';
     if (path.startsWith('/meetings/join')) return 'Join Meeting';
     if (path.startsWith('/meetings/')) return 'Meeting Details';
@@ -185,13 +208,20 @@ export const DashboardLayout: React.FC = () => {
       {/* Left Sidebar */}
       <aside className={`im-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`} aria-label="Sidebar Navigation">
         <div className="im-sidebar-header">
-          <Link to="/dashboard" className="im-sidebar-logo">
+          <Link to="/dashboard" className="im-sidebar-logo" title="IntellMeet — Meet Smarter With AI">
             <div className="im-sidebar-logo-icon">
-              <BrandIcon size={20} />
+              <img
+                src="/intellmeet-icon.png"
+                alt="IntellMeet"
+                className="im-sidebar-logo-img"
+              />
             </div>
             <div className="im-sidebar-logo-text">
-              <span>IntellMeet</span>
-              <span className="im-sidebar-logo-tag">AI WORKSPACE</span>
+              <div className="im-sidebar-logo-brand">
+                <span className="im-sidebar-logo-intell">Intell</span>
+                <span className="im-sidebar-logo-meet">Meet</span>
+              </div>
+              <span className="im-sidebar-logo-tag">MEET SMARTER WITH AI</span>
             </div>
           </Link>
           {mobileSidebarOpen && (
@@ -276,8 +306,22 @@ export const DashboardLayout: React.FC = () => {
           </NavLink>
 
           <NavLink
+            to="/settings?tab=theme"
+            className={() =>
+              `im-nav-item ${location.pathname === '/settings' && location.search.includes('tab=theme') ? 'active' : ''}`
+            }
+          >
+            <span className="im-nav-item-icon">
+              <PaletteIcon size={18} />
+            </span>
+            <span className="im-nav-item-label">Theme & Styling</span>
+          </NavLink>
+
+          <NavLink
             to="/settings"
-            className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
+            className={({ isActive }) =>
+              `im-nav-item ${isActive && !location.search.includes('tab=theme') ? 'active' : ''}`
+            }
           >
             <span className="im-nav-item-icon">
               <SettingsIcon size={18} />
@@ -351,6 +395,113 @@ export const DashboardLayout: React.FC = () => {
               <PlusIcon size={15} />
               New Meeting
             </button>
+
+            {/* Quick Theme & Color Palette Popover */}
+            <div className="im-profile-wrapper" ref={themePopoverRef}>
+              <button
+                className="im-icon-btn"
+                onClick={() => setThemePopoverOpen((prev) => !prev)}
+                title="Theme Mode & Accent Colors"
+                aria-label="Customize theme mode and accent colors"
+                aria-expanded={themePopoverOpen}
+                style={{ position: 'relative' }}
+              >
+                {preferences.theme === 'dark' ? <MoonIcon size={18} /> : <SunIcon size={18} />}
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 3,
+                    right: 3,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--im-primary)',
+                    boxShadow: '0 0 0 1.5px var(--im-bg-surface)',
+                  }}
+                />
+              </button>
+
+              {themePopoverOpen && (
+                <div className="im-theme-popover" role="dialog" aria-label="Theme & Color Customizer">
+                  <div className="im-theme-popover-title">
+                    <span>Theme & Accent Colors</span>
+                    <Link
+                      to="/settings?tab=theme"
+                      style={{ fontSize: '0.72rem', color: 'var(--im-primary)', textDecoration: 'none', fontWeight: 600 }}
+                      onClick={() => setThemePopoverOpen(false)}
+                    >
+                      All Settings →
+                    </Link>
+                  </div>
+
+                  {/* Mode Selector */}
+                  <div className="im-theme-mode-row">
+                    <button
+                      type="button"
+                      className={`im-theme-mode-btn ${preferences.theme === 'light' ? 'active' : ''}`}
+                      onClick={() => {
+                        updatePreferences({ theme: 'light' });
+                        showToast('☀️ Light Canvas theme activated', 'info');
+                      }}
+                    >
+                      <SunIcon size={15} />
+                      <span>Light</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`im-theme-mode-btn ${preferences.theme === 'dark' ? 'active' : ''}`}
+                      onClick={() => {
+                        updatePreferences({ theme: 'dark' });
+                        showToast('🌙 Dark Navy theme activated', 'info');
+                      }}
+                    >
+                      <MoonIcon size={15} />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`im-theme-mode-btn ${preferences.theme === 'system' ? 'active' : ''}`}
+                      onClick={() => {
+                        updatePreferences({ theme: 'system' });
+                        showToast('💻 System theme sync activated', 'info');
+                      }}
+                    >
+                      <span>💻</span>
+                      <span>Auto</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Color Swatches */}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--im-text-muted)', marginBottom: 6 }}>
+                    Select Accent Color:
+                  </div>
+                  <div className="im-quick-swatches">
+                    {QUICK_ACCENTS.map((acc) => {
+                      const isSelected = (preferences.accentColor || 'indigo') === acc.id;
+                      return (
+                        <button
+                          key={acc.id}
+                          type="button"
+                          className={`im-quick-swatch ${isSelected ? 'active' : ''}`}
+                          style={{ backgroundColor: acc.hex }}
+                          title={acc.label}
+                          onClick={() => {
+                            updatePreferences({ accentColor: acc.id });
+                            showToast(`Accent updated to ${acc.label}!`, 'success');
+                          }}
+                        >
+                          {isSelected && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" width={14} height={14}>
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Notification Bell */}
             <div className="im-profile-wrapper" ref={notifRef}>
@@ -440,6 +591,18 @@ export const DashboardLayout: React.FC = () => {
                     <div className="im-dropdown-user-name">{displayName}</div>
                     <div className="im-dropdown-user-email">{displayEmail}</div>
                   </div>
+
+                  <button
+                    className="im-dropdown-item"
+                    onClick={() => {
+                      navigate('/settings?tab=theme');
+                      setProfileDropdownOpen(false);
+                    }}
+                    role="menuitem"
+                  >
+                    <PaletteIcon size={16} />
+                    Theme & Colors
+                  </button>
 
                   <button
                     className="im-dropdown-item"
