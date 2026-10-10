@@ -10,6 +10,7 @@ import type {
   UserPreferences,
   TeamMember,
 } from '../types/meeting';
+import { toast as globalToast } from '../components/toast/toast';
 
 interface ToastData {
   id: string;
@@ -511,6 +512,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     const id = Date.now().toString();
     setToast({ id, message, type });
+    globalToast[type](message);
     setTimeout(() => {
       setToast((curr) => (curr?.id === id ? null : curr));
     }, 4000);

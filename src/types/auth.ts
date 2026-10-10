@@ -11,6 +11,19 @@ export interface LoginPayload {
   rememberMe?: boolean;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  newPassword: string;
+}
+
+export interface RefreshTokenPayload {
+  refreshToken?: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -54,6 +67,35 @@ export interface LoginResponse {
   data: AuthResponseData;
 }
 
+export interface RefreshTokenResponse {
+  success: boolean;
+  message: string;
+  data: AuthResponseData;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface CurrentUserResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: AuthUser;
+  };
+}
+
 export interface ApiErrorDetail {
   field?: string;
   message?: string;
@@ -62,6 +104,7 @@ export interface ApiErrorDetail {
 export interface ApiErrorResponse {
   success: boolean;
   message: string;
+  statusCode?: number;
   error?: {
     code?: string;
     details?: ApiErrorDetail[];

@@ -113,7 +113,7 @@ export const DashboardOverviewPage: React.FC = () => {
 
   const handleStartInstant = () => {
     const newMeeting = createMeeting({
-      title: `${user?.name || 'Alex'}'s Instant Meeting`,
+      title: user?.name ? `${user.name}'s Instant Meeting` : 'Instant Meeting',
       date: todayStr,
       startTime: new Date().toTimeString().slice(0, 5),
       durationMinutes: 30,
@@ -140,7 +140,7 @@ export const DashboardOverviewPage: React.FC = () => {
             <span>AI Meeting Co-Pilot Active</span>
           </div>
           <h1 className="im-welcome-title">
-            {greeting}, {user?.name || 'Alex'}!
+            {greeting}, {user?.name || 'there'}!
           </h1>
           <p className="im-welcome-subtitle">
             You have {meetingsTodayCount} scheduled {meetingsTodayCount === 1 ? 'meeting' : 'meetings'} today.

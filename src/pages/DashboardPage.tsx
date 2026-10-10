@@ -590,11 +590,11 @@ export const DashboardPage: React.FC = () => {
                 aria-haspopup="true"
               >
                 <div className="zm-avatar-circle">
-                  <span>{user?.avatar || 'ER'}</span>
+                  <span>{user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'U')}</span>
                   <span className="zm-online-status-dot" />
                 </div>
                 <div className="zm-profile-meta">
-                  <span className="zm-user-name">{user?.name || 'Elena Rostova'}</span>
+                  <span className="zm-user-name">{user?.name || 'Workspace User'}</span>
                   <span className="zm-user-tier">PRO WORKSPACE</span>
                 </div>
                 <ChevronDownIcon size={14} className={`zm-chevron ${profileMenuOpen ? 'open' : ''}`} />
@@ -603,8 +603,8 @@ export const DashboardPage: React.FC = () => {
               {profileMenuOpen && (
                 <div className="zm-profile-dropdown" role="menu">
                   <div className="zm-dropdown-user-card">
-                    <p className="zm-dd-name">{user?.name || 'Elena Rostova'}</p>
-                    <p className="zm-dd-email">{user?.email || 'elena.rostova@enterprise.com'}</p>
+                    <p className="zm-dd-name">{user?.name || 'Workspace User'}</p>
+                    <p className="zm-dd-email">{user?.email || ''}</p>
                     <div className="zm-dd-badge">
                       <SparkleIcon size={13} />
                       <span>Enterprise AI Tier &bull; Active</span>
@@ -690,7 +690,7 @@ export const DashboardPage: React.FC = () => {
                   <span className="zm-notification-dot" />
                 </button>
                 <div className="zm-avatar-circle" style={{ width: 32, height: 32, fontSize: 11 }}>
-                  <span>{user?.avatar || 'ER'}</span>
+                  <span>{user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'U')}</span>
                 </div>
               </div>
             </div>

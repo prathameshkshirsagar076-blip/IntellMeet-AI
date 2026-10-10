@@ -8,18 +8,26 @@ interface ProtectedRouteProps {
 }
 
 /**
- * Route guard component that protects private pages (e.g., /dashboard).
- * If the user has not established a demo session, redirects to /login.
+ * Route guard component protecting private authenticated routes.
+ * While session is loading on startup, renders a loading indicator.
+ * If unauthenticated, redirects to login while preserving destination in location.state.
  */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   redirectTo = '/login',
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc' }}>
+        <div style={{ width: 28, height: 28, border: '3px solid #e2e8f0', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
-    // Redirect to login while preserving the attempted path for return navigation
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 

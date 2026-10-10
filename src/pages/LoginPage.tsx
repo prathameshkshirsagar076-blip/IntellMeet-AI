@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
@@ -10,13 +10,14 @@ import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
 import { MailIcon, ShieldIcon } from '../components/icons';
 import { validateEmail, validatePassword } from '../utils/validation';
+import { toast } from '../components/toast/toast';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithCredentials } = useAuth();
+  const { login, isAuthenticated } = useAuth();
 
   // Form state
   const [email, setEmail] = useState('');
@@ -29,9 +30,17 @@ export const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
 
-  // Feedback notifications
+  // SSO Notice
   const [ssoNotice, setSsoNotice] = useState<string | null>(null);
-  const [demoNotice, setDemoNotice] = useState<string | null>(null);
+
+  // If already authenticated, redirect to destination
+  useEffect(() => {
+    if (isAuthenticated) {
+      const state = location.state as { from?: { pathname: string } } | undefined;
+      const destination = state?.from?.pathname || '/dashboard';
+      navigate(destination, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   // Validation helper
   const validateForm = (): boolean => {
@@ -49,35 +58,38 @@ export const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setTouched({ email: true, password: true });
     setApiError(null);
 
     if (!validateForm()) {
-      setDemoNotice(null);
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      await loginWithCredentials({ email, password, rememberMe: remember });
+      const response = await login({
+        email: email.trim().toLowerCase(),
+        password,
+        rememberMe: remember,
+      });
+
+      const successMsg = response.message || 'Login successful';
+      toast.success(successMsg);
+
       const state = location.state as { from?: { pathname: string } } | undefined;
       const destination = state?.from?.pathname || '/dashboard';
       navigate(destination, { replace: true });
     } catch (err: unknown) {
-      const error = err as Error;
-      if (
-        error.message?.includes('INVALID_CREDENTIALS') ||
-        error.message?.includes('Invalid')
-      ) {
-        setApiError('Invalid work email or password. Please verify your credentials or register an account.');
-      } else {
-        // Fallback demo session if API network is unreachable
-        login(email);
-        const state = location.state as { from?: { pathname: string } } | undefined;
-        const destination = state?.from?.pathname || '/dashboard';
-        navigate(destination, { replace: true });
-      }
+      const error = err as Error & { code?: string };
+      const errorMsg =
+        error.message ||
+        'Invalid work email or password. Please verify your credentials or register an account.';
+
+      setApiError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -85,7 +97,7 @@ export const LoginPage: React.FC = () => {
 
   const handleSSOClick = (provider: SSOProvider) => {
     setSsoNotice(
-      `SSO Integration Notice: Enterprise sign-in via ${SSO_PROVIDER_NAMES[provider]} requires an active Identity Provider integration. In this frontend prototype, please use the email form or click "Create an Account" to test registration.`
+      `SSO Integration Notice: Enterprise sign-in via ${SSO_PROVIDER_NAMES[provider]} requires an active Identity Provider integration. Please use your work email and password or register a new workspace account.`
     );
   };
 
@@ -171,7 +183,7 @@ export const LoginPage: React.FC = () => {
       {apiError && (
         <InfoNotice
           variant="error"
-          title="Authentication Failed"
+          title="Authentication Notice"
           onDismiss={() => setApiError(null)}
         >
           {apiError}
@@ -218,17 +230,6 @@ export const LoginPage: React.FC = () => {
         <span className="login-divider-line" />
       </div>
 
-      {/* Demo Notice Banner after submit */}
-      {demoNotice && (
-        <InfoNotice
-          variant="success"
-          title="Validation Verified"
-          onDismiss={() => setDemoNotice(null)}
-        >
-          {demoNotice}
-        </InfoNotice>
-      )}
-
       {/* Login Form */}
       <form className="login-form" onSubmit={handleSubmit} noValidate>
         {/* Work Email Field */}
@@ -237,6 +238,7 @@ export const LoginPage: React.FC = () => {
           label="Work Email"
           type="email"
           value={email}
+          disabled={isSubmitting}
           onChange={handleEmailChange}
           onBlur={handleEmailBlur}
           placeholder="name@company.com"
@@ -251,6 +253,7 @@ export const LoginPage: React.FC = () => {
           id="im-password"
           label="Password"
           value={password}
+          disabled={isSubmitting}
           onChange={handlePasswordChange}
           onBlur={handlePasswordBlur}
           placeholder="••••••••••••"
@@ -265,10 +268,12 @@ export const LoginPage: React.FC = () => {
         />
 
         {/* Remember this device checkbox */}
-        <label className="login-remember">
+        <label className="login-remember-label" htmlFor="im-remember">
           <input
+            id="im-remember"
             type="checkbox"
             checked={remember}
+            disabled={isSubmitting}
             onChange={(e) => setRemember(e.target.checked)}
             aria-label="Remember this device for 30 days"
           />
