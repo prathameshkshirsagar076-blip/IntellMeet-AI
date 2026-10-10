@@ -18,21 +18,9 @@ import {
   SunIcon,
   MoonIcon,
 } from '../components/icons';
-import type { AccentColor } from '../types/meeting';
 import NewMeetingModal from '../components/NewMeetingModal';
+import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
 import '../styles/dashboard.css';
-
-// Quick accent color presets for topbar palette
-const QUICK_ACCENTS: { id: AccentColor; hex: string; label: string }[] = [
-  { id: 'indigo', hex: '#4f46e5', label: 'Indigo' },
-  { id: 'blue', hex: '#0284c7', label: 'Ocean' },
-  { id: 'emerald', hex: '#059669', label: 'Emerald' },
-  { id: 'violet', hex: '#7c3aed', label: 'Violet' },
-  { id: 'rose', hex: '#e11d48', label: 'Rose' },
-  { id: 'amber', hex: '#d97706', label: 'Amber' },
-  { id: 'teal', hex: '#0d9488', label: 'Teal' },
-  { id: 'cyan', hex: '#0891b2', label: 'Cyan' },
-];
 
 // SVG Icons for Shell
 const HistoryClockIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className }) => (
@@ -105,8 +93,6 @@ export const DashboardLayout: React.FC = () => {
     isNewMeetingModalOpen,
     closeNewMeetingModal,
     preferences,
-    updatePreferences,
-    showToast,
   } = useMeetings();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -176,7 +162,8 @@ export const DashboardLayout: React.FC = () => {
     if (location.search.includes('tab=theme')) return 'Theme & Styling';
     if (path.startsWith('/meetings/new')) return 'Schedule Meeting';
     if (path.startsWith('/meetings/join')) return 'Join Meeting';
-    if (path.startsWith('/meetings/')) return 'Meeting Details';
+    if (path.startsWith('/meetings/') && path !== '/meetings') return 'Meeting Details';
+    if (path.startsWith('/meetings') && location.search.includes('filter=upcoming')) return 'My Schedule';
     if (path.startsWith('/meetings')) return 'Meetings';
     if (path.startsWith('/history')) return 'Meeting History';
     if (path.startsWith('/ai-notes')) return 'AI Notes & Summaries';
@@ -247,7 +234,9 @@ export const DashboardLayout: React.FC = () => {
           <NavLink
             to="/meetings"
             end
-            className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
+            className={({ isActive }) =>
+              `im-nav-item ${isActive && !location.search.includes('filter=upcoming') ? 'active' : ''}`
+            }
           >
             <span className="im-nav-item-icon">
               <VideoIcon size={18} />
@@ -258,7 +247,7 @@ export const DashboardLayout: React.FC = () => {
           <NavLink
             to="/meetings?filter=upcoming"
             className={({ isActive }) =>
-              `im-nav-item ${isActive && location.search.includes('upcoming') ? 'active' : ''}`
+              `im-nav-item ${isActive && location.search.includes('filter=upcoming') ? 'active' : ''}`
             }
           >
             <span className="im-nav-item-icon">
@@ -416,86 +405,10 @@ export const DashboardLayout: React.FC = () => {
                 />
               </button>
 
-              {themePopoverOpen && (
-                <div className="im-theme-popover" role="dialog" aria-label="Theme & Color Customizer">
-                  <div className="im-theme-popover-title">
-                    <span>Theme & Accent Colors</span>
-                    <Link
-                      to="/settings?tab=theme"
-                      style={{ fontSize: '0.72rem', color: 'var(--im-primary)', textDecoration: 'none', fontWeight: 600 }}
-                      onClick={() => setThemePopoverOpen(false)}
-                    >
-                      All Settings →
-                    </Link>
-                  </div>
-
-                  {/* Mode Selector */}
-                  <div className="im-theme-mode-row">
-                    <button
-                      type="button"
-                      className={`im-theme-mode-btn ${preferences.theme === 'light' ? 'active' : ''}`}
-                      onClick={() => {
-                        updatePreferences({ theme: 'light' });
-                        showToast('☀️ Light Canvas theme activated', 'info');
-                      }}
-                    >
-                      <SunIcon size={15} />
-                      <span>Light</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`im-theme-mode-btn ${preferences.theme === 'dark' ? 'active' : ''}`}
-                      onClick={() => {
-                        updatePreferences({ theme: 'dark' });
-                        showToast('🌙 Dark Navy theme activated', 'info');
-                      }}
-                    >
-                      <MoonIcon size={15} />
-                      <span>Dark</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`im-theme-mode-btn ${preferences.theme === 'system' ? 'active' : ''}`}
-                      onClick={() => {
-                        updatePreferences({ theme: 'system' });
-                        showToast('💻 System theme sync activated', 'info');
-                      }}
-                    >
-                      <span>💻</span>
-                      <span>Auto</span>
-                    </button>
-                  </div>
-
-                  {/* Quick Color Swatches */}
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--im-text-muted)', marginBottom: 6 }}>
-                    Select Accent Color:
-                  </div>
-                  <div className="im-quick-swatches">
-                    {QUICK_ACCENTS.map((acc) => {
-                      const isSelected = (preferences.accentColor || 'indigo') === acc.id;
-                      return (
-                        <button
-                          key={acc.id}
-                          type="button"
-                          className={`im-quick-swatch ${isSelected ? 'active' : ''}`}
-                          style={{ backgroundColor: acc.hex }}
-                          title={acc.label}
-                          onClick={() => {
-                            updatePreferences({ accentColor: acc.id });
-                            showToast(`Accent updated to ${acc.label}!`, 'success');
-                          }}
-                        >
-                          {isSelected && (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" width={14} height={14}>
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <ThemeCustomizationPopover
+                isOpen={themePopoverOpen}
+                onClose={() => setThemePopoverOpen(false)}
+              />
             </div>
 
             {/* Notification Bell */}

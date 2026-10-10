@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMeetings } from '../context/MeetingContext';
-import type { ThemeMode, AccentColor } from '../types/meeting';
+import type { ThemeMode, AccentColor, ThemePresetId } from '../types/meeting';
+import {
+  THEME_PRESETS,
+  CURATED_ACCENTS,
+  DEFAULT_THEME_PRESET_ID,
+  getEffectiveThemeMode,
+  getThemePreset,
+} from '../config/themePresets';
+import { ThemePreviewCard } from '../components/theme/ThemePreviewCard';
 import {
   VideoIcon,
   SparkleIcon,
@@ -11,17 +19,6 @@ import {
   UsersIcon,
   ShieldCheckIcon,
 } from '../components/icons';
-
-const ACCENT_COLORS: { id: AccentColor; name: string; hex: string; description: string }[] = [
-  { id: 'indigo', name: 'Indigo Blurple', hex: '#4f46e5', description: 'Enterprise standard' },
-  { id: 'blue', name: 'Ocean Cyan', hex: '#0284c7', description: 'Precision and clarity' },
-  { id: 'emerald', name: 'Emerald Green', hex: '#059669', description: 'Vibrant and productive' },
-  { id: 'violet', name: 'Royal Violet', hex: '#7c3aed', description: 'Creative and AI-centric' },
-  { id: 'rose', name: 'Crimson Rose', hex: '#e11d48', description: 'Bold and energetic' },
-  { id: 'amber', name: 'Warm Amber', hex: '#d97706', description: 'Warm and collaborative' },
-  { id: 'teal', name: 'Teal Mint', hex: '#0d9488', description: 'Fresh and balanced' },
-  { id: 'cyan', name: 'Sky Cyan', hex: '#0891b2', description: 'Modern and focused' },
-];
 
 export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,9 +33,16 @@ export const SettingsPage: React.FC = () => {
 
   // Theme states
   const [themeMode, setThemeMode] = useState<ThemeMode>(preferences.theme);
-  const [accentColor, setAccentColor] = useState<AccentColor>(preferences.accentColor || 'indigo');
+  const [themePreset, setThemePreset] = useState<ThemePresetId>(
+    preferences.themePreset || DEFAULT_THEME_PRESET_ID
+  );
+  const [accentColor, setAccentColor] = useState<AccentColor>(preferences.accentColor || 'preset');
+  const [customAccentHex, setCustomAccentHex] = useState<string>(
+    preferences.customAccentHex || '#4f46e5'
+  );
   const [highContrast, setHighContrast] = useState<boolean>(Boolean(preferences.highContrast));
   const [reducedMotion, setReducedMotion] = useState<boolean>(Boolean(preferences.reducedMotion));
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
 
   // Device & other states
   const [micDevice, setMicDevice] = useState(preferences.microphoneDevice);
@@ -49,6 +53,25 @@ export const SettingsPage: React.FC = () => {
   const [emailReminders, setEmailReminders] = useState(preferences.emailReminders);
   const [desktopNotifs, setDesktopNotifs] = useState(preferences.desktopNotifications);
   const [autoAiSummary, setAutoAiSummary] = useState(preferences.aiSummaryAutoGenerate);
+
+  const customColorInputRef = useRef<HTMLInputElement>(null);
+
+  // Synchronize local states with preferences (e.g. when modified from topbar popover)
+  useEffect(() => {
+    setThemeMode(preferences.theme);
+    setThemePreset(preferences.themePreset || DEFAULT_THEME_PRESET_ID);
+    setAccentColor(preferences.accentColor || 'preset');
+    setCustomAccentHex(preferences.customAccentHex || '#4f46e5');
+    setHighContrast(Boolean(preferences.highContrast));
+    setReducedMotion(Boolean(preferences.reducedMotion));
+  }, [
+    preferences.theme,
+    preferences.themePreset,
+    preferences.accentColor,
+    preferences.customAccentHex,
+    preferences.highContrast,
+    preferences.reducedMotion,
+  ]);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -71,17 +94,38 @@ export const SettingsPage: React.FC = () => {
       mode === 'dark'
         ? '🌙 Dark Navy theme activated'
         : mode === 'light'
-        ? '☀️ Light theme activated'
+        ? '☀️ Light Canvas theme activated'
         : '💻 System theme matching activated',
       'success'
     );
   };
 
+  const handleSelectThemePreset = (presetId: ThemePresetId) => {
+    setThemePreset(presetId);
+    updatePreferences({ themePreset: presetId });
+    const p = getThemePreset(presetId);
+    showToast(`✨ ${p.name} theme preset activated!`, 'success');
+  };
+
   const handleSelectAccent = (color: AccentColor) => {
     setAccentColor(color);
     updatePreferences({ accentColor: color });
-    const match = ACCENT_COLORS.find((c) => c.id === color);
-    showToast(`Accent color updated to ${match?.name || color}!`, 'success');
+    if (color === 'preset') {
+      showToast('Theme preset default accent restored', 'info');
+    } else {
+      const match = CURATED_ACCENTS.find((c) => c.id === color);
+      showToast(`Accent color updated to ${match?.label || color}!`, 'success');
+    }
+  };
+
+  const handleCustomHexChange = (hex: string) => {
+    setCustomAccentHex(hex);
+    setAccentColor('custom');
+    updatePreferences({
+      accentColor: 'custom',
+      customAccentHex: hex,
+    });
+    showToast(`Custom accent set to ${hex}!`, 'success');
   };
 
   const handleToggleHighContrast = (checked: boolean) => {
@@ -96,11 +140,26 @@ export const SettingsPage: React.FC = () => {
     showToast(checked ? 'Reduced motion enabled' : 'Motion animations enabled', 'info');
   };
 
+  const handleResetThemeDefaults = () => {
+    updatePreferences({
+      theme: 'light',
+      themePreset: DEFAULT_THEME_PRESET_ID,
+      accentColor: 'preset',
+      customAccentHex: '#4f46e5',
+      highContrast: false,
+      reducedMotion: false,
+    });
+    setShowResetConfirmModal(false);
+    showToast('🔄 Theme reset to IntellMeet Signature default settings!', 'success');
+  };
+
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
     updatePreferences({
       theme: themeMode,
+      themePreset,
       accentColor,
+      customAccentHex,
       highContrast,
       reducedMotion,
       microphoneDevice: micDevice,
@@ -112,22 +171,24 @@ export const SettingsPage: React.FC = () => {
       desktopNotifications: desktopNotifs,
       aiSummaryAutoGenerate: autoAiSummary,
     });
+    showToast('All workspace preferences saved successfully!', 'success');
   };
 
-  const activeColorObj = ACCENT_COLORS.find((c) => c.id === accentColor) || ACCENT_COLORS[0];
+  const activePresetObj = getThemePreset(themePreset);
+  const effectiveMode = getEffectiveThemeMode(themeMode);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
       <div className="im-page-header">
         <div className="im-page-title-group">
           <h1 className="im-page-title">Workspace Settings</h1>
           <p className="im-page-subtitle">
-            Customize visual themes, brand accents, hardware defaults, and AI meeting automation.
+            Configure enterprise theme presets, coordinated palettes, audio/video devices, and AI automation.
           </p>
         </div>
 
         <div className="im-page-actions">
-          <button className="im-btn im-btn-primary" onClick={handleSaveAll}>
+          <button type="button" className="im-btn im-btn-primary" onClick={handleSaveAll}>
             Save All Preferences
           </button>
         </div>
@@ -177,24 +238,30 @@ export const SettingsPage: React.FC = () => {
 
       <form onSubmit={handleSaveAll}>
         {/* =========================================================================
-            TAB 1: THEME & APPEARANCE (FEATURED SECTION)
+            TAB 1: THEME & APPEARANCE (UPGRADED ENTERPRISE THEME STUDIO)
             ========================================================================= */}
         {activeTab === 'theme' && (
-          <div>
-            {/* 1. Theme Mode Card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* 1. Theme Mode Card (Light, Dark, System Auto) */}
             <div className="im-card">
               <div className="im-card-header">
-                <h2 className="im-card-title">
-                  <PaletteIcon size={18} style={{ color: 'var(--im-primary)' }} />
-                  Theme Mode & Interface Style
-                </h2>
+                <div>
+                  <h2 className="im-card-title">
+                    <PaletteIcon size={18} style={{ color: 'var(--im-primary)' }} />
+                    Appearance & Mode
+                  </h2>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', marginTop: 2 }}>
+                    Active: <strong>{themeMode === 'system' ? 'System Auto Sync' : `${themeMode.toUpperCase()} Mode`}</strong>
+                  </div>
+                </div>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
-                  Applies instantly across your entire workspace
+                  Applies instantly across all workspace windows
                 </span>
               </div>
               <div className="im-card-body">
                 <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)' }}>
-                  Choose your preferred workspace aesthetic. Switch between clean daylight surfaces, deep dark navy, or automatic operating system synchronization.
+                  Choose your interface lighting style. Seamlessly switch between daylight high-clarity surfaces,
+                  deep dark navy, or synchronize automatically with your operating system preferences.
                 </p>
 
                 <div className="im-theme-card-grid">
@@ -254,7 +321,7 @@ export const SettingsPage: React.FC = () => {
                     <div className="im-theme-card-footer">
                       <div>
                         <h3 className="im-theme-card-title">🌙 Dark Navy</h3>
-                        <p className="im-theme-card-subtitle">Deep contrast, reduced glare</p>
+                        <p className="im-theme-card-subtitle">Deep contrast, reduced eye glare</p>
                       </div>
                       {themeMode === 'dark' && (
                         <span style={{ color: 'var(--im-primary)' }}>
@@ -300,13 +367,16 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. Brand Accent Color Palette */}
+            {/* 2. Enterprise Theme Presets Gallery (8 Presets) */}
             <div className="im-card">
               <div className="im-card-header">
                 <div>
-                  <h2 className="im-card-title">Brand Accent Palette</h2>
+                  <h2 className="im-card-title">
+                    <SparkleIcon size={18} style={{ color: 'var(--im-primary)' }} />
+                    Enterprise Theme Presets (8 Coordinated Palettes)
+                  </h2>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', marginTop: 2 }}>
-                    Selected: <strong>{activeColorObj.name}</strong> ({activeColorObj.hex}) — {activeColorObj.description}
+                    Current Preset: <strong>{activePresetObj.name}</strong> — {activePresetObj.tagline}
                   </div>
                 </div>
                 <div
@@ -323,71 +393,221 @@ export const SettingsPage: React.FC = () => {
                   }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--im-primary)' }} />
-                  Live Token Sync
+                  Full Application Transformation
                 </div>
               </div>
 
               <div className="im-card-body">
-                <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)' }}>
-                  Personalize buttons, active highlights, navigation indicators, and badges:
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)' }}>
+                  Selecting a preset updates the entire application’s color palette, including surfaces, sidebars,
+                  borders, badges, navigation, and typography. Each palette is tuned for accessibility and visual harmony.
                 </p>
 
-                <div className="im-swatch-list">
-                  {ACCENT_COLORS.map((color) => {
-                    const isSelected = accentColor === color.id;
+                {/* Responsive Theme Gallery Grid with Realistic Miniature Dashboard Previews */}
+                <div className="im-theme-gallery-grid" role="radiogroup" aria-label="Theme presets selection">
+                  {THEME_PRESETS.map((preset) => {
                     return (
-                      <button
-                        key={color.id}
-                        type="button"
-                        className={`im-swatch-btn ${isSelected ? 'active' : ''}`}
-                        style={{ backgroundColor: color.hex }}
-                        onClick={() => handleSelectAccent(color.id)}
-                        data-tooltip={`${color.name} (${color.hex})`}
-                        aria-label={`Select ${color.name} accent`}
-                      >
-                        {isSelected && (
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#ffffff"
-                            strokeWidth="3.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            width={18}
-                            height={18}
-                          >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
+                      <ThemePreviewCard
+                        key={preset.id}
+                        preset={preset}
+                        isSelected={themePreset === preset.id}
+                        effectiveMode={effectiveMode}
+                        onSelect={handleSelectThemePreset}
+                      />
                     );
                   })}
                 </div>
+              </div>
+            </div>
 
-                {/* 3. Live Interactive Component Playground */}
+            {/* 3. Brand Accent Color Highlight Studio */}
+            <div className="im-card">
+              <div className="im-card-header">
+                <div>
+                  <h2 className="im-card-title">Accent Color Highlight</h2>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', marginTop: 2 }}>
+                    Selected:{' '}
+                    <strong>
+                      {accentColor === 'preset'
+                        ? `${activePresetObj.name} Default`
+                        : accentColor === 'custom'
+                        ? `Custom (${customAccentHex})`
+                        : CURATED_ACCENTS.find((c) => c.id === accentColor)?.label}
+                    </strong>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: 'var(--im-radius-full)',
+                    backgroundColor: 'var(--im-bg-subtle)',
+                    border: '1px solid var(--im-border)',
+                    color: 'var(--im-text-primary)',
+                  }}
+                >
+                  <span>Independent Accent Override</span>
+                </div>
+              </div>
+
+              <div className="im-card-body">
+                <p style={{ margin: '0 0 14px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)' }}>
+                  Personalize interactive buttons, active indicators, focus rings, and badges. Choose the preset’s native
+                  accent, pick from curated high-contrast shades, or choose a custom hex color.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+                  {/* Option: Preset Default */}
+                  <button
+                    type="button"
+                    className={`im-btn ${accentColor === 'preset' ? 'im-btn-primary' : 'im-btn-secondary'}`}
+                    style={{ height: 36, padding: '0 14px', fontSize: '0.8125rem' }}
+                    onClick={() => handleSelectAccent('preset')}
+                  >
+                    Preset Default ({activePresetObj.name.split(' ')[0]})
+                  </button>
+
+                  {/* Curated Swatches */}
+                  <div className="im-swatch-list" style={{ margin: 0 }}>
+                    {CURATED_ACCENTS.filter((c) => c.id !== 'preset' && c.id !== 'custom').map((color) => {
+                      const isSelected = accentColor === color.id;
+                      return (
+                        <button
+                          key={color.id}
+                          type="button"
+                          className={`im-swatch-btn ${isSelected ? 'active' : ''}`}
+                          style={{ backgroundColor: color.hex }}
+                          onClick={() => handleSelectAccent(color.id)}
+                          data-tooltip={`${color.label} (${color.hex})`}
+                          aria-label={`Select ${color.label} accent`}
+                        >
+                          {isSelected && (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#ffffff"
+                              strokeWidth="3.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              width={16}
+                              height={16}
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Hex Color Picker */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 10px',
+                      borderRadius: 'var(--im-radius-md)',
+                      border: '1px solid var(--im-border)',
+                      backgroundColor: 'var(--im-bg-surface)',
+                    }}
+                  >
+                    <label
+                      htmlFor="custom-accent-color-input"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 6,
+                        backgroundColor: customAccentHex,
+                        cursor: 'pointer',
+                        border: '1px solid rgba(0,0,0,0.2)',
+                        display: 'block',
+                        flexShrink: 0,
+                      }}
+                      title="Click to open color picker"
+                    />
+                    <input
+                      id="custom-accent-color-input"
+                      ref={customColorInputRef}
+                      type="color"
+                      value={customAccentHex}
+                      onChange={(e) => handleCustomHexChange(e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                    />
+                    <input
+                      type="text"
+                      className="im-input"
+                      style={{ width: 90, height: 28, fontSize: '0.78rem', padding: '0 6px', fontFamily: 'monospace' }}
+                      value={customAccentHex}
+                      onChange={(e) => handleCustomHexChange(e.target.value)}
+                      placeholder="#4f46e5"
+                      aria-label="Hex color value"
+                    />
+                    <button
+                      type="button"
+                      className={`im-btn ${accentColor === 'custom' ? 'im-btn-primary' : 'im-btn-secondary'}`}
+                      style={{ height: 28, padding: '0 8px', fontSize: '0.72rem' }}
+                      onClick={() => handleCustomHexChange(customAccentHex)}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Live Interactive Component Playground & Token Inspector */}
                 <div className="im-theme-live-preview-box">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--im-text-primary)' }}>
-                      Live Component Interactive Preview
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
-                      Updates in real-time as you switch colors above
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--im-text-primary)' }}>
+                        Live Interactive Component Playground
+                      </span>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
+                        Tests button contrast, focus rings, badges, and card borders in real-time
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        backgroundColor: 'var(--im-primary-light)',
+                        color: 'var(--im-primary-text)',
+                      }}
+                    >
+                      Active Preset: {activePresetObj.name}
                     </span>
                   </div>
 
-                  <div className="im-live-preview-row">
+                  <div className="im-live-preview-row" style={{ flexWrap: 'wrap', gap: 10 }}>
                     <button type="button" className="im-btn im-btn-primary">
-                      Primary Button
+                      Primary Action
                     </button>
                     <button type="button" className="im-btn im-btn-secondary">
-                      Secondary Button
+                      Secondary Action
                     </button>
-                    <span className="im-badge im-badge-live">● Live Meeting</span>
-                    <span className="im-badge im-badge-upcoming">Scheduled 14:00</span>
-                    <span className="im-badge im-badge-ai">✨ AI Co-Pilot</span>
+                    <button
+                      type="button"
+                      className="im-btn"
+                      style={{
+                        border: '1px solid var(--im-primary)',
+                        color: 'var(--im-primary)',
+                        backgroundColor: 'transparent',
+                      }}
+                    >
+                      Outline Highlight
+                    </button>
+                    <span className="im-badge im-badge-live">● Live Meeting Room</span>
+                    <span className="im-badge im-badge-upcoming">Scheduled 14:30</span>
+                    <span className="im-badge im-badge-ai">✨ AI Co-Pilot Summary</span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 420 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
                     <input
                       type="text"
                       className="im-input"
@@ -395,12 +615,30 @@ export const SettingsPage: React.FC = () => {
                       placeholder="Interactive input focus ring preview..."
                       defaultValue="sub-20ms audio latency benchmark"
                     />
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: 'var(--im-radius-md)',
+                        backgroundColor: 'var(--im-bg-surface)',
+                        border: '1px solid var(--im-border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--im-text-primary)', fontWeight: 600 }}>
+                        Surface Contrast Check
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
+                        WCAG AA / AAA Ready
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 4. Accessibility and Visual Ergonomics */}
+            {/* 5. Accessibility and Visual Ergonomics */}
             <div className="im-card">
               <div className="im-card-header">
                 <h2 className="im-card-title">
@@ -444,6 +682,72 @@ export const SettingsPage: React.FC = () => {
                 </label>
               </div>
             </div>
+
+            {/* 6. Reset to Defaults Section */}
+            <div className="im-card" style={{ borderColor: 'var(--im-border)' }}>
+              <div className="im-card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--im-text-primary)' }}>
+                    Reset Theme Preferences
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', margin: 0 }}>
+                    Revert all appearance settings, preset selection, and custom accents back to factory defaults.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="im-btn im-btn-secondary"
+                  style={{ color: 'var(--im-danger-text)', borderColor: 'var(--im-border)' }}
+                  onClick={() => setShowResetConfirmModal(true)}
+                >
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+
+            {/* Reset Confirmation Modal */}
+            {showResetConfirmModal && (
+              <div className="im-modal-backdrop" style={{ zIndex: 1200 }}>
+                <div className="im-modal" style={{ maxWidth: 460 }}>
+                  <div className="im-modal-header">
+                    <h3 className="im-modal-title">Reset Theme to Default?</h3>
+                    <button
+                      type="button"
+                      className="im-modal-close"
+                      onClick={() => setShowResetConfirmModal(false)}
+                      aria-label="Close modal"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="im-modal-body">
+                    <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)', lineHeight: 1.5 }}>
+                      This will reset your workspace appearance to <strong>Light Canvas</strong>, the{' '}
+                      <strong>IntellMeet Signature</strong> theme preset, and restore the default indigo accent.
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
+                      Your meetings, account profile, and hardware devices will remain unaffected.
+                    </p>
+                  </div>
+                  <div className="im-modal-footer">
+                    <button
+                      type="button"
+                      className="im-btn im-btn-secondary"
+                      onClick={() => setShowResetConfirmModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="im-btn im-btn-primary"
+                      onClick={handleResetThemeDefaults}
+                    >
+                      Confirm Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
