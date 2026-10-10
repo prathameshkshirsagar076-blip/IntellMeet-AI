@@ -19,6 +19,7 @@ import {
   MoonIcon,
 } from '../components/icons';
 import type { AccentColor } from '../types/meeting';
+import NewMeetingModal from '../components/NewMeetingModal';
 import '../styles/dashboard.css';
 
 // Quick accent color presets for topbar palette
@@ -100,10 +101,12 @@ export const DashboardLayout: React.FC = () => {
     markNotificationAsRead,
     markAllNotificationsAsRead,
     clearAllNotifications,
-    createMeeting,
-    showToast,
+    openNewMeetingModal,
+    isNewMeetingModalOpen,
+    closeNewMeetingModal,
     preferences,
     updatePreferences,
+    showToast,
   } = useMeetings();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -157,15 +160,7 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const handleStartInstantMeeting = () => {
-    const meeting = createMeeting({
-      title: `${user?.name || 'Alex'}'s Instant Meeting`,
-      date: new Date().toISOString().split('T')[0],
-      startTime: new Date().toTimeString().slice(0, 5),
-      durationMinutes: 30,
-      isInstant: true,
-    });
-    showToast(`Instant meeting created: ${meeting.meetingCode}`, 'success');
-    navigate(`/meeting/${meeting.id}`);
+    openNewMeetingModal();
   };
 
   const handleGlobalSearch = (e: React.FormEvent) => {
@@ -662,7 +657,11 @@ export const DashboardLayout: React.FC = () => {
         </main>
       </div>
 
-
+      {/* Zoom-Style Instant New Meeting Modal */}
+      <NewMeetingModal
+        isOpen={isNewMeetingModalOpen}
+        onClose={closeNewMeetingModal}
+      />
     </div>
   );
 };

@@ -20,6 +20,7 @@ export interface Meeting {
   organizer: Participant;
   participants: Participant[];
   meetingCode: string;
+  passcode?: string;
   meetingLink: string;
   summaryId?: string;
   isInstant?: boolean;

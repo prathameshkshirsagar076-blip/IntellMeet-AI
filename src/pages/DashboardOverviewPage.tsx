@@ -76,10 +76,9 @@ export const DashboardOverviewPage: React.FC = () => {
     meetings,
     summaries,
     activities,
-    createMeeting,
+    openNewMeetingModal,
     cancelMeeting,
     copyMeetingLink,
-    showToast,
   } = useMeetings();
 
   const [confirmCancelMeetingId, setConfirmCancelMeetingId] = useState<string | null>(null);
@@ -111,23 +110,15 @@ export const DashboardOverviewPage: React.FC = () => {
 
   const aiNotesCount = summaries.length;
 
-  const handleStartInstant = () => {
-    const newMeeting = createMeeting({
-      title: user?.name ? `${user.name}'s Instant Meeting` : 'Instant Meeting',
-      date: todayStr,
-      startTime: new Date().toTimeString().slice(0, 5),
-      durationMinutes: 30,
-      isInstant: true,
-    });
-    showToast(`Instant meeting started with code ${newMeeting.meetingCode}`, 'success');
-    navigate(`/meeting/${newMeeting.id}`);
-  };
-
   const handleConfirmCancel = () => {
     if (confirmCancelMeetingId) {
       cancelMeeting(confirmCancelMeetingId);
       setConfirmCancelMeetingId(null);
     }
+  };
+
+  const handleStartInstant = () => {
+    openNewMeetingModal();
   };
 
   return (

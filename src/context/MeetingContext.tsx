@@ -28,6 +28,9 @@ interface MeetingContextType {
   toast: ToastData | null;
   unreadNotificationCount: number;
   showToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
+  isNewMeetingModalOpen: boolean;
+  openNewMeetingModal: () => void;
+  closeNewMeetingModal: () => void;
   createMeeting: (data: {
     title: string;
     description?: string;
@@ -36,6 +39,7 @@ interface MeetingContextType {
     durationMinutes: number;
     participantsEmails?: string[];
     isInstant?: boolean;
+    passcode?: string;
   }) => Meeting;
   updateMeeting: (id: string, data: Partial<Meeting>) => void;
   cancelMeeting: (id: string) => void;
@@ -471,6 +475,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [isNewMeetingModalOpen, setIsNewMeetingModalOpen] = useState(false);
+  const openNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(true), []);
+  const closeNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(false), []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -584,10 +591,12 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       durationMinutes: number;
       participantsEmails?: string[];
       isInstant?: boolean;
+      passcode?: string;
     }): Meeting => {
       const codePart1 = Math.floor(100 + Math.random() * 900);
       const codePart2 = Math.floor(100 + Math.random() * 900);
       const meetingCode = `itm-${codePart1}-${codePart2}`;
+      const passcode = data.passcode || Math.random().toString(36).substring(2, 8).toUpperCase();
 
       const parsedParticipants: Participant[] = [CURRENT_USER];
       if (data.participantsEmails && data.participantsEmails.length > 0) {
@@ -619,6 +628,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         organizer: CURRENT_USER,
         participants: parsedParticipants,
         meetingCode,
+        passcode,
         meetingLink: `https://intellmeet.ai/m/${meetingCode}`,
         isInstant: data.isInstant,
         createdAt: new Date().toISOString(),
@@ -782,6 +792,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toast,
       unreadNotificationCount,
       showToast,
+      isNewMeetingModalOpen,
+      openNewMeetingModal,
+      closeNewMeetingModal,
       createMeeting,
       updateMeeting,
       cancelMeeting,
@@ -804,6 +817,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toast,
       unreadNotificationCount,
       showToast,
+      isNewMeetingModalOpen,
+      openNewMeetingModal,
+      closeNewMeetingModal,
       createMeeting,
       updateMeeting,
       cancelMeeting,
