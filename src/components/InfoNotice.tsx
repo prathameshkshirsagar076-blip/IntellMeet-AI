@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type NoticeVariant = 'info' | 'success' | 'warning';
+export type NoticeVariant = 'info' | 'success' | 'warning' | 'error';
 
 interface InfoNoticeProps {
   variant?: NoticeVariant;
@@ -18,8 +18,15 @@ export const InfoNotice: React.FC<InfoNoticeProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`im-notice-banner im-notice-${variant} ${className}`} role="status">
+    <div className={`im-notice-banner im-notice-${variant} ${className}`} role={variant === 'error' ? 'alert' : 'status'}>
       <div className="im-notice-icon-wrapper" aria-hidden="true">
+        {variant === 'error' && (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        )}
         {variant === 'success' && (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />

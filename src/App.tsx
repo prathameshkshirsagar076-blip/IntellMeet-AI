@@ -3,12 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MeetingProvider } from './context/MeetingContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ToastContainer from './components/toast/ToastContainer';
 import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardOverviewPage from './pages/DashboardOverviewPage';
 import MeetingsPage from './pages/MeetingsPage';
 import CreateMeetingPage from './pages/CreateMeetingPage';
@@ -28,6 +30,7 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <MeetingProvider>
+        <ToastContainer />
         <BrowserRouter>
           <Routes>
             {/* 1. Public Landing Page */}
@@ -39,6 +42,7 @@ export const App: React.FC = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
             {/* 3. Protected Dashboard Shell & Subroutes */}

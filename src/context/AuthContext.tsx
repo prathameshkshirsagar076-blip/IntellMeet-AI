@@ -1,103 +1,202 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
+import type {
+  AuthUser,
+  RegisterPayload,
+  RegisterResponse,
+  LoginPayload,
+  LoginResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
+} from '../types/auth';
+import {
+  getStoredUser,
+  getAccessToken,
+  getRefreshToken,
+  storeAuthSession,
+  clearAuthSession,
+  isJwtExpired,
+} from '../utils/tokenStorage';
+import { AuthService, normalizeAuthUser } from '../services/auth.service';
+import { authApi } from '../api/auth.api';
 
-export interface UserProfile {
-  name: string;
-  email: string;
+export interface UserProfile extends AuthUser {
   company: string;
-  jobTitle?: string;
-  avatar?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: UserProfile | null;
-  login: (email: string, name?: string, company?: string) => void;
-  logout: () => void;
+  isLoading: boolean;
+  user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  login: (payload: LoginPayload) => Promise<LoginResponse>;
+  register: (payload: RegisterPayload) => Promise<RegisterResponse>;
+  forgotPassword: (payload: ForgotPasswordPayload) => Promise<ForgotPasswordResponse>;
+  resetPassword: (payload: ResetPasswordPayload) => Promise<ResetPasswordResponse>;
+  setAuthSessionState: (user: AuthUser, accessToken: string, refreshToken: string) => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_STORAGE_KEY = 'intellmeet_demo_auth_session';
-
-/**
- * Derives a human-friendly display name from an email address
- * e.g., 'elena.rostova@company.com' -> 'Elena Rostova'
- */
-const deriveNameFromEmail = (email: string): string => {
-  const localPart = email.split('@')[0] || 'User';
-  return localPart
-    .split(/[._-]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ');
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    try {
-      const stored = sessionStorage.getItem(DEMO_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as UserProfile;
-      }
-    } catch {
-      // In case sessionStorage is unavailable or corrupt
-    }
-    return null;
-  });
+  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [accessToken, setAccessToken] = useState<string | null>(() => getAccessToken());
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => getRefreshToken());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const isAuthenticated = Boolean(user);
-
+  // Synchronize and validate session on mount
   useEffect(() => {
-    try {
-      if (user) {
-        sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(user));
-      } else {
-        sessionStorage.removeItem(DEMO_STORAGE_KEY);
+    const initializeAuth = async () => {
+      try {
+        const storedToken = getAccessToken();
+        const storedRefresh = getRefreshToken();
+        const storedProfile = getStoredUser();
+
+        if (storedToken && !isJwtExpired(storedToken) && storedProfile) {
+          setUser(storedProfile);
+          setAccessToken(storedToken);
+          setRefreshToken(storedRefresh);
+
+          // Verify session in background with /auth/me
+          authApi.getCurrentUser()
+            .then((res) => {
+              if (res?.data?.user) {
+                const normalized = normalizeAuthUser(res.data.user);
+                setUser(normalized);
+                if (storedToken && storedRefresh) {
+                  storeAuthSession(storedToken, storedRefresh, normalized);
+                }
+              }
+            })
+            .catch(() => {
+              // Ignore background sync errors; let interceptor handle if token expires
+            });
+        } else if (storedRefresh) {
+          // Access token expired but refresh token exists - keep profile, apiClient refreshes token on demand
+          if (!storedToken) {
+            setUser(storedProfile);
+          }
+        } else {
+          clearAuthSession();
+          setUser(null);
+          setAccessToken(null);
+          setRefreshToken(null);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      // Ignore sessionStorage errors
-    }
-  }, [user]);
-
-  const login = (email: string, name?: string, company?: string) => {
-    const formattedEmail = email.trim();
-    const formattedName = name?.trim() || deriveNameFromEmail(formattedEmail);
-    const formattedCompany = company?.trim() || 'Enterprise Workspace';
-
-    const newUser: UserProfile = {
-      name: formattedName,
-      email: formattedEmail,
-      company: formattedCompany,
-      jobTitle: 'Product Lead',
-      avatar: formattedName
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase(),
     };
 
-    setUser(newUser);
-  };
+    initializeAuth();
+  }, []);
 
-  const logout = () => {
-    setUser(null);
+  const setAuthSessionState = useCallback(
+    (newUser: AuthUser, newAccessToken: string, newRefreshToken: string) => {
+      storeAuthSession(newAccessToken, newRefreshToken, newUser);
+      setUser(newUser);
+      setAccessToken(newAccessToken);
+      setRefreshToken(newRefreshToken);
+    },
+    []
+  );
+
+  const login = useCallback(
+    async (payload: LoginPayload): Promise<LoginResponse> => {
+      const response = await AuthService.login(payload);
+      if (response?.data) {
+        setAuthSessionState(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
+      }
+      return response;
+    },
+    [setAuthSessionState]
+  );
+
+  const register = useCallback(
+    async (payload: RegisterPayload): Promise<RegisterResponse> => {
+      const response = await AuthService.register(payload);
+      if (response?.data) {
+        setAuthSessionState(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
+      }
+      return response;
+    },
+    [setAuthSessionState]
+  );
+
+  const forgotPassword = useCallback(
+    async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+      return AuthService.forgotPassword(payload);
+    },
+    []
+  );
+
+  const resetPassword = useCallback(
+    async (payload: ResetPasswordPayload): Promise<ResetPasswordResponse> => {
+      return AuthService.resetPassword(payload);
+    },
+    []
+  );
+
+  const logout = useCallback(async () => {
     try {
-      sessionStorage.removeItem(DEMO_STORAGE_KEY);
+      await AuthService.logout();
     } catch {
-      // Ignore
+      // Local session cleaned up regardless
+    } finally {
+      setUser(null);
+      setAccessToken(null);
+      setRefreshToken(null);
+      clearAuthSession();
     }
-  };
+  }, []);
+
+  const isAuthenticated = Boolean(user && accessToken);
 
   const value = useMemo(
     () => ({
       isAuthenticated,
+      isLoading,
       user,
+      accessToken,
+      refreshToken,
       login,
+      register,
+      forgotPassword,
+      resetPassword,
+      setAuthSessionState,
       logout,
     }),
-    [isAuthenticated, user]
+    [
+      isAuthenticated,
+      isLoading,
+      user,
+      accessToken,
+      refreshToken,
+      login,
+      register,
+      forgotPassword,
+      resetPassword,
+      setAuthSessionState,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

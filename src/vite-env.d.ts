@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_APP_ENV: 'development' | 'staging' | 'production';
   readonly VITE_APP_VERSION: string;
   readonly VITE_API_BASE_URL: string;
+  readonly VITE_REMOTE_API_BASE_URL?: string;
   readonly VITE_API_TIMEOUT_MS: string;
   readonly VITE_WS_URL: string;
   readonly VITE_GOOGLE_CLIENT_ID: string;

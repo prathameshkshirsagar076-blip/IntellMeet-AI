@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
@@ -7,6 +8,8 @@ import PrimaryButton from '../components/PrimaryButton';
 import SocialLoginButton from '../components/SocialLoginButton';
 import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import type { AuthUser, AuthTokens } from '../types/auth';
 import {
   UserIcon,
   MailIcon,
@@ -20,6 +23,7 @@ import {
   validateEmail,
   validatePassword,
 } from '../utils/validation';
+import { toast } from '../components/toast/toast';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
 
@@ -34,6 +38,7 @@ interface FormErrors {
 
 export const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   // Controlled form state
   const [fullName, setFullName] = useState('');
@@ -44,20 +49,20 @@ export const SignUpPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // Form errors and touched state
+  // Form errors, submission, and touched state
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isEmailConflict, setIsEmailConflict] = useState(false);
 
   // SSO Notice
   const [ssoNotice, setSsoNotice] = useState<string | null>(null);
 
-  // Frontend-only submission success state
+  // Registration outcome state
   const [isSuccess, setIsSuccess] = useState(false);
-  const [submittedData, setSubmittedData] = useState<{
-    name: string;
-    email: string;
-    company: string;
-  } | null>(null);
+  const [registeredUser, setRegisteredUser] = useState<AuthUser | null>(null);
+  const [registeredTokens, setRegisteredTokens] = useState<AuthTokens | null>(null);
 
   const validateAll = (): boolean => {
     const errs: FormErrors = {};
@@ -70,6 +75,8 @@ export const SignUpPage: React.FC = () => {
 
     if (!companyName.trim()) {
       errs.companyName = 'Company name is required.';
+    } else if (companyName.trim().length < 2) {
+      errs.companyName = 'Company name must be at least 2 characters.';
     }
 
     const passErr = validatePassword(password, { minLength: 8, requireAlphaNum: true });
@@ -89,8 +96,10 @@ export const SignUpPage: React.FC = () => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError(null);
+    setIsEmailConflict(false);
 
     setTouched({
       fullName: true,
@@ -105,12 +114,47 @@ export const SignUpPage: React.FC = () => {
       return;
     }
 
-    setSubmittedData({
-      name: fullName.trim(),
-      email: email.trim(),
-      company: companyName.trim(),
-    });
-    setIsSuccess(true);
+    setIsSubmitting(true);
+
+    try {
+      const response = await register({
+        name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        companyName: companyName.trim(),
+      });
+
+      if (response && response.success) {
+        setRegisteredUser(response.data.user);
+        setRegisteredTokens({
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken,
+        });
+        setIsSuccess(true);
+        toast.success(response.message || 'Account created successfully!');
+      } else {
+        throw new Error(response?.message || 'Registration was not successful.');
+      }
+    } catch (err: unknown) {
+      const error = err as Error & { status?: number; code?: string };
+      const isConflict =
+        error.status === 409 ||
+        error.code === 'EMAIL_ALREADY_EXISTS' ||
+        error.message.includes('already exists');
+
+      if (isConflict) {
+        setIsEmailConflict(true);
+        const msg = `An account with the email ${email} already exists. Would you like to sign in instead?`;
+        setApiError(msg);
+        toast.error('An account with this email address already exists.');
+      } else {
+        const msg = error.message || 'Unable to complete registration. Please check your network and try again.';
+        setApiError(msg);
+        toast.error(msg);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetForm = () => {
@@ -123,13 +167,16 @@ export const SignUpPage: React.FC = () => {
     setAgreeTerms(false);
     setErrors({});
     setTouched({});
+    setApiError(null);
+    setIsEmailConflict(false);
     setIsSuccess(false);
-    setSubmittedData(null);
+    setRegisteredUser(null);
+    setRegisteredTokens(null);
   };
 
   const handleSSOClick = (provider: SSOProvider) => {
     setSsoNotice(
-      `SSO Registration Notice: Self-service sign up with ${SSO_PROVIDER_NAMES[provider]} requires enterprise domain federation. Please complete the registration form below to provision a demo workspace.`
+      `SSO Registration Notice: Self-service sign up with ${SSO_PROVIDER_NAMES[provider]} requires enterprise domain federation. Please complete the registration form below to provision your workspace.`
     );
   };
 
@@ -177,28 +224,79 @@ export const SignUpPage: React.FC = () => {
         <p>Start collaborating smarter with AI-powered meetings.</p>
       </div>
 
-      {/* Success State View */}
-      {isSuccess && submittedData ? (
+      {/* Live Registration Success State View - User stays here until clicking Continue */}
+      {isSuccess && registeredUser ? (
         <div className="im-success-card" role="region" aria-label="Account Creation Confirmation">
           <div className="im-success-icon-badge" aria-hidden="true">
             <CheckCircleIcon />
           </div>
-          <h2>Registration Prepared!</h2>
+          <h2>Account Created Successfully!</h2>
           <p>
-            Welcome to IntellMeet, <strong>{submittedData.name}</strong>! An enterprise workspace profile for{' '}
-            <strong>{submittedData.company}</strong> ({submittedData.email}) has been validated.
+            Welcome to IntellMeet, <strong>{registeredUser.name}</strong>! Your account has been provisioned and your workspace session is now active.
           </p>
-          <div className="im-success-demo-badge">
-            <span>Frontend Simulation: No live credentials were transmitted or stored.</span>
+
+          {/* User Profile Summary */}
+          <div className="im-user-details-summary">
+            <div className="im-user-details-row">
+              <span className="im-user-details-label">Full Name:</span>
+              <span className="im-user-details-value">{registeredUser.name}</span>
+            </div>
+            <div className="im-user-details-row">
+              <span className="im-user-details-label">Work Email:</span>
+              <span className="im-user-details-value">{registeredUser.email}</span>
+            </div>
+            <div className="im-user-details-row">
+              <span className="im-user-details-label">Organization:</span>
+              <span className="im-user-details-value">{registeredUser.company || companyName}</span>
+            </div>
+            <div className="im-user-details-row">
+              <span className="im-user-details-label">Account ID:</span>
+              <span className="im-token-storage-key">{registeredUser.id}</span>
+            </div>
           </div>
-          <div className="im-success-actions">
-            <Link to="/login" className="login-submit-btn" id="su-success-signin-btn">
-              <span>Proceed to Sign In</span>
-            </Link>
+
+          {/* Token & LocalStorage status card */}
+          <div className="im-token-storage-card">
+            <div className="im-token-storage-header">
+              <span>Authentication Session</span>
+              <span className="im-token-storage-badge">
+                ✓ Saved to LocalStorage
+              </span>
+            </div>
+            <div className="im-token-storage-row">
+              <span>Access Token:</span>
+              <span className="im-token-storage-val" title={registeredTokens?.accessToken}>
+                {registeredTokens?.accessToken ? `${registeredTokens.accessToken.slice(0, 20)}...` : 'Active'}
+              </span>
+            </div>
+            <div className="im-token-storage-row">
+              <span>Refresh Token:</span>
+              <span className="im-token-storage-val" title={registeredTokens?.refreshToken}>
+                {registeredTokens?.refreshToken ? `${registeredTokens.refreshToken.slice(0, 20)}...` : 'Active'}
+              </span>
+            </div>
+            <div className="im-token-storage-row">
+              <span>Storage Location:</span>
+              <span style={{ fontSize: '11px', color: '#059669', fontWeight: 500 }}>
+                browser localStorage
+              </span>
+            </div>
+          </div>
+
+          {/* Action buttons with Continue button navigating to Dashboard */}
+          <div className="im-continue-actions">
+            <PrimaryButton
+              type="button"
+              onClick={() => navigate('/dashboard', { replace: true })}
+              id="su-continue-dashboard-btn"
+            >
+              Continue to Dashboard
+            </PrimaryButton>
             <button
               type="button"
               onClick={handleResetForm}
               className="login-submit-btn im-btn-secondary"
+              id="su-register-another-btn"
             >
               <span>Register Another Account</span>
             </button>
@@ -206,6 +304,34 @@ export const SignUpPage: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* API Error Notice */}
+          {apiError && (
+            <InfoNotice
+              variant="error"
+              title="Registration Notice"
+              onDismiss={() => {
+                setApiError(null);
+                setIsEmailConflict(false);
+              }}
+            >
+              <div>{apiError}</div>
+              {isEmailConflict && (
+                <div style={{ marginTop: '6px' }}>
+                  <Link
+                    to="/login"
+                    style={{
+                      fontWeight: 600,
+                      color: '#b91c1c',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Click here to Sign In with this email &rarr;
+                  </Link>
+                </div>
+              )}
+            </InfoNotice>
+          )}
+
           {/* SSO Notice Banner */}
           {ssoNotice && (
             <InfoNotice
@@ -254,6 +380,7 @@ export const SignUpPage: React.FC = () => {
               label="Full Name"
               type="text"
               value={fullName}
+              disabled={isSubmitting}
               onChange={(e) => {
                 const val = e.target.value;
                 setFullName(val);
@@ -265,7 +392,7 @@ export const SignUpPage: React.FC = () => {
                 setTouched((p) => ({ ...p, fullName: true }));
                 setErrors((p) => ({ ...p, fullName: validateFullName(fullName) }));
               }}
-              placeholder="Elena Rostova"
+              placeholder="e.g. Yashodip Jejurkar"
               autoComplete="name"
               icon={<UserIcon />}
               error={errors.fullName}
@@ -278,6 +405,7 @@ export const SignUpPage: React.FC = () => {
               label="Work Email"
               type="email"
               value={email}
+              disabled={isSubmitting}
               onChange={(e) => {
                 const val = e.target.value;
                 setEmail(val);
@@ -289,7 +417,7 @@ export const SignUpPage: React.FC = () => {
                 setTouched((p) => ({ ...p, email: true }));
                 setErrors((p) => ({ ...p, email: validateEmail(email) }));
               }}
-              placeholder="elena.rostova@enterprise.com"
+              placeholder="name@company.com"
               autoComplete="email"
               icon={<MailIcon />}
               error={errors.email}
@@ -303,6 +431,7 @@ export const SignUpPage: React.FC = () => {
                 label="Company Name"
                 type="text"
                 value={companyName}
+                disabled={isSubmitting}
                 onChange={(e) => {
                   const val = e.target.value;
                   setCompanyName(val);
@@ -331,6 +460,7 @@ export const SignUpPage: React.FC = () => {
                 label="Job Title (Optional)"
                 type="text"
                 value={jobTitle}
+                disabled={isSubmitting}
                 onChange={(e) => setJobTitle(e.target.value)}
                 placeholder="VP of Engineering"
                 autoComplete="organization-title"
@@ -339,45 +469,52 @@ export const SignUpPage: React.FC = () => {
             </div>
 
             {/* Password */}
-            <PasswordInput
-              id="su-password"
-              label="Password"
-              value={password}
-              onChange={(e) => {
-                const val = e.target.value;
-                setPassword(val);
-                if (touched.password) {
+            <div>
+              <PasswordInput
+                id="su-password"
+                label="Password"
+                value={password}
+                disabled={isSubmitting}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPassword(val);
+                  if (touched.password) {
+                    setErrors((p) => ({
+                      ...p,
+                      password: validatePassword(val, { minLength: 8, requireAlphaNum: true }),
+                    }));
+                  }
+                  if (touched.confirmPassword && confirmPassword) {
+                    setErrors((p) => ({
+                      ...p,
+                      confirmPassword: confirmPassword !== val ? 'Passwords do not match.' : undefined,
+                    }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched((p) => ({ ...p, password: true }));
                   setErrors((p) => ({
                     ...p,
-                    password: validatePassword(val, { minLength: 8, requireAlphaNum: true }),
+                    password: validatePassword(password, { minLength: 8, requireAlphaNum: true }),
                   }));
-                }
-                if (touched.confirmPassword && confirmPassword) {
-                  setErrors((p) => ({
-                    ...p,
-                    confirmPassword: confirmPassword !== val ? 'Passwords do not match.' : undefined,
-                  }));
-                }
-              }}
-              onBlur={() => {
-                setTouched((p) => ({ ...p, password: true }));
-                setErrors((p) => ({
-                  ...p,
-                  password: validatePassword(password, { minLength: 8, requireAlphaNum: true }),
-                }));
-              }}
-              placeholder="Minimum 8 characters"
-              autoComplete="new-password"
-              helperText="Must be 8+ characters with at least one letter and one number."
-              error={errors.password}
-              required
-            />
+                }}
+                placeholder="Minimum 8 characters"
+                autoComplete="new-password"
+                helperText="Must be 8+ characters with upper, lower, number, and symbol."
+                error={errors.password}
+                required
+              />
+
+              {/* Real-time Enterprise Password Security Meter */}
+              <PasswordStrengthMeter password={password} />
+            </div>
 
             {/* Confirm Password */}
             <PasswordInput
               id="su-confirm-password"
               label="Confirm Password"
               value={confirmPassword}
+              disabled={isSubmitting}
               onChange={(e) => {
                 const val = e.target.value;
                 setConfirmPassword(val);
@@ -412,6 +549,7 @@ export const SignUpPage: React.FC = () => {
                   id="su-terms"
                   type="checkbox"
                   checked={agreeTerms}
+                  disabled={isSubmitting}
                   onChange={(e) => {
                     setAgreeTerms(e.target.checked);
                     if (e.target.checked) {
@@ -445,8 +583,13 @@ export const SignUpPage: React.FC = () => {
             </div>
 
             {/* Primary Submit Button */}
-            <PrimaryButton type="submit" id="su-submit-btn">
-              Create Account
+            <PrimaryButton
+              type="submit"
+              id="su-submit-btn"
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </PrimaryButton>
           </form>
         </>
