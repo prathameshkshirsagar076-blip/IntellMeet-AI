@@ -16,12 +16,14 @@ import '../styles/authPages.css';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, loginWithCredentials } = useAuth();
 
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Validation state
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -45,22 +47,40 @@ export const LoginPage: React.FC = () => {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
+    setApiError(null);
 
     if (!validateForm()) {
       setDemoNotice(null);
       return;
     }
 
-    // Authenticate demo session
-    login(email);
+    setIsSubmitting(true);
 
-    // Determine target location (defaulting to /dashboard)
-    const state = location.state as { from?: { pathname: string } } | undefined;
-    const destination = state?.from?.pathname || '/dashboard';
-    navigate(destination, { replace: true });
+    try {
+      await loginWithCredentials({ email, password, rememberMe: remember });
+      const state = location.state as { from?: { pathname: string } } | undefined;
+      const destination = state?.from?.pathname || '/dashboard';
+      navigate(destination, { replace: true });
+    } catch (err: unknown) {
+      const error = err as Error;
+      if (
+        error.message?.includes('INVALID_CREDENTIALS') ||
+        error.message?.includes('Invalid')
+      ) {
+        setApiError('Invalid work email or password. Please verify your credentials or register an account.');
+      } else {
+        // Fallback demo session if API network is unreachable
+        login(email);
+        const state = location.state as { from?: { pathname: string } } | undefined;
+        const destination = state?.from?.pathname || '/dashboard';
+        navigate(destination, { replace: true });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSSOClick = (provider: SSOProvider) => {
@@ -146,6 +166,17 @@ export const LoginPage: React.FC = () => {
           Enter your enterprise credentials to access your collaborative workspaces and real-time AI meeting intelligence.
         </p>
       </div>
+
+      {/* API Error Notice */}
+      {apiError && (
+        <InfoNotice
+          variant="error"
+          title="Authentication Failed"
+          onDismiss={() => setApiError(null)}
+        >
+          {apiError}
+        </InfoNotice>
+      )}
 
       {/* SSO Notice Banner */}
       {ssoNotice && (
@@ -245,8 +276,13 @@ export const LoginPage: React.FC = () => {
         </label>
 
         {/* Sign In Submit Button */}
-        <PrimaryButton type="submit" id="im-signin-btn">
-          Sign In
+        <PrimaryButton
+          type="submit"
+          id="im-signin-btn"
+          loading={isSubmitting}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Signing in...' : 'Sign In'}
         </PrimaryButton>
       </form>
 
