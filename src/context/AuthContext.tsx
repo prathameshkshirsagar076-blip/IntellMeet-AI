@@ -1,28 +1,43 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
+import type { AuthUser, RegisterPayload, RegisterResponse, LoginPayload, LoginResponse } from '../types/auth';
+import {
+  getStoredUser,
+  getAccessToken,
+  getRefreshToken,
+  storeAuthSession,
+  clearAuthSession,
+  isJwtExpired,
+} from '../utils/tokenStorage';
+import { AuthService, normalizeAuthUser } from '../services/auth.service';
 
-export interface UserProfile {
-  name: string;
-  email: string;
+export interface UserProfile extends AuthUser {
   company: string;
-  jobTitle?: string;
-  avatar?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: UserProfile | null;
+  user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  register: (payload: RegisterPayload) => Promise<RegisterResponse>;
   login: (email: string, name?: string, company?: string) => void;
+  loginWithCredentials: (payload: LoginPayload) => Promise<LoginResponse>;
+  setAuthSessionState: (user: AuthUser, accessToken: string, refreshToken: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_STORAGE_KEY = 'intellmeet_demo_auth_session';
-
 /**
  * Derives a human-friendly display name from an email address
- * e.g., 'elena.rostova@company.com' -> 'Elena Rostova'
  */
 const deriveNameFromEmail = (email: string): string => {
   const localPart = email.split('@')[0] || 'User';
@@ -34,70 +49,137 @@ const deriveNameFromEmail = (email: string): string => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
+  // Initialize state from persistent localStorage
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const stored = getStoredUser();
+    if (stored) return stored;
+
+    // Check legacy sessionStorage if present
     try {
-      const stored = sessionStorage.getItem(DEMO_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as UserProfile;
+      const demoStored = sessionStorage.getItem('intellmeet_demo_auth_session');
+      if (demoStored) {
+        return normalizeAuthUser(JSON.parse(demoStored));
       }
     } catch {
-      // In case sessionStorage is unavailable or corrupt
+      // Ignore
     }
     return null;
   });
 
-  const isAuthenticated = Boolean(user);
+  const [accessToken, setAccessToken] = useState<string | null>(() => getAccessToken());
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => getRefreshToken());
 
+  // Check valid token expiration on mount
   useEffect(() => {
-    try {
-      if (user) {
-        sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(user));
-      } else {
-        sessionStorage.removeItem(DEMO_STORAGE_KEY);
+    const currentToken = getAccessToken();
+    if (currentToken && isJwtExpired(currentToken)) {
+      // If access token is expired and no valid refresh, clear
+      // For now, if refresh token exists, we keep session alive
+      const currentRefresh = getRefreshToken();
+      if (!currentRefresh) {
+        clearAuthSession();
+        setUser(null);
+        setAccessToken(null);
+        setRefreshToken(null);
       }
-    } catch {
-      // Ignore sessionStorage errors
     }
-  }, [user]);
+  }, []);
 
-  const login = (email: string, name?: string, company?: string) => {
-    const formattedEmail = email.trim();
-    const formattedName = name?.trim() || deriveNameFromEmail(formattedEmail);
-    const formattedCompany = company?.trim() || 'Enterprise Workspace';
+  const setAuthSessionState = useCallback(
+    (newUser: AuthUser, newAccessToken: string, newRefreshToken: string) => {
+      storeAuthSession(newAccessToken, newRefreshToken, newUser);
+      setUser(newUser);
+      setAccessToken(newAccessToken);
+      setRefreshToken(newRefreshToken);
+    },
+    []
+  );
 
-    const newUser: UserProfile = {
-      name: formattedName,
-      email: formattedEmail,
-      company: formattedCompany,
-      jobTitle: 'Product Lead',
-      avatar: formattedName
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase(),
-    };
+  const register = useCallback(
+    async (payload: RegisterPayload): Promise<RegisterResponse> => {
+      const response = await AuthService.register(payload);
+      if (response?.data) {
+        setAuthSessionState(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
+      }
+      return response;
+    },
+    [setAuthSessionState]
+  );
 
-    setUser(newUser);
-  };
+  const loginWithCredentials = useCallback(
+    async (payload: LoginPayload): Promise<LoginResponse> => {
+      const response = await AuthService.login(payload);
+      if (response?.data) {
+        setAuthSessionState(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
+      }
+      return response;
+    },
+    [setAuthSessionState]
+  );
 
-  const logout = () => {
+  const login = useCallback(
+    (email: string, name?: string, company?: string) => {
+      const formattedEmail = email.trim();
+      const formattedName = name?.trim() || deriveNameFromEmail(formattedEmail);
+      const formattedCompany = company?.trim() || 'Enterprise Workspace';
+
+      const newUser: AuthUser = normalizeAuthUser({
+        name: formattedName,
+        email: formattedEmail,
+        company: formattedCompany,
+        jobTitle: 'Product Lead',
+      });
+
+      // Dummy tokens for demo fallback if needed
+      const dummyToken = 'demo-token-' + Date.now();
+      setAuthSessionState(newUser, dummyToken, dummyToken);
+    },
+    [setAuthSessionState]
+  );
+
+  const logout = useCallback(() => {
     setUser(null);
-    try {
-      sessionStorage.removeItem(DEMO_STORAGE_KEY);
-    } catch {
-      // Ignore
-    }
-  };
+    setAccessToken(null);
+    setRefreshToken(null);
+    AuthService.logout().catch(() => {
+      // Cleanup locally regardless
+      clearAuthSession();
+    });
+  }, []);
+
+  const isAuthenticated = Boolean(user && accessToken);
 
   const value = useMemo(
     () => ({
       isAuthenticated,
       user,
+      accessToken,
+      refreshToken,
+      register,
       login,
+      loginWithCredentials,
+      setAuthSessionState,
       logout,
     }),
-    [isAuthenticated, user]
+    [
+      isAuthenticated,
+      user,
+      accessToken,
+      refreshToken,
+      register,
+      login,
+      loginWithCredentials,
+      setAuthSessionState,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

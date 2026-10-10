@@ -12,7 +12,14 @@ export const env = {
   isProd: import.meta.env.PROD,
 
   // API & WebSockets
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  apiBaseUrl:
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+      ? '/api/v1'
+      : 'https://eikpbdtfv5.execute-api.eu-west-3.amazonaws.com/api/v1'),
+  remoteApiBaseUrl:
+    import.meta.env.VITE_REMOTE_API_BASE_URL ||
+    'https://eikpbdtfv5.execute-api.eu-west-3.amazonaws.com/api/v1',
   apiTimeoutMs: Number(import.meta.env.VITE_API_TIMEOUT_MS) || 15000,
   wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:5000/ws',
 
