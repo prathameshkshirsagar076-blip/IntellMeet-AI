@@ -155,16 +155,16 @@
 
 /* ---- Welcome Heading ---- */
 .login-heading-block {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .login-heading-block h1 {
-  font-size: 23px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: var(--panel-text-primary);
   letter-spacing: -0.4px;
   line-height: 1.2;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .login-heading-block p {
@@ -179,7 +179,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   width: 100%;
 }
 
@@ -189,26 +189,25 @@
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 9.5px 16px;
+  padding: 10.5px 16px;
   border: 1px solid var(--im-border, #e0e2e9);
   border-radius: 9px;
   background: var(--im-bg-surface, #fff);
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--im-text-primary, #0f172a);
   cursor: pointer;
-  transition:
-    background 140ms ease,
-    border-color 140ms ease,
-    box-shadow 140ms ease;
+  transition: all 160ms ease;
   outline: none;
-  letter-spacing: 0.05px;
+  letter-spacing: 0.1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .login-sso-btn:hover {
-  background: var(--im-bg-surface-hover, #f5f6fa);
-  border-color: var(--im-border-focus, #bfc3d0);
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.07);
+  background: var(--im-bg-surface-hover, #f8fafc);
+  border-color: var(--im-border-focus, #cbd5e1);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
 .login-sso-btn:focus-visible {

@@ -374,25 +374,13 @@ export const SignUpPage: React.FC = () => {
             </InfoNotice>
           )}
 
-          {/* SSO Buttons */}
+          {/* SSO Button (Google Only) */}
           <div className="login-sso-group">
             <SocialLoginButton
               provider="google"
               label="Sign up with Google Workspace"
               onClick={handleSSOClick}
               id="im-signup-sso-google"
-            />
-            <SocialLoginButton
-              provider="microsoft"
-              label="Sign up with Microsoft Azure AD / 365"
-              onClick={handleSSOClick}
-              id="im-signup-sso-microsoft"
-            />
-            <SocialLoginButton
-              provider="saml"
-              label="Single Sign-On (SAML 2.0)"
-              onClick={handleSSOClick}
-              id="im-signup-sso-saml"
             />
           </div>
 

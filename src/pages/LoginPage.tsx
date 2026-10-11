@@ -204,10 +204,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Welcome Heading */}
       <div className="login-heading-block">
-        <h1>Welcome back to IntellMeet</h1>
-        <p>
-          Enter your enterprise credentials to access your collaborative workspaces and real-time AI meeting intelligence.
-        </p>
+        <h1>Welcome to IntellMeet</h1>
       </div>
 
       {/* API Error Notice */}
@@ -231,35 +228,6 @@ export const LoginPage: React.FC = () => {
           {ssoNotice}
         </InfoNotice>
       )}
-
-      {/* SSO Buttons */}
-      <div className="login-sso-group">
-        <SocialLoginButton
-          provider="google"
-          label="Continue with Google Workspace"
-          onClick={handleSSOClick}
-          id="im-sso-google"
-        />
-        <SocialLoginButton
-          provider="microsoft"
-          label="Continue with Microsoft Azure AD / 365"
-          onClick={handleSSOClick}
-          id="im-sso-microsoft"
-        />
-        <SocialLoginButton
-          provider="saml"
-          label="Single Sign-On (SAML 2.0)"
-          onClick={handleSSOClick}
-          id="im-sso-saml"
-        />
-      </div>
-
-      {/* Divider */}
-      <div className="login-divider">
-        <span className="login-divider-line" />
-        <span className="login-divider-text">or continue with email</span>
-        <span className="login-divider-line" />
-      </div>
 
       {/* Login Form */}
       <form className="login-form" onSubmit={handleSubmit} noValidate>
@@ -320,6 +288,23 @@ export const LoginPage: React.FC = () => {
         >
           {isSubmitting ? 'Signing in...' : 'Sign In'}
         </PrimaryButton>
+
+        {/* Divider */}
+        <div className="login-divider" style={{ margin: '16px 0 12px' }}>
+          <span className="login-divider-line" />
+          <span className="login-divider-text">or continue with</span>
+          <span className="login-divider-line" />
+        </div>
+
+        {/* Google SSO Button under Sign In button */}
+        <div className="login-sso-group">
+          <SocialLoginButton
+            provider="google"
+            label="Continue with Google"
+            onClick={handleSSOClick}
+            id="im-sso-google"
+          />
+        </div>
       </form>
 
       {/* Footer */}
