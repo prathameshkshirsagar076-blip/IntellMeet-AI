@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { getAccessToken } from '../utils/tokenStorage';
-import { apiClient } from '../api/client';
+import { getAccessToken, isJwtExpired } from '../utils/tokenStorage';
 import { env } from '../config/env';
 
 export interface SocketMessagePayload {
@@ -113,8 +112,9 @@ class ChatSocketService {
   private connectionStatusListeners: Set<ConnectionStatusHandler> = new Set();
 
   private activeConversationId: string | null = null;
-  private isRefreshingToken = false;
   private connectionStatus: ConnectionStatus = 'disconnected';
+  private hasAttemptedConnection = false;
+  private isConnecting = false;
 
   private log(message: string, ...args: unknown[]) {
     if (env.isDev) {
@@ -134,19 +134,30 @@ class ChatSocketService {
   }
 
   /**
-   * Intelligently resolves the backend Socket.IO host URL based on environment.
+   * Intelligently resolves the backend Socket.IO host URL based directly on .env.
+   * No hardcoded URLs allowed anywhere.
    */
   public resolveSocketUrl(): string {
-    // 1. Explicit VITE_SOCKET_URL
+    // 1. Explicit VITE_SOCKET_URL from .env
     const viteSocketUrl = import.meta.env.VITE_SOCKET_URL;
-    if (viteSocketUrl) {
-      return viteSocketUrl;
+    if (viteSocketUrl && typeof viteSocketUrl === 'string' && viteSocketUrl.trim()) {
+      return viteSocketUrl.trim();
     }
 
-    // 2. VITE_WS_URL or env.wsUrl
+    // 2. BACKEND_URL or VITE_BACKEND_URL from .env / centralized config
+    const backendUrl =
+      import.meta.env.VITE_BACKEND_URL ||
+      (import.meta.env as unknown as Record<string, string>).BACKEND_URL ||
+      env.backendUrl;
+    if (backendUrl && typeof backendUrl === 'string' && backendUrl.trim()) {
+      return backendUrl.trim();
+    }
+
+    // 3. VITE_WS_URL or env.wsUrl from .env
     const rawWsUrl = import.meta.env.VITE_WS_URL || env.wsUrl;
-    if (rawWsUrl && typeof rawWsUrl === 'string') {
+    if (rawWsUrl && typeof rawWsUrl === 'string' && rawWsUrl.trim()) {
       const normalized = rawWsUrl
+        .trim()
         .replace(/^ws:\/\//i, 'http://')
         .replace(/^wss:\/\//i, 'https://')
         .replace(/\/ws\/?$/i, '')
@@ -156,30 +167,66 @@ class ChatSocketService {
       }
     }
 
-    // 3. Fallback: window.location.origin (proxied through Vite dev server or reverse proxy)
+    // 4. Remote API Base URL origin fallback from .env
+    if (env.remoteApiBaseUrl && env.remoteApiBaseUrl.startsWith('http')) {
+      try {
+        const parsed = new URL(env.remoteApiBaseUrl);
+        return parsed.origin;
+      } catch {
+        // Ignore invalid URL formatting
+      }
+    }
+
+    // 5. Fallback: window.location.origin
     if (typeof window !== 'undefined' && window.location?.origin) {
       return window.location.origin;
     }
 
-    return 'http://localhost:5000';
+    return '';
   }
 
   /**
-   * Initializes or returns the existing singleton Socket.IO connection.
+   * Initializes the singleton Socket.IO connection.
+   * Strictly calls ONCE to prevent redundant, repeating network calls.
    */
-  public connect(): Socket | null {
-    const token = getAccessToken();
-    if (!token) {
-      this.disconnect();
+  public connect(force = false): Socket | null {
+    if (!env.enableSocketPolling) {
+      this.log('Socket polling disabled by VITE_ENABLE_SOCKET_POLLING.');
       return null;
     }
 
+    // Single-call guard: if already connected, connecting, or already attempted (unless forced)
     if (this.socket && this.socket.connected) {
       return this.socket;
     }
 
+    if (this.isConnecting) {
+      this.log('Socket connection already in progress, skipping duplicate call.');
+      return this.socket;
+    }
+
+    if (this.hasAttemptedConnection && !force) {
+      this.log('Socket connect was already called once. Skipping duplicate call.');
+      return this.socket;
+    }
+
+    const token = getAccessToken();
+    if (!token || isJwtExpired(token)) {
+      this.disconnect();
+      return null;
+    }
+
+    this.hasAttemptedConnection = true;
+    this.isConnecting = true;
+
+    const rawToken = token.replace(/^Bearer\s+/i, '');
+    const bearerToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
     if (this.socket) {
-      this.socket.auth = { token };
+      this.socket.auth = {
+        token: rawToken,
+        Authorization: bearerToken,
+      };
       this.notifyConnectionStatus('connecting');
       this.socket.connect();
       return this.socket;
@@ -187,30 +234,43 @@ class ChatSocketService {
 
     const socketUrl = this.resolveSocketUrl();
     this.notifyConnectionStatus('connecting');
-    this.log(`Initiating connection to ${socketUrl} on path /socket.io`);
+    this.log(`Initiating connection once to ${socketUrl || 'window origin'} on path /socket.io`);
 
     this.socket = io(socketUrl, {
       path: '/socket.io',
-      auth: { token },
-      extraHeaders: {
-        Authorization: `Bearer ${token}`,
+      auth: {
+        token: rawToken,
+        Authorization: bearerToken,
       },
-      transports: ['polling', 'websocket'], // Reliable polling handshake first, then automatic websocket upgrade
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1500,
-      reconnectionDelayMax: 5000,
-      autoConnect: true,
+      extraHeaders: {
+        Authorization: bearerToken,
+      },
+      withCredentials: true,
+      transports: ['polling'],
+      reconnection: false, // Strict: never automatically loop or spam polling
+      autoConnect: false,  // Controlled single-flight connect
+      timeout: 10000,
     });
 
     this.setupListeners();
+    this.socket.connect();
     return this.socket;
+  }
+
+  /**
+   * Explicitly resets call guard and reconnects once on-demand.
+   */
+  public reconnect(): Socket | null {
+    this.hasAttemptedConnection = false;
+    this.disconnect();
+    return this.connect(true);
   }
 
   private setupListeners() {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      this.isConnecting = false;
       this.notifyConnectionStatus('connected');
       this.log(`Connection established! Socket ID: ${this.socket?.id}`);
       if (this.activeConversationId) {
@@ -219,53 +279,19 @@ class ChatSocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
+      this.isConnecting = false;
       this.notifyConnectionStatus('disconnected');
       this.log(`Socket disconnected. Reason: ${reason}`);
     });
 
-    this.socket.on('reconnect_attempt', (attempt) => {
-      this.notifyConnectionStatus('connecting');
-      this.log(`Reconnection attempt #${attempt}`);
-      const freshToken = getAccessToken();
-      if (freshToken && this.socket) {
-        this.socket.auth = { token: freshToken };
-      }
-    });
-
-    this.socket.on('reconnect', (attempt) => {
-      this.notifyConnectionStatus('connected');
-      this.log(`Reconnected successfully after ${attempt} attempts!`);
-      if (this.activeConversationId) {
-        this.joinConversation(this.activeConversationId);
-      }
-    });
-
-    this.socket.on('connect_error', async (err) => {
+    this.socket.on('connect_error', (err) => {
+      this.isConnecting = false;
       this.notifyConnectionStatus('disconnected');
       this.warn(`Connection error: ${err.message}`);
 
-      // Handle token expiration/auth error during socket handshake
-      const isAuthError =
-        err.message.includes('token') ||
-        err.message.includes('Authentication') ||
-        err.message.includes('expired') ||
-        err.message.includes('Unauthorized');
-
-      if (isAuthError && !this.isRefreshingToken) {
-        this.isRefreshingToken = true;
-        try {
-          this.log('Access token expired/invalid on socket handshake. Attempting token refresh...');
-          const newToken = await apiClient.refreshToken();
-          if (newToken && this.socket) {
-            this.log('Token refreshed successfully. Reconnecting socket with fresh credential...');
-            this.socket.auth = { token: newToken };
-            this.socket.connect();
-          }
-        } catch {
-          this.warn('Failed to refresh token for Socket.IO connection');
-        } finally {
-          this.isRefreshingToken = false;
-        }
+      // Stop immediately on error - do not retry in loops or spam polling
+      if (this.socket) {
+        this.socket.disconnect();
       }
     });
 
@@ -352,13 +378,11 @@ class ChatSocketService {
       this.log(`Sending message via Socket.IO: clientMessageId = ${payload.clientMessageId}`);
       this.socket.emit('message:send', payload, callback);
     } else {
-      this.warn('Socket not connected while attempting to send message. Invoking fallback.');
+      this.warn('Socket not connected while attempting to send message.');
       callback?.({
         success: false,
-        error: { code: 'SOCKET_DISCONNECTED', message: 'Socket disconnected. Connecting...' },
+        error: { code: 'SOCKET_DISCONNECTED', message: 'Socket not connected.' },
       });
-      // Try reconnecting in background
-      this.connect();
     }
   }
 
@@ -452,10 +476,12 @@ class ChatSocketService {
   public disconnect() {
     if (this.socket) {
       this.log('Disconnecting socket.');
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
-      this.notifyConnectionStatus('disconnected');
     }
+    this.isConnecting = false;
+    this.notifyConnectionStatus('disconnected');
   }
 }
 

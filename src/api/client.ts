@@ -65,7 +65,7 @@ export const apiClient = {
     };
 
     let bodyPayload = options.body;
-    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE') {
       if (bodyPayload === undefined || bodyPayload === null) {
         bodyPayload = '{}';
       }
@@ -299,7 +299,11 @@ export const apiClient = {
   },
 
   delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'DELETE',
+      body: options?.body !== undefined ? options.body : '{}',
+    });
   },
 };
 
