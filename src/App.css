@@ -11,6 +11,8 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  background: var(--im-bg-canvas, #f8fafc);
+  color: var(--im-text-primary, #0f172a);
 }
 
 /* ---- Left Panel ---- */
@@ -19,12 +21,14 @@
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  background: #ffffff;
-  /* Seamlessly attached to right panel — no divider */
-  border-right: none;
+  background: var(--im-bg-surface, #ffffff);
+  color: var(--im-text-primary, #0f172a);
+  /* Seamlessly attached to right panel — subtle divider for dark mode */
+  border-right: 1px solid var(--im-border, rgba(0, 0, 0, 0.06));
   /* Hide scrollbar completely to eliminate slider in the middle */
   scrollbar-width: none;
   -ms-overflow-style: none;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 .im-left-panel::-webkit-scrollbar {
@@ -64,7 +68,7 @@
     height: auto;
     overflow-y: auto;
     overflow-x: hidden;
-    background: #f8fafc;
+    background: var(--im-bg-canvas, #f8fafc);
   }
 
   .im-left-panel {
@@ -74,8 +78,9 @@
     height: auto;
     min-height: 100vh;
     overflow: visible;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    background: var(--im-bg-surface, #ffffff);
+    box-shadow: var(--im-shadow-md, 0 4px 20px rgba(0, 0, 0, 0.04));
+    border: 1px solid var(--im-border, transparent);
   }
 
   .im-right-panel {
@@ -87,6 +92,7 @@
   .im-left-panel {
     max-width: 100%;
     box-shadow: none;
+    border: none;
   }
 }
 

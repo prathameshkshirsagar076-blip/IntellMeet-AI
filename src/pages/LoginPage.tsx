@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
@@ -11,6 +11,7 @@ import InfoNotice from '../components/InfoNotice';
 import { MailIcon, ShieldIcon } from '../components/icons';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { toast } from '../components/toast/toast';
+import ThemeCustomizationPopover from '../components/theme/ThemeCustomizationPopover';
 import '../components/LoginPanel.css';
 import '../styles/authPages.css';
 
@@ -23,6 +24,8 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  const [showThemePopover, setShowThemePopover] = useState(false);
+  const themeBtnRef = useRef<HTMLButtonElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -139,13 +142,41 @@ export const LoginPage: React.FC = () => {
       <div className="login-top-bar">
         <BrandLogo to="/" />
 
-        <Link
-          to="/"
-          className="login-back-home-btn"
-          aria-label="View Product Landing Page"
-        >
-          <span>Home</span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              ref={themeBtnRef}
+              type="button"
+              className="login-back-home-btn"
+              onClick={() => setShowThemePopover(!showThemePopover)}
+              aria-label="Customize theme"
+              style={{ cursor: 'pointer' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+              </svg>
+              <span>Theme</span>
+            </button>
+            {showThemePopover && (
+              <ThemeCustomizationPopover
+                onClose={() => setShowThemePopover(false)}
+                triggerRef={themeBtnRef}
+              />
+            )}
+          </div>
+
+          <Link
+            to="/"
+            className="login-back-home-btn"
+            aria-label="View Product Landing Page"
+          >
+            <span>Home</span>
+          </Link>
+        </div>
       </div>
 
       {/* Mode Switch Tabs: Sign In & Sign Up buttons */}
@@ -173,10 +204,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Welcome Heading */}
       <div className="login-heading-block">
-        <h1>Welcome back to IntellMeet</h1>
-        <p>
-          Enter your enterprise credentials to access your collaborative workspaces and real-time AI meeting intelligence.
-        </p>
+        <h1>Welcome to IntellMeet</h1>
       </div>
 
       {/* API Error Notice */}
@@ -200,35 +228,6 @@ export const LoginPage: React.FC = () => {
           {ssoNotice}
         </InfoNotice>
       )}
-
-      {/* SSO Buttons */}
-      <div className="login-sso-group">
-        <SocialLoginButton
-          provider="google"
-          label="Continue with Google Workspace"
-          onClick={handleSSOClick}
-          id="im-sso-google"
-        />
-        <SocialLoginButton
-          provider="microsoft"
-          label="Continue with Microsoft Azure AD / 365"
-          onClick={handleSSOClick}
-          id="im-sso-microsoft"
-        />
-        <SocialLoginButton
-          provider="saml"
-          label="Single Sign-On (SAML 2.0)"
-          onClick={handleSSOClick}
-          id="im-sso-saml"
-        />
-      </div>
-
-      {/* Divider */}
-      <div className="login-divider">
-        <span className="login-divider-line" />
-        <span className="login-divider-text">or continue with email</span>
-        <span className="login-divider-line" />
-      </div>
 
       {/* Login Form */}
       <form className="login-form" onSubmit={handleSubmit} noValidate>
@@ -289,6 +288,23 @@ export const LoginPage: React.FC = () => {
         >
           {isSubmitting ? 'Signing in...' : 'Sign In'}
         </PrimaryButton>
+
+        {/* Divider */}
+        <div className="login-divider" style={{ margin: '16px 0 12px' }}>
+          <span className="login-divider-line" />
+          <span className="login-divider-text">or continue with</span>
+          <span className="login-divider-line" />
+        </div>
+
+        {/* Google SSO Button under Sign In button */}
+        <div className="login-sso-group">
+          <SocialLoginButton
+            provider="google"
+            label="Continue with Google"
+            onClick={handleSSOClick}
+            id="im-sso-google"
+          />
+        </div>
       </form>
 
       {/* Footer */}

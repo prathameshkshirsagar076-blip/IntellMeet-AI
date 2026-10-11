@@ -10,16 +10,47 @@ import type { ThemeMode, ThemePresetId, AccentColor } from '../../types/meeting'
 import { SunIcon, MoonIcon, PaletteIcon } from '../icons';
 
 interface ThemeCustomizationPopoverProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
+  triggerRef,
 }) => {
   const { preferences, updatePreferences, showToast } = useMeetings();
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key or outside click
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        (!triggerRef?.current || !triggerRef.current.contains(e.target as Node))
+      ) {
+        onClose();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen) return null;
 
@@ -68,6 +99,7 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
 
   return (
     <div
+      ref={popoverRef}
       className="im-theme-popover-pro"
       role="dialog"
       aria-label="Theme & Appearance Customizer"
@@ -78,13 +110,32 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
           <PaletteIcon size={16} style={{ color: 'var(--im-primary)' }} />
           <span>Theme & Appearance</span>
         </div>
-        <Link
-          to="/settings?tab=theme"
-          className="im-theme-popover-link"
-          onClick={onClose}
-        >
-          View all themes →
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link
+            to="/settings?tab=theme"
+            className="im-theme-popover-link"
+            onClick={onClose}
+          >
+            Customize / All Themes →
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close theme customizer"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--im-text-muted)',
+              fontSize: '18px',
+              lineHeight: 1,
+              padding: '2px 4px',
+              borderRadius: '4px',
+            }}
+          >
+            &times;
+          </button>
+        </div>
       </div>
 
       {/* Popover Scrollable Body */}
@@ -270,3 +321,5 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
     </div>
   );
 };
+
+export default ThemeCustomizationPopover;
