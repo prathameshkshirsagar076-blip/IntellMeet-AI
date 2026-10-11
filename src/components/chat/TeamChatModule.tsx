@@ -221,6 +221,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   const selectedConvRef = useRef<ChatConversation | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingEmittedRef = useRef<boolean>(false);
+  const hasConnectedSocketRef = useRef<boolean>(false);
 
   // Sync ref for access inside socket callbacks
   useEffect(() => {
@@ -250,9 +251,12 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     loadConversations();
   }, [loadConversations]);
 
-  // 2. Real-time Socket.IO Connection & Listeners
+  // 2. Real-time Socket.IO Connection & Listeners - Strictly connects ONCE
   useEffect(() => {
-    chatSocketService.connect();
+    if (!hasConnectedSocketRef.current) {
+      hasConnectedSocketRef.current = true;
+      chatSocketService.connect();
+    }
 
     // Listener: Incoming new message
     const unsubMessage = chatSocketService.onMessageNew((data) => {
@@ -459,8 +463,10 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       unsubTyping();
       unsubPresence();
       unsubConnStatus();
+      chatSocketService.disconnect();
     };
-  }, [currentUser?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 3. Load active conversation details & messages:
   // Calls GET /chat/conversations/:id

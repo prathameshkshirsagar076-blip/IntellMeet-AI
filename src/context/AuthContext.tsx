@@ -28,6 +28,7 @@ import {
 } from '../utils/tokenStorage';
 import { AuthService, normalizeAuthUser } from '../services/auth.service';
 import { authApi } from '../api/auth.api';
+import { chatSocketService } from '../services/chatSocket.service';
 
 export interface UserProfile extends AuthUser {
   company: string;
@@ -161,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Local session cleaned up regardless
     } finally {
+      chatSocketService.disconnect();
       setUser(null);
       setAccessToken(null);
       setRefreshToken(null);
