@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
@@ -9,6 +9,7 @@ import SocialLoginButton from '../components/SocialLoginButton';
 import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import ThemeCustomizationPopover from '../components/theme/ThemeCustomizationPopover';
 import type { AuthUser, AuthTokens } from '../types/auth';
 import {
   UserIcon,
@@ -55,6 +56,8 @@ export const SignUpPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isEmailConflict, setIsEmailConflict] = useState(false);
+  const [showThemePopover, setShowThemePopover] = useState(false);
+  const themeBtnRef = useRef<HTMLButtonElement>(null);
 
   // SSO Notice
   const [ssoNotice, setSsoNotice] = useState<string | null>(null);
@@ -186,13 +189,41 @@ export const SignUpPage: React.FC = () => {
       <div className="login-top-bar">
         <BrandLogo to="/" />
 
-        <Link
-          to="/"
-          className="login-back-home-btn"
-          aria-label="View Product Landing Page"
-        >
-          <span>Home</span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              ref={themeBtnRef}
+              type="button"
+              className="login-back-home-btn"
+              onClick={() => setShowThemePopover(!showThemePopover)}
+              aria-label="Customize theme"
+              style={{ cursor: 'pointer' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+              </svg>
+              <span>Theme</span>
+            </button>
+            {showThemePopover && (
+              <ThemeCustomizationPopover
+                onClose={() => setShowThemePopover(false)}
+                triggerRef={themeBtnRef}
+              />
+            )}
+          </div>
+
+          <Link
+            to="/"
+            className="login-back-home-btn"
+            aria-label="View Product Landing Page"
+          >
+            <span>Home</span>
+          </Link>
+        </div>
       </div>
 
       {/* Mode Switch Tabs: Sign In & Sign Up buttons */}
