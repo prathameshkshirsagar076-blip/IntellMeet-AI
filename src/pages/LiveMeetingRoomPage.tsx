@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useMeetings } from '../context/MeetingContext';
+import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
+import { meetingApi } from '../api/meeting.api';
+import { meetingSocketService } from '../services/meetingSocket.service';
+import { toast as globalToast } from '../components/toast/toast';
+import type { RemotePeer, Meeting, MeetingMessageItem, ActionItem } from '../types/meeting';
 import '../styles/liveMeeting.css';
 
 interface ChatMessage {
@@ -18,18 +22,84 @@ interface ReactionParticle {
   leftPercent: number;
 }
 
+const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && peer.stream) {
+      videoRef.current.srcObject = peer.stream;
+    }
+  }, [peer.stream]);
+
+  const initials = peer.name
+    ? peer.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'U';
+
+  const hasVideo = peer.isVideoOn && peer.stream;
+
+  return (
+    <div className={`zm-gallery-tile ${!peer.isAudioMuted ? 'speaking' : ''}`}>
+      {hasVideo ? (
+        <video ref={videoRef} autoPlay playsInline className="zm-live-video-element" />
+      ) : (
+        <div
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 28,
+            fontWeight: 700,
+            color: '#fff',
+          }}
+        >
+          {initials}
+        </div>
+      )}
+      <div className="zm-speaker-tag">
+        <span className={peer.isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
+          {peer.isAudioMuted ? '🔇' : '🎙️'}
+        </span>
+        <span>
+          {peer.name} {peer.role === 'host' ? '(Host)' : ''}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export const LiveMeetingRoomPage: React.FC = () => {
   const { meetingId } = useParams<{ meetingId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getMeetingById, showToast } = useMeetings();
 
-  // Retrieve meeting info if exists
-  const meeting = meetingId ? getMeetingById(meetingId) : undefined;
+  // Meeting states
+  const [realMeeting, setRealMeeting] = useState<Meeting | null>(
+    meetingId ? getMeetingById(meetingId) || null : null
+  );
+  const [remotePeers, setRemotePeers] = useState<RemotePeer[]>([]);
+
   const userName = user?.name || 'IntellMeet User';
-  const meetingTitle = meeting?.title || `${userName}'s Live Meeting`;
-  const meetingCode = meeting?.meetingCode || '810 4560 0551';
-  const passcode = 'azL6G7';
+  const meetingTitle = realMeeting?.title || (meetingId ? `Meeting: ${meetingId}` : `${userName}'s Live Meeting`);
+  const meetingCode = realMeeting?.meetingCode || meetingId || '';
+  const passcode = realMeeting?.passcode || '';
+  const isHost = Boolean(
+    realMeeting &&
+      (realMeeting.organizer?.id === user?.id ||
+        (realMeeting as unknown as { organizerId?: { _id?: string; id?: string } | string }).organizerId === user?.id ||
+        (typeof (realMeeting as unknown as { organizerId?: { _id?: string; id?: string } }).organizerId === 'object' &&
+          ((realMeeting as unknown as { organizerId?: { _id?: string; id?: string } }).organizerId?.id === user?.id ||
+           (realMeeting as unknown as { organizerId?: { _id?: string; id?: string } }).organizerId?._id === user?.id)))
+  );
 
   // Audio / Video device states
   const [isAudioMuted, setIsAudioMuted] = useState(true); // Default muted as in screenshot
@@ -61,39 +131,16 @@ export const LiveMeetingRoomPage: React.FC = () => {
   const [reactions, setReactions] = useState<ReactionParticle[]>([]);
 
   // Chat State
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      sender: 'IntellMeet AI Assistant',
-      text: 'Welcome to your meeting! Real-time transcription and AI meeting summary are active.',
-      timestamp: '20:07',
-      isSelf: false,
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
+  const isFetchingMessagesRef = useRef(false);
+  const lastFetchedMeetingIdRef = useRef<string | null>(null);
   const [chatInputText, setChatInputText] = useState('');
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // AI Live Notes & Transcript State
-  const [liveTranscript, setLiveTranscript] = useState<string[]>([
-    'Meeting initiated by ' + userName,
-    'Audio encryption verified: 256-bit AES End-to-End',
-    'AI Companion initialized and ready to take notes...',
-  ]);
-
-  useEffect(() => {
-    if (!isAudioMuted) {
-      const interval = setInterval(() => {
-        const phrases = [
-          `${userName}: Discussing meeting objectives and deliverables`,
-          `AI Companion: Extracted key milestone into summary notes`,
-          `${userName}: Audio stream active and encrypted`,
-        ];
-        const nextPhrase = phrases[Math.floor(Math.random() * phrases.length)];
-        setLiveTranscript((prev) => [...prev.slice(-5), nextPhrase]);
-      }, 8000);
-      return () => clearInterval(interval);
-    }
-  }, [isAudioMuted, userName]);
+  const [liveTranscript, setLiveTranscript] = useState<string[]>([]);
 
   // Video Ref & Stream
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -124,44 +171,170 @@ export const LiveMeetingRoomPage: React.FC = () => {
   // Reaction counter ref for unique deterministic particle keys
   const reactionCounterRef = useRef(0);
 
-  // WebCam Toggle Handling
+  // 1. Dedicated, deduplicated message history fetcher
   useEffect(() => {
-    let localStream: MediaStream | null = null;
-
-    if (isVideoOn) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices
-          .getUserMedia({ video: true, audio: false })
-          .then((stream) => {
-            localStream = stream;
-            setMediaStream(stream);
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-            }
-          })
-          .catch((err) => {
-            console.warn('Camera access not granted or not available:', err);
-            showToast('Camera simulation active (hardware not detected)', 'info');
-          });
-      }
-    } else {
-      setMediaStream((current) => {
-        if (current) {
-          current.getTracks().forEach((track) => track.stop());
-        }
-        return null;
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
+    if (!meetingId) {
+      setChatMessages([]);
+      return;
     }
 
+    // Prevent duplicate simultaneous requests for same meeting
+    if (isFetchingMessagesRef.current && lastFetchedMeetingIdRef.current === meetingId) {
+      return;
+    }
+
+    const controller = new AbortController();
+    isFetchingMessagesRef.current = true;
+    lastFetchedMeetingIdRef.current = meetingId;
+    setIsLoadingMessages(true);
+    setMessagesError(null);
+
+    meetingApi
+      .getMessages(meetingId, {}, { signal: controller.signal })
+      .then((res) => {
+        const msgs = (res?.data?.messages || []) as MeetingMessageItem[];
+        const loaded: ChatMessage[] = msgs.map((m: MeetingMessageItem) => ({
+          id: m.id,
+          sender: m.sender?.name || (m.senderId === user?.id ? user?.name || 'You' : 'Participant'),
+          text: m.content,
+          timestamp: m.createdAt
+            ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '',
+          isSelf: m.senderId === user?.id || m.sender?.id === user?.id,
+        }));
+        setChatMessages(loaded);
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        setMessagesError(err?.message || 'Failed to load messages');
+      })
+      .finally(() => {
+        isFetchingMessagesRef.current = false;
+        setIsLoadingMessages(false);
+      });
+
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      controller.abort();
+      isFetchingMessagesRef.current = false;
+    };
+  }, [meetingId, user?.id, user?.name]);
+
+  // 2. Real WebRTC & Backend Meeting Room Lifecycle
+  useEffect(() => {
+    if (!meetingId) return;
+
+    let isMounted = true;
+    const controller = new AbortController();
+
+    // Fetch meeting details from backend
+    meetingApi
+      .getMeetingById(meetingId, { signal: controller.signal })
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.data) {
+          setRealMeeting(mapBackendMeeting(res.data));
+        }
+      })
+      .catch(() => {});
+
+    // Fetch ICE servers (STUN/TURN)
+    meetingApi
+      .getJoinInfo(meetingId, { signal: controller.signal })
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.data?.iceServers) {
+          meetingSocketService.setIceServers(res.data.iceServers);
+        }
+      })
+      .catch(() => {});
+
+    // Register Join via REST and connect Socket.IO
+    meetingApi
+      .joinMeeting(meetingId)
+      .then((joinRes) => {
+        if (!isMounted) return;
+        if (joinRes?.data?.iceServers) {
+          meetingSocketService.setIceServers(joinRes.data.iceServers);
+        }
+        return meetingSocketService.joinMeeting(meetingId);
+      })
+      .then((socketRes) => {
+        if (!isMounted) return;
+        if (socketRes?.success) {
+          globalToast.success('Connected to live meeting session');
+        }
+      })
+      .catch((err) => {
+        console.warn('[LiveMeeting] Join error:', err);
+      });
+
+    // Listen for WebRTC remote peers updates
+    const unsubPeers = meetingSocketService.onPeersChange((peers) => {
+      if (isMounted) {
+        setRemotePeers(peers);
+      }
+    });
+
+    // Listen for incoming live chat messages (appends directly without refetching history)
+    const unsubChat = meetingSocketService.onChatMessage((msg) => {
+      if (!isMounted) return;
+      setLiveTranscript((prev) => [
+        ...prev.slice(-19),
+        `${msg.sender?.name || 'Participant'}: ${msg.content}`,
+      ]);
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [
+          ...prev,
+          {
+            id: msg.id,
+            sender: msg.sender?.name || 'Participant',
+            text: msg.content,
+            timestamp: msg.createdAt
+              ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isSelf: msg.senderId === user?.id || msg.sender?.id === user?.id,
+          },
+        ];
+      });
+    });
+
+    // Listen for meeting ended by host
+    const unsubEnded = meetingSocketService.onMeetingEnded(() => {
+      globalToast.info('The host ended this meeting');
+      navigate('/meetings');
+    });
+
+    // Listen for participant removed / muted
+    const unsubRemoved = meetingSocketService.onParticipantRemoved((targetUserId) => {
+      if (targetUserId === user?.id) {
+        globalToast.warning('You were removed from the meeting by the host');
+        navigate('/meetings');
+      }
+    });
+
+    const unsubMuted = meetingSocketService.onParticipantMuted((targetUserId) => {
+      if (targetUserId === user?.id) {
+        setIsAudioMuted(true);
+        meetingSocketService.toggleAudio(true);
+        globalToast.info('You were muted by the host');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      unsubPeers();
+      unsubChat();
+      unsubEnded();
+      unsubRemoved();
+      unsubMuted();
+      meetingSocketService.leaveMeeting();
+      if (meetingId) {
+        meetingApi.leaveMeeting(meetingId).catch(() => {});
       }
     };
-  }, [isVideoOn, showToast]);
+  }, [meetingId, user?.id, navigate]);
 
   // Clean up media streams on unmount
   useEffect(() => {
@@ -179,7 +352,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
     }
   }, [chatMessages, activeDrawer]);
 
-  // Add floating reaction
+  // Floating reactions
   const triggerReaction = (emoji: string) => {
     reactionCounterRef.current += 1;
     const count = reactionCounterRef.current;
@@ -194,50 +367,118 @@ export const LiveMeetingRoomPage: React.FC = () => {
     setReactions((prev) => [...prev, newReaction]);
     setReactionsTrayOpen(false);
 
-    // Auto remove particle after animation
     setTimeout(() => {
       setReactions((prev) => prev.filter((r) => r.id !== particleId));
     }, 2500);
   };
 
-  // Send Chat message
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInputText.trim()) return;
+  // Toggle Microphone Audio
+  const handleToggleAudio = async () => {
+    const nextMuted = !isAudioMuted;
+    setIsAudioMuted(nextMuted);
 
+    if (!nextMuted && (!mediaStream || mediaStream.getAudioTracks().length === 0)) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: isVideoOn,
+        });
+        setMediaStream(stream);
+        meetingSocketService.setLocalStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.warn('Microphone permission denied:', err);
+        showToast('Microphone not detected or permission denied', 'warning');
+      }
+    }
+
+    meetingSocketService.toggleAudio(nextMuted);
+  };
+
+  // Toggle Camera Video
+  const handleToggleVideo = async () => {
+    const nextVideo = !isVideoOn;
+    setIsVideoOn(nextVideo);
+
+    if (nextVideo) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: !isAudioMuted,
+        });
+        setMediaStream(stream);
+        meetingSocketService.setLocalStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        meetingSocketService.toggleVideo(true);
+      } catch (err) {
+        console.warn('Camera access denied:', err);
+        showToast('Camera not detected or permission denied', 'warning');
+      }
+    } else {
+      meetingSocketService.toggleVideo(false);
+      if (mediaStream) {
+        mediaStream.getVideoTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    }
+  };
+
+  // Toggle Screen Sharing
+  const handleToggleScreenShare = async () => {
+    if (isScreenSharing) {
+      meetingSocketService.stopScreenShare();
+      setIsScreenSharing(false);
+      showToast('Screen sharing stopped', 'info');
+    } else {
+      const stream = await meetingSocketService.startScreenShare();
+      if (stream) {
+        setIsScreenSharing(true);
+        showToast('You are sharing your screen', 'success');
+        stream.getVideoTracks()[0].onended = () => {
+          setIsScreenSharing(false);
+          meetingSocketService.stopScreenShare();
+        };
+      } else {
+        showToast('Screen sharing cancelled or unavailable', 'info');
+      }
+    }
+  };
+
+  // Send Chat message
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = chatInputText.trim();
+    if (!text || !meetingId) return;
+
+    const tempId = `temp-${Date.now()}`;
     const newMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: tempId,
       sender: userName,
-      text: chatInputText.trim(),
+      text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isSelf: true,
     };
 
     setChatMessages((prev) => [...prev, newMsg]);
     setChatInputText('');
-  };
 
-  // Toggle Screen Share
-  const handleToggleScreenShare = async () => {
-    if (isScreenSharing) {
-      setIsScreenSharing(false);
-      showToast('Screen sharing stopped', 'info');
-    } else {
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-          setIsScreenSharing(true);
-          showToast('You are sharing your screen', 'success');
-          displayStream.getVideoTracks()[0].onended = () => {
-            setIsScreenSharing(false);
-          };
-        } else {
-          setIsScreenSharing(true);
-          showToast('Screen share simulation active', 'success');
-        }
-      } catch (err) {
-        console.warn('Screen share canceled or not permitted:', err);
+    try {
+      const res = await meetingApi.sendMessage(meetingId, text, tempId);
+      if (res?.data) {
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, id: res.data.id || tempId } : m))
+        );
       }
+      meetingSocketService.sendChatMessage(text, tempId).catch(() => {});
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to send message';
+      globalToast.error(msg);
     }
   };
 
@@ -288,12 +529,6 @@ export const LiveMeetingRoomPage: React.FC = () => {
     showToast('Meeting link copied to clipboard!', 'success');
   };
 
-  // End / Leave meeting
-  const handleConfirmEnd = () => {
-    setEndModalOpen(false);
-    showToast('Meeting ended successfully', 'info');
-    navigate('/dashboard');
-  };
 
   return (
     <div className="zm-live-meeting-viewport">
@@ -591,10 +826,6 @@ export const LiveMeetingRoomPage: React.FC = () => {
                 <span className="zm-info-val">{passcode}</span>
               </div>
               <div className="zm-info-row">
-                <span className="zm-info-label">Numeric Passcode</span>
-                <span className="zm-info-val">284910</span>
-              </div>
-              <div className="zm-info-row">
                 <span className="zm-info-label">Encryption</span>
                 <span className="zm-info-val" style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -718,61 +949,138 @@ export const LiveMeetingRoomPage: React.FC = () => {
               {viewMode === 'speaker' ? (
                 /* Speaker View — Zoom Centered Layout */
                 <div className="zm-speaker-tile">
-                  {isVideoOn ? (
+                  {remotePeers.length > 0 ? (
+                    remotePeers[0].isVideoOn && remotePeers[0].stream ? (
+                      <video
+                        ref={(el) => {
+                          if (el && remotePeers[0].stream) el.srcObject = remotePeers[0].stream;
+                        }}
+                        autoPlay
+                        playsInline
+                        className="zm-live-video-element"
+                      />
+                    ) : (
+                      <div className="zm-center-avatar-box">
+                        <div
+                          style={{
+                            width: 120,
+                            height: 120,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 42,
+                            fontWeight: 700,
+                            color: '#fff',
+                          }}
+                        >
+                          {remotePeers[0].name.slice(0, 2).toUpperCase()}
+                        </div>
+                      </div>
+                    )
+                  ) : isVideoOn ? (
                     <video ref={videoRef} autoPlay playsInline muted className="zm-live-video-element" />
                   ) : (
-                    /* Zoom Centered User Photo / Avatar */
+                    /* Centered User Avatar */
                     <div className="zm-center-avatar-box">
-                      <img
-                        src="/user-avatar.png"
-                        alt={userName}
-                        className="zm-center-avatar-img"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop';
-                        }}
-                      />
+                      {user?.avatar && user.avatar.startsWith('http') ? (
+                        <img
+                          src={user.avatar}
+                          alt={userName}
+                          className="zm-center-avatar-img"
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 140,
+                            height: 140,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 48,
+                            fontWeight: 700,
+                            color: '#ffffff',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          {userName.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Speaker Tag Pill (Bottom Left of Video Tile) */}
+                  {/* Speaker Tag Pill */}
                   <div className="zm-speaker-tag">
-                    {isAudioMuted ? (
-                      <span className="zm-speaker-mic-red" title="Muted">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                          <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
-                          <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
-                          <line x1="12" y1="19" x2="12" y2="23" />
-                          <line x1="8" y1="23" x2="16" y2="23" />
-                        </svg>
-                      </span>
+                    {remotePeers.length > 0 ? (
+                      <>
+                        <span className={remotePeers[0].isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
+                          {remotePeers[0].isAudioMuted ? '🔇' : '🎙️'}
+                        </span>
+                        <span>{remotePeers[0].name}</span>
+                      </>
                     ) : (
-                      <span className="zm-speaker-mic-green" title="Unmuted">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                          <line x1="12" y1="19" x2="12" y2="23" />
-                          <line x1="8" y1="23" x2="16" y2="23" />
-                        </svg>
-                      </span>
+                      <>
+                        <span className={isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
+                          {isAudioMuted ? '🔇' : '🎙️'}
+                        </span>
+                        <span>{userName} (Me)</span>
+                      </>
                     )}
-                    <span>{userName}</span>
                   </div>
+
+                  {/* Floating PiP thumbnail for local camera when remote peer is on stage */}
+                  {remotePeers.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 16,
+                        right: 16,
+                        width: 140,
+                        height: 90,
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        border: '2px solid rgba(255,255,255,0.25)',
+                        background: '#0f172a',
+                        zIndex: 10,
+                      }}
+                    >
+                      {isVideoOn ? (
+                        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12 }}>
+                          {userName} (You)
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
-                /* Gallery View — 2x2 Grid Layout */
+                /* Gallery View — Dynamic WebRTC Mesh Grid */
                 <div className="zm-gallery-grid">
                   {/* Tile 1: You */}
                   <div className={`zm-gallery-tile ${!isAudioMuted ? 'speaking' : ''}`}>
                     {isVideoOn ? (
                       <video ref={videoRef} autoPlay playsInline muted className="zm-live-video-element" />
                     ) : (
-                      <img
-                        src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop"
-                        alt={userName}
-                        style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover' }}
-                      />
+                      <div
+                        style={{
+                          width: 84,
+                          height: 84,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 28,
+                          fontWeight: 700,
+                          color: '#fff',
+                        }}
+                      >
+                        {userName.slice(0, 2).toUpperCase()}
+                      </div>
                     )}
                     <div className="zm-speaker-tag">
                       <span className={isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
@@ -782,53 +1090,41 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Tile 2: IntellMeet AI NoteTaker */}
-                  <div className="zm-gallery-tile">
+                  {/* Connected Remote Peers */}
+                  {remotePeers.map((peer) => (
+                    <RemoteVideoTile key={peer.socketId} peer={peer} />
+                  ))}
+
+                  {/* Invite peer card if alone in meeting */}
+                  {remotePeers.length === 0 && (
                     <div
+                      className="zm-gallery-tile"
                       style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                        border: '2px dashed rgba(255,255,255,0.18)',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 34,
+                        padding: 20,
+                        textAlign: 'center',
                       }}
                     >
-                      ✨
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>👥</div>
+                      <div style={{ color: '#f8fafc', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                        Waiting for peers to join
+                      </div>
+                      <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 12 }}>
+                        Share link to test 2-client WebRTC video & audio
+                      </div>
+                      <button
+                        className="im-btn im-btn-primary im-btn-sm"
+                        onClick={handleCopyLink}
+                        style={{ fontSize: 12, padding: '6px 14px' }}
+                      >
+                        Copy Meeting Link
+                      </button>
                     </div>
-                    <div className="zm-speaker-tag">
-                      <span className="zm-speaker-mic-green">🎙️</span>
-                      <span>IntellMeet AI Assistant</span>
-                    </div>
-                  </div>
-
-                  {/* Tile 3: Sarah Jenkins */}
-                  <div className="zm-gallery-tile">
-                    <img
-                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop"
-                      alt="Sarah Jenkins"
-                      style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <div className="zm-speaker-tag">
-                      <span className="zm-speaker-mic-red">🔇</span>
-                      <span>Sarah Jenkins (Product)</span>
-                    </div>
-                  </div>
-
-                  {/* Tile 4: Michael Chen */}
-                  <div className="zm-gallery-tile">
-                    <img
-                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop"
-                      alt="Michael Chen"
-                      style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <div className="zm-speaker-tag">
-                      <span className="zm-speaker-mic-red">🔇</span>
-                      <span>Michael Chen (Tech Lead)</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
@@ -840,7 +1136,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
             {activeDrawer === 'participants' && (
               <aside className="zm-side-drawer">
                 <div className="zm-drawer-header">
-                  <span className="zm-drawer-title">Participants (2)</span>
+                  <span className="zm-drawer-title">Participants ({1 + remotePeers.length})</span>
                   <button className="zm-drawer-close-btn" onClick={() => setActiveDrawer(null)}>
                     ✕
                   </button>
@@ -850,12 +1146,12 @@ export const LiveMeetingRoomPage: React.FC = () => {
                   <div className="zm-participant-row">
                     <div className="zm-participant-info">
                       <div className="zm-p-avatar">
-                        {userName[0].toUpperCase()}
+                        {userName[0]?.toUpperCase() || 'U'}
                       </div>
                       <div>
                         <div className="zm-p-name">
                           {userName}
-                          <span className="zm-p-tag">(Host, me)</span>
+                          <span className="zm-p-tag">({isHost ? 'Host, me' : 'Me'})</span>
                         </div>
                       </div>
                     </div>
@@ -865,37 +1161,71 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* AI Assistant */}
-                  <div className="zm-participant-row">
-                    <div className="zm-participant-info">
-                      <div className="zm-p-avatar" style={{ background: '#7c3aed' }}>
-                        AI
-                      </div>
-                      <div>
-                        <div className="zm-p-name">
-                          IntellMeet AI
-                          <span className="zm-p-tag">(Companion)</span>
+                  {/* Connected Remote Peers */}
+                  {remotePeers.map((peer) => (
+                    <div key={peer.socketId} className="zm-participant-row">
+                      <div className="zm-participant-info">
+                        <div className="zm-p-avatar" style={{ background: '#3b82f6' }}>
+                          {peer.name[0]?.toUpperCase() || 'P'}
+                        </div>
+                        <div>
+                          <div className="zm-p-name">
+                            {peer.name}
+                            <span className="zm-p-tag">({peer.role || 'Attendee'})</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="zm-p-status" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{peer.isAudioMuted ? '🔇' : '🎙️'}</span>
+                        <span>{peer.isVideoOn ? '📹' : '🚫'}</span>
+                        {isHost && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (meetingId) meetingApi.muteParticipant(meetingId, peer.userId);
+                                showToast(`Muted ${peer.name}`, 'info');
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 11 }}
+                              title="Mute participant"
+                            >
+                              Mute
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (meetingId) {
+                                  meetingSocketService.removeParticipant(peer.userId);
+                                  meetingApi.removeParticipant(meetingId, peer.userId);
+                                }
+                                showToast(`Removed ${peer.name}`, 'info');
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 11 }}
+                              title="Remove participant"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="zm-p-status">
-                      <span style={{ fontSize: 11, color: '#a855f7', fontWeight: 600 }}>Active</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
                 <div className="zm-drawer-footer">
                   <button className="zm-drawer-btn" onClick={handleCopyLink}>
                     Invite
                   </button>
-                  <button
-                    className="zm-drawer-btn"
-                    onClick={() => {
-                      setIsAudioMuted(true);
-                      showToast('All participants muted', 'info');
-                    }}
-                  >
-                    Mute All
-                  </button>
+                  {isHost && (
+                    <button
+                      className="zm-drawer-btn"
+                      onClick={() => {
+                        remotePeers.forEach((p) => {
+                          if (meetingId) meetingApi.muteParticipant(meetingId, p.userId);
+                        });
+                        showToast('Muted all participants', 'info');
+                      }}
+                    >
+                      Mute All
+                    </button>
+                  )}
                 </div>
               </aside>
             )}
@@ -914,15 +1244,29 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     To: <strong>Everyone ⌄</strong>
                   </div>
                   <div className="zm-chat-messages">
-                    {chatMessages.map((msg) => (
-                      <div key={msg.id} className="zm-chat-msg">
-                        <div className="zm-chat-msg-header">
-                          <span className="zm-chat-sender">{msg.sender}</span>
-                          <span className="zm-chat-time">{msg.timestamp}</span>
-                        </div>
-                        <div className="zm-chat-bubble">{msg.text}</div>
+                    {isLoadingMessages ? (
+                      <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                        Loading message history...
                       </div>
-                    ))}
+                    ) : messagesError ? (
+                      <div style={{ padding: '24px 16px', textAlign: 'center', color: '#f87171', fontSize: 13 }}>
+                        {messagesError}
+                      </div>
+                    ) : chatMessages.length === 0 ? (
+                      <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                        No messages yet. Send a message to start the conversation.
+                      </div>
+                    ) : (
+                      chatMessages.map((msg) => (
+                        <div key={msg.id} className="zm-chat-msg">
+                          <div className="zm-chat-msg-header">
+                            <span className="zm-chat-sender">{msg.sender}</span>
+                            <span className="zm-chat-time">{msg.timestamp}</span>
+                          </div>
+                          <div className="zm-chat-bubble">{msg.text}</div>
+                        </div>
+                      ))
+                    )}
                     <div ref={chatBottomRef} />
                   </div>
                 </div>
@@ -966,29 +1310,35 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     Live Transcript Feed
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: '#f1f5f9' }}>
-                    {liveTranscript.map((t, i) => (
-                      <div key={i} style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
-                        • {t}
+                    {liveTranscript.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>
+                        No transcript recorded yet. Speak with unmuted microphone to capture audio.
                       </div>
-                    ))}
+                    ) : (
+                      liveTranscript.map((t, i) => (
+                        <div key={i} style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                          • {t}
+                        </div>
+                      ))
+                    )}
                   </div>
 
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 14 }}>
                     Extracted Action Items
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" defaultChecked />
-                      <span>Review IntellMeet Workplace interface components</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" defaultChecked />
-                      <span>Verify 256-bit AES encryption & media stream</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" />
-                      <span>Distribute meeting notes and AI summary</span>
-                    </label>
+                    {realMeeting?.actionItems && realMeeting.actionItems.length > 0 ? (
+                      realMeeting.actionItems.map((item: ActionItem, idx: number) => (
+                        <label key={item.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                          <input type="checkbox" defaultChecked={Boolean(item.completed)} />
+                          <span>{item.task}</span>
+                        </label>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                        No action items extracted yet.
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="zm-drawer-footer">
@@ -1017,7 +1367,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div className="zm-dock-btn-group">
                 <button
                   className="zm-dock-btn"
-                  onClick={() => setIsAudioMuted(!isAudioMuted)}
+                  onClick={handleToggleAudio}
                   title={isAudioMuted ? 'Unmute (Alt+A)' : 'Mute (Alt+A)'}
                 >
                   <div className="zm-dock-btn-icon">
@@ -1081,7 +1431,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div className="zm-dock-btn-group">
                 <button
                   className="zm-dock-btn"
-                  onClick={() => setIsVideoOn(!isVideoOn)}
+                  onClick={handleToggleVideo}
                   title={isVideoOn ? 'Stop Video (Alt+V)' : 'Start Video (Alt+V)'}
                 >
                   <div className="zm-dock-btn-icon">
@@ -1394,15 +1744,28 @@ export const LiveMeetingRoomPage: React.FC = () => {
               Would you like to end the meeting for all participants or simply leave the session?
             </p>
             <div className="zm-dialog-actions">
-              <button className="zm-dialog-btn-danger" onClick={handleConfirmEnd}>
-                End Meeting for All
-              </button>
+              {isHost && (
+                <button
+                  className="zm-dialog-btn-danger"
+                  onClick={async () => {
+                    setEndModalOpen(false);
+                    meetingSocketService.endMeeting();
+                    if (meetingId) await meetingApi.endMeeting(meetingId).catch(() => {});
+                    showToast('Meeting ended for all participants', 'info');
+                    navigate('/meetings');
+                  }}
+                >
+                  End Meeting for All
+                </button>
+              )}
               <button
                 className="zm-dialog-btn-secondary"
-                onClick={() => {
+                onClick={async () => {
                   setEndModalOpen(false);
+                  meetingSocketService.leaveMeeting();
+                  if (meetingId) await meetingApi.leaveMeeting(meetingId).catch(() => {});
                   showToast('You left the meeting', 'info');
-                  navigate('/dashboard');
+                  navigate('/meetings');
                 }}
               >
                 Leave Meeting

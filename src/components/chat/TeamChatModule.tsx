@@ -1102,19 +1102,23 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   };
 
   // Quick 1:1 Instant Meeting
-  const handleStartInstantMeet = () => {
+  const handleStartInstantMeet = async () => {
     if (!selectedConv) return;
-    const todayStr = new Date().toISOString().split('T')[0];
-    const meeting = createMeeting({
-      title: `1:1 Chat Call with ${selectedConv.otherParticipant.name}`,
-      date: todayStr,
-      startTime: new Date().toTimeString().slice(0, 5),
-      durationMinutes: 30,
-      participantsEmails: [selectedConv.otherParticipant.email],
-      isInstant: true,
-    });
-    toast.success(`Starting 1:1 meeting with ${selectedConv.otherParticipant.name}`);
-    navigate(`/meeting/${meeting.id}`);
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const meeting = await createMeeting({
+        title: `1:1 Chat Call with ${selectedConv.otherParticipant.name}`,
+        date: todayStr,
+        startTime: new Date().toTimeString().slice(0, 5),
+        durationMinutes: 30,
+        participantsEmails: [selectedConv.otherParticipant.email],
+        isInstant: true,
+      });
+      toast.success(`Starting 1:1 meeting with ${selectedConv.otherParticipant.name}`);
+      navigate(`/meeting/${meeting.id}`);
+    } catch {
+      // Toast handled by context
+    }
   };
 
   const isOtherOnline = (userId: string, defaultActive?: boolean) => {
