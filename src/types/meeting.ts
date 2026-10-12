@@ -24,6 +24,7 @@ export interface Meeting {
   meetingLink: string;
   summaryId?: string;
   isInstant?: boolean;
+  actionItems?: ActionItem[];
   createdAt: string;
 }
 
@@ -118,3 +119,82 @@ export interface TeamMember {
   isOnline: boolean;
   lastActive?: string;
 }
+
+export interface CreateMeetingPayload {
+  title: string;
+  description?: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  participantEmails?: string[];
+  isInstant?: boolean;
+  passcode?: string;
+  settings?: {
+    allowChat?: boolean;
+    allowScreenShare?: boolean;
+    waitingRoom?: boolean;
+    isMutedOnEntry?: boolean;
+    isVideoOffOnEntry?: boolean;
+  };
+}
+
+export interface MeetingIceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+export interface JoinMeetingResponse {
+  meeting: {
+    id: string;
+    meetingCode: string;
+    title: string;
+    status: MeetingStatus;
+    settings?: {
+      allowChat?: boolean;
+      allowScreenShare?: boolean;
+      waitingRoom?: boolean;
+      isMutedOnEntry?: boolean;
+      isVideoOffOnEntry?: boolean;
+    };
+    organizer?: Participant;
+  };
+  participant: {
+    userId: string;
+    role: string;
+    status: string;
+    joinedAt: string;
+  };
+  iceServers: MeetingIceServer[];
+}
+
+export interface MeetingMessageItem {
+  id: string;
+  meetingId: string;
+  senderId: string;
+  sender: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  content: string;
+  clientMessageId?: string;
+  isEdited?: boolean;
+  editedAt?: string;
+  createdAt: string;
+}
+
+export interface RemotePeer {
+  socketId: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  stream?: MediaStream;
+  isAudioMuted?: boolean;
+  isVideoOn?: boolean;
+  isScreenSharing?: boolean;
+  isHandRaised?: boolean;
+}
+

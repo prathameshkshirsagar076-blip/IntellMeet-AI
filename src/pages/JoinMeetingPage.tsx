@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMeetings } from '../context/MeetingContext';
+import { meetingApi } from '../api/meeting.api';
 import {
   VideoIcon,
   ArrowLeftIcon,
@@ -105,7 +106,7 @@ export const JoinMeetingPage: React.FC = () => {
     return clean;
   };
 
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetCode = cleanMeetingCode(meetingInput);
 
@@ -117,23 +118,28 @@ export const JoinMeetingPage: React.FC = () => {
     setInputError(null);
     setIsConnecting(true);
 
-    // Check if matching meeting exists
-    const matchedMeeting = meetings.find(
-      (m) =>
-        m.meetingCode.toLowerCase() === targetCode.toLowerCase() ||
-        m.id.toLowerCase() === targetCode.toLowerCase()
-    );
-
-    setTimeout(() => {
-      setIsConnecting(false);
+    try {
+      const res = await meetingApi.getMeetingById(targetCode);
+      const meetingData = res?.data;
+      const destinationId = meetingData?.id || meetingData?._id || targetCode;
+      showToast(`Connected to meeting: "${meetingData?.title || targetCode}"`, 'success');
+      navigate(`/meeting/${destinationId}`);
+    } catch {
+      const matchedMeeting = meetings.find(
+        (m) =>
+          m.meetingCode.toLowerCase() === targetCode.toLowerCase() ||
+          m.id.toLowerCase() === targetCode.toLowerCase()
+      );
       if (matchedMeeting) {
         showToast(`Connected to room: "${matchedMeeting.title}"`, 'success');
         navigate(`/meeting/${matchedMeeting.id}`);
       } else {
-        showToast(`Joined session "${targetCode}" in Live Room`, 'success');
+        showToast(`Joined session "${targetCode}" in Live Room`, 'info');
         navigate(`/meeting/${targetCode}`);
       }
-    }, 800);
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -250,7 +256,7 @@ export const JoinMeetingPage: React.FC = () => {
                   id="join-code"
                   type="text"
                   className={`im-input ${inputError ? 'error' : ''}`}
-                  placeholder="e.g. itm-782-941 or https://intellmeet.ai/m/..."
+                  placeholder="e.g. Meeting ID or invite link"
                   value={meetingInput}
                   onChange={(e) => {
                     setMeetingInput(e.target.value);

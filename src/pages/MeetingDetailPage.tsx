@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useMeetings } from '../context/MeetingContext';
+import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
+import { meetingApi } from '../api/meeting.api';
+import type { Meeting, Participant } from '../types/meeting';
 import {
   CalendarIcon,
   UsersIcon,
@@ -34,9 +36,48 @@ export const MeetingDetailPage: React.FC = () => {
   const { getMeetingById, getSummaryByMeetingId, copyMeetingLink, cancelMeeting } = useMeetings();
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [remoteMeeting, setRemoteMeeting] = useState<Meeting | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const meeting = meetingId ? getMeetingById(meetingId) : undefined;
+  useEffect(() => {
+    if (!meetingId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const local = getMeetingById(meetingId);
+    if (local) {
+      setRemoteMeeting(local);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    meetingApi
+      .getMeetingById(meetingId)
+      .then((res) => {
+        if (res?.data) {
+          setRemoteMeeting(mapBackendMeeting(res.data));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [meetingId, getMeetingById]);
+
+  const meeting = getMeetingById(meetingId || '') || remoteMeeting;
   const summary = meeting?.summaryId || meetingId ? getSummaryByMeetingId(meetingId || '') || (meeting?.summaryId ? getSummaryByMeetingId(meeting.id) : undefined) : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="im-card" style={{ maxWidth: 640, margin: '40px auto', textAlign: 'center' }}>
+        <div className="im-card-body" style={{ padding: '48px 24px' }}>
+          <p style={{ color: 'var(--im-text-muted)' }}>Loading meeting details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!meeting) {
     return (
@@ -205,7 +246,7 @@ export const MeetingDetailPage: React.FC = () => {
           </div>
           <div className="im-card-body" style={{ maxHeight: 300, overflowY: 'auto' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {meeting.participants.map((p, idx) => (
+              {meeting.participants.map((p: Participant, idx: number) => (
                 <div
                   key={idx}
                   style={{

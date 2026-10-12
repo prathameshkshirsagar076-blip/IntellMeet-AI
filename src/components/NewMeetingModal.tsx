@@ -90,15 +90,17 @@ const CamSvgIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
 export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { createMeeting, showToast } = useMeetings();
+  const { createMeeting, updateMeeting, showToast } = useMeetings();
 
   const userName = user?.name || 'Workspace Host';
 
-  // Seeded unique meeting credentials when modal opens
+  // Real backend credentials
   const [meetingCode, setMeetingCode] = useState('');
   const [passcode, setPasscode] = useState('');
   const [title, setTitle] = useState('');
   const [meetingId, setMeetingId] = useState('');
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   // Audio/Video & Security toggles (Zoom Green Room)
   const [muteAudioOnJoin, setMuteAudioOnJoin] = useState(true);
@@ -118,29 +120,54 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
 
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // Generate clean deterministic credentials whenever the modal opens
+  // Pre-create instant meeting directly on backend when modal opens
   useEffect(() => {
+    let isMounted = true;
     if (isOpen) {
-      const now = Date.now();
-      const code1 = Math.floor(100 + (now % 900));
-      const code2 = Math.floor(100 + ((now / 10) % 900));
-      const code = `itm-${code1}-${code2}`;
-
-      const generatedPasscode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const newId = `mtg-${now}`;
-
-      setMeetingCode(code);
-      setPasscode(generatedPasscode);
-      setTitle(`${userName}'s Instant Meeting`);
-      setMeetingId(newId);
+      const defaultTitle = `${userName}'s Instant Meeting`;
+      setTitle(defaultTitle);
       setInvitees([]);
       setInviteEmailInput('');
       setCopiedLink(false);
       setCopiedInvitation(false);
       setCopiedId(false);
       setCopiedPasscode(false);
+      setIsInitializing(true);
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nowTime = new Date().toTimeString().slice(0, 5);
+
+      createMeeting({
+        title: defaultTitle,
+        date: todayStr,
+        startTime: nowTime,
+        durationMinutes: 45,
+        isInstant: true,
+      })
+        .then((m) => {
+          if (!isMounted) return;
+          setMeetingId(m.id);
+          setMeetingCode(m.meetingCode);
+          setPasscode(m.passcode || '');
+        })
+        .catch(() => {
+          // Handled with toast in MeetingContext
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsInitializing(false);
+          }
+        });
+    } else {
+      setMeetingId('');
+      setMeetingCode('');
+      setPasscode('');
     }
-  }, [isOpen, userName]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, userName, createMeeting]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -155,16 +182,15 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
 
   // Meeting Link URL
   const meetingUrl = useMemo(() => {
-    if (!meetingId) return '';
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://intellmeet.ai';
-    return `${origin}/meeting/${meetingId}`;
-  }, [meetingId]);
-
-  if (!isOpen) return null;
+    const identifier = meetingId || meetingCode;
+    if (!identifier) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/meeting/${identifier}`;
+  }, [meetingCode, meetingId]);
 
   // Copy meeting link handler
   const handleCopyLink = () => {
-    if (!meetingUrl) return;
+    if (!meetingUrl || isInitializing) return;
     navigator.clipboard.writeText(meetingUrl);
     setCopiedLink(true);
     showToast('Meeting link copied to clipboard!', 'success');
@@ -173,6 +199,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
 
   // Copy full Zoom-style invitation
   const handleCopyInvitation = () => {
+    if (!meetingUrl || isInitializing) return;
     const today = new Date().toLocaleDateString(undefined, {
       weekday: 'long',
       year: 'numeric',
@@ -188,6 +215,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
   };
 
   const handleCopyMeetingId = () => {
+    if (!meetingCode || isInitializing) return;
     navigator.clipboard.writeText(meetingCode);
     setCopiedId(true);
     showToast(`Meeting ID ${meetingCode} copied!`, 'info');
@@ -195,6 +223,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
   };
 
   const handleCopyPasscode = () => {
+    if (!passcode || isInitializing) return;
     navigator.clipboard.writeText(passcode);
     setCopiedPasscode(true);
     showToast('Passcode copied!', 'info');
@@ -226,26 +255,47 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
   };
 
   // Start Meeting Now
-  const handleStartMeetingNow = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const newMeeting = createMeeting({
-      title: title.trim() || `${userName}'s Instant Meeting`,
-      date: todayStr,
-      startTime: new Date().toTimeString().slice(0, 5),
-      durationMinutes: 45,
-      participantsEmails: invitees,
-      isInstant: true,
-    });
+  const handleStartMeetingNow = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+    try {
+      let activeMeetingId = meetingId;
+      let activeMeetingCode = meetingCode;
 
-    onClose();
-    showToast(`🚀 Live room launched! Room ID: ${newMeeting.meetingCode}`, 'success');
-    navigate(`/meeting/${newMeeting.id}`);
+      if (!activeMeetingId) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nowTime = new Date().toTimeString().slice(0, 5);
+        const newMeeting = await createMeeting({
+          title: title.trim() || `${userName}'s Instant Meeting`,
+          date: todayStr,
+          startTime: nowTime,
+          durationMinutes: 45,
+          participantsEmails: invitees,
+          isInstant: true,
+          passcode: passcode || undefined,
+        });
+        activeMeetingId = newMeeting.id;
+        activeMeetingCode = newMeeting.meetingCode;
+      } else if (title.trim() && title.trim() !== `${userName}'s Instant Meeting`) {
+        await updateMeeting(activeMeetingId, { title: title.trim() }).catch(() => {});
+      }
+
+      onClose();
+      showToast(`🚀 Live room launched! Room ID: ${activeMeetingCode || activeMeetingId}`, 'success');
+      navigate(`/meeting/${activeMeetingId}`);
+    } catch {
+      // Error is handled with toast in context
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const handleScheduleForLater = () => {
     onClose();
     navigate('/meetings/new');
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -313,19 +363,20 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
               </span>
               <span className="im-nmm-badge-ready">
                 <span className="im-nmm-badge-dot" />
-                Ready to Share
+                {isInitializing ? 'Connecting...' : 'Ready to Share'}
               </span>
             </div>
 
             <div className="im-nmm-link-row">
-              <div className="im-nmm-link-box" title={meetingUrl}>
-                {meetingUrl}
+              <div className="im-nmm-link-box" title={meetingUrl || ''}>
+                {isInitializing ? 'Generating secure invite link...' : (meetingUrl || 'Generating link...')}
               </div>
               <button
                 type="button"
                 className={`im-nmm-copy-btn ${copiedLink ? 'copied' : ''}`}
                 onClick={handleCopyLink}
                 id="im-nmm-copy-link-btn"
+                disabled={isInitializing || !meetingUrl}
               >
                 {copiedLink ? <CheckIcon size={14} /> : <CopySvgIcon size={14} />}
                 <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
@@ -338,6 +389,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
                 className="im-nmm-sub-action-btn"
                 onClick={handleCopyInvitation}
                 id="im-nmm-copy-invitation-btn"
+                disabled={isInitializing || !meetingUrl}
               >
                 {copiedInvitation ? <CheckIcon size={12} /> : <CopySvgIcon size={12} />}
                 <span>{copiedInvitation ? 'Invitation Copied!' : 'Copy Full Invitation'}</span>
@@ -358,13 +410,14 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
             <div className="im-nmm-cred-box">
               <div className="im-nmm-cred-label">Meeting ID</div>
               <div className="im-nmm-cred-val-row">
-                <span className="im-nmm-cred-val">{meetingCode}</span>
+                <span className="im-nmm-cred-val">{isInitializing ? 'Connecting...' : (meetingCode || '—')}</span>
                 <button
                   type="button"
                   className="im-nmm-icon-btn"
                   onClick={handleCopyMeetingId}
                   title="Copy Meeting ID"
                   aria-label="Copy Meeting ID"
+                  disabled={isInitializing || !meetingCode}
                 >
                   {copiedId ? <CheckIcon size={13} style={{ color: '#059669' }} /> : <CopySvgIcon size={13} />}
                 </button>
@@ -374,13 +427,14 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
             <div className="im-nmm-cred-box">
               <div className="im-nmm-cred-label">Passcode</div>
               <div className="im-nmm-cred-val-row">
-                <span className="im-nmm-cred-val">{passcode}</span>
+                <span className="im-nmm-cred-val">{isInitializing ? 'Connecting...' : (passcode || '—')}</span>
                 <button
                   type="button"
                   className="im-nmm-icon-btn"
                   onClick={handleCopyPasscode}
                   title="Copy Passcode"
                   aria-label="Copy Passcode"
+                  disabled={isInitializing || !passcode}
                 >
                   {copiedPasscode ? <CheckIcon size={13} style={{ color: '#059669' }} /> : <CopySvgIcon size={13} />}
                 </button>
@@ -515,9 +569,10 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
               className="im-nmm-start-btn"
               onClick={handleStartMeetingNow}
               id="im-nmm-start-meeting-now-btn"
+              disabled={isStarting}
             >
               <VideoIcon size={18} />
-              <span>Start Meeting Now</span>
+              <span>{isStarting ? 'Launching...' : 'Start Meeting Now'}</span>
             </button>
           </div>
         </div>

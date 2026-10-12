@@ -76,8 +76,13 @@ export const CreateMeetingPage: React.FC = () => {
     setParticipants((prev) => prev.filter((e) => e !== emailToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const newErrors: { title?: string; date?: string; startTime?: string } = {};
 
     if (!title.trim()) {
@@ -99,26 +104,33 @@ export const CreateMeetingPage: React.FC = () => {
       return;
     }
 
-    if (editingMeeting) {
-      updateMeeting(editingMeeting.id, {
-        title: title.trim(),
-        date,
-        startTime,
-        durationMinutes,
-        description: description.trim(),
-      });
-      navigate(`/meetings/${editingMeeting.id}`);
-    } else {
-      const newMtg = createMeeting({
-        title: title.trim(),
-        date,
-        startTime,
-        durationMinutes,
-        description: description.trim(),
-        participantsEmails: participants,
-      });
-      showToast(`Meeting "${newMtg.title}" scheduled successfully!`, 'success');
-      navigate(`/meetings/${newMtg.id}`);
+    setIsSubmitting(true);
+    try {
+      if (editingMeeting) {
+        await updateMeeting(editingMeeting.id, {
+          title: title.trim(),
+          date,
+          startTime,
+          durationMinutes,
+          description: description.trim(),
+        });
+        navigate(`/meetings/${editingMeeting.id}`);
+      } else {
+        const newMtg = await createMeeting({
+          title: title.trim(),
+          date,
+          startTime,
+          durationMinutes,
+          description: description.trim(),
+          participantsEmails: participants,
+        });
+        showToast(`Meeting "${newMtg.title}" scheduled successfully!`, 'success');
+        navigate(`/meetings/${newMtg.id}`);
+      }
+    } catch {
+      // Error is handled with toast in context
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -342,8 +354,8 @@ export const CreateMeetingPage: React.FC = () => {
             >
               Cancel
             </button>
-            <button type="submit" className="im-btn im-btn-primary">
-              {editingMeeting ? 'Save Changes' : 'Schedule Meeting'}
+            <button type="submit" className="im-btn im-btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : editingMeeting ? 'Save Changes' : 'Schedule Meeting'}
             </button>
           </div>
         </form>

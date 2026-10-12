@@ -769,7 +769,8 @@ export const SettingsPage: React.FC = () => {
                   <input
                     type="text"
                     className="im-input"
-                    defaultValue={user?.name || 'Alex Morgan'}
+                    defaultValue={user?.name || ''}
+                    placeholder="User Name"
                     readOnly
                     style={{ backgroundColor: 'var(--im-bg-subtle)' }}
                   />
@@ -780,7 +781,8 @@ export const SettingsPage: React.FC = () => {
                   <input
                     type="email"
                     className="im-input"
-                    defaultValue={user?.email || 'alex.morgan@intellmeet.com'}
+                    defaultValue={user?.email || ''}
+                    placeholder="user@example.com"
                     readOnly
                     style={{ backgroundColor: 'var(--im-bg-subtle)' }}
                   />

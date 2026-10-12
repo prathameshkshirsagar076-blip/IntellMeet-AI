@@ -12,6 +12,124 @@ import type {
 } from '../types/meeting';
 import { toast as globalToast } from '../components/toast/toast';
 import { applyThemeToDom, DEFAULT_THEME_PRESET_ID } from '../config/themePresets';
+import { getStoredUser } from '../utils/tokenStorage';
+import { meetingApi } from '../api/meeting.api';
+
+export function getCurrentParticipant(): Participant {
+  const stored = getStoredUser();
+  if (stored) {
+    const initials = (stored.name || '')
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
+    return {
+      id: stored.id,
+      name: stored.name || 'User',
+      email: stored.email || '',
+      avatar: stored.avatar || initials,
+      role: 'host',
+      isOnline: true,
+    };
+  }
+  return {
+    id: '',
+    name: 'User',
+    email: '',
+    avatar: 'U',
+    role: 'host',
+    isOnline: true,
+  };
+}
+
+interface BackendOrganizer {
+  _id?: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+}
+
+interface BackendParticipant {
+  id?: string;
+  _id?: string;
+  userId?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+  role?: 'host' | 'co-host' | 'attendee';
+  status?: string;
+}
+
+export interface BackendMeetingRecord {
+  _id?: string;
+  id?: string;
+  title?: string;
+  description?: string;
+  scheduledStartAt?: string;
+  durationMinutes?: number;
+  status?: MeetingStatus;
+  meetingCode?: string;
+  passcode?: string;
+  isInstant?: boolean;
+  createdAt?: string;
+  organizerId?: BackendOrganizer | string;
+  participants?: BackendParticipant[];
+  [key: string]: unknown;
+}
+
+export function mapBackendMeeting(b: BackendMeetingRecord | Record<string, unknown>): Meeting {
+  const record = b as BackendMeetingRecord;
+  const fallback = getCurrentParticipant();
+  const org = typeof record.organizerId === 'object' && record.organizerId !== null ? record.organizerId : undefined;
+  const orgId = org ? (org._id || org.id || 'usr-host') : (typeof record.organizerId === 'string' ? record.organizerId : fallback.id);
+
+  const organizer: Participant = {
+    id: orgId,
+    name: org?.name || fallback.name || 'Host',
+    email: org?.email || fallback.email || '',
+    avatar: org?.avatar || fallback.avatar || (org?.name ? org.name.slice(0, 2).toUpperCase() : 'H'),
+    role: 'host',
+    isOnline: true,
+  };
+
+  const participants: Participant[] = Array.isArray(record.participants)
+    ? record.participants.map((p: BackendParticipant) => ({
+        id: p.id || p._id || p.userId || 'usr',
+        name: p.name || 'Participant',
+        email: p.email || '',
+        avatar: p.avatar || (p.name ? p.name.slice(0, 2).toUpperCase() : 'P'),
+        role: p.role || 'attendee',
+        isOnline: p.status === 'joined',
+      }))
+    : [organizer];
+
+  const dateObj = record.scheduledStartAt ? new Date(record.scheduledStartAt) : new Date();
+  const dateStr = dateObj.toISOString().split('T')[0];
+  const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const meetingId = record._id || record.id || '';
+  const code = record.meetingCode || meetingId;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  return {
+    id: meetingId,
+    title: record.title || 'Untitled Meeting',
+    description: record.description || '',
+    date: dateStr,
+    startTime: timeStr,
+    durationMinutes: record.durationMinutes || 45,
+    status: record.status || 'upcoming',
+    organizer,
+    participants,
+    meetingCode: code,
+    passcode: record.passcode || '',
+    meetingLink: `${origin}/meeting/${code}`,
+    isInstant: Boolean(record.isInstant),
+    createdAt: record.createdAt || new Date().toISOString(),
+  };
+}
 
 interface ToastData {
   id: string;
@@ -41,10 +159,10 @@ interface MeetingContextType {
     participantsEmails?: string[];
     isInstant?: boolean;
     passcode?: string;
-  }) => Meeting;
-  updateMeeting: (id: string, data: Partial<Meeting>) => void;
-  cancelMeeting: (id: string) => void;
-  deleteMeeting: (id: string) => void;
+  }) => Promise<Meeting>;
+  updateMeeting: (id: string, data: Partial<Meeting>) => Promise<void>;
+  cancelMeeting: (id: string) => Promise<void>;
+  deleteMeeting: (id: string) => Promise<void>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   clearAllNotifications: () => void;
@@ -63,280 +181,10 @@ const STORAGE_KEYS = {
   PREFERENCES: 'intellmeet_preferences_v2',
 };
 
-// Current mock user
-const CURRENT_USER: Participant = {
-  id: 'usr-current',
-  name: 'Alex Morgan',
-  email: 'alex.morgan@intellmeet.com',
-  avatar: 'AM',
-  role: 'host',
-  isOnline: true,
-};
-
-// Deterministic mock initial data
-const INITIAL_MEETINGS: Meeting[] = [
-  {
-    id: 'mtg-101',
-    title: 'Executive Architecture & WebRTC Latency Sync',
-    description: 'Quarterly review of APAC server edge distribution and sub-20ms audio latency benchmarks.',
-    date: '2026-10-10',
-    startTime: '14:30',
-    durationMinutes: 45,
-    status: 'upcoming',
-    organizer: CURRENT_USER,
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-002', name: 'Elena Rostova', email: 'elena.rostova@intellmeet.com', avatar: 'ER', role: 'co-host' },
-      { id: 'usr-003', name: 'Marcus Chen', email: 'marcus.chen@intellmeet.com', avatar: 'MC', role: 'attendee' },
-      { id: 'usr-004', name: 'Dr. Sarah Vance', email: 'sarah.vance@neurotech.io', avatar: 'SV', role: 'attendee' },
-    ],
-    meetingCode: 'itm-782-941',
-    meetingLink: 'https://intellmeet.ai/m/itm-782-941',
-    createdAt: '2026-10-09T10:00:00Z',
-  },
-  {
-    id: 'mtg-102',
-    title: 'AI Companion 2.0 Feature Roadmap & UX Review',
-    description: 'Product walkthrough of real-time meeting transcription, key decisions tagging, and action items extraction.',
-    date: '2026-10-10',
-    startTime: '16:00',
-    durationMinutes: 60,
-    status: 'upcoming',
-    organizer: { id: 'usr-002', name: 'Elena Rostova', email: 'elena.rostova@intellmeet.com', avatar: 'ER', role: 'host' },
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-002', name: 'Elena Rostova', email: 'elena.rostova@intellmeet.com', avatar: 'ER', role: 'host' },
-      { id: 'usr-005', name: 'Liam Davies', email: 'liam.davies@intellmeet.com', avatar: 'LD', role: 'attendee' },
-      { id: 'usr-006', name: 'Sophia Wu', email: 'sophia.wu@intellmeet.com', avatar: 'SW', role: 'attendee' },
-    ],
-    meetingCode: 'itm-415-329',
-    meetingLink: 'https://intellmeet.ai/m/itm-415-329',
-    createdAt: '2026-10-08T14:20:00Z',
-  },
-  {
-    id: 'mtg-103',
-    title: 'Client Demo: Global Enterprise Security & Compliance',
-    description: 'SOC2 Type II compliance walkthrough and end-to-end KMS encryption demo with Fortune 500 prospects.',
-    date: '2026-10-11',
-    startTime: '11:00',
-    durationMinutes: 45,
-    status: 'upcoming',
-    organizer: CURRENT_USER,
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-007', name: 'Nathan Brooks', email: 'nathan@apexholdings.corp', avatar: 'NB', role: 'attendee' },
-      { id: 'usr-008', name: 'Amara Patel', email: 'amara.patel@intellmeet.com', avatar: 'AP', role: 'attendee' },
-    ],
-    meetingCode: 'itm-892-104',
-    meetingLink: 'https://intellmeet.ai/m/itm-892-104',
-    createdAt: '2026-10-09T18:00:00Z',
-  },
-  {
-    id: 'mtg-104',
-    title: 'Sprint 28 Retro & Cross-Functional Alignment',
-    description: 'Review velocity metrics, bug triage from v1.4 release, and sprint 29 priority backlog items.',
-    date: '2026-10-09',
-    startTime: '15:00',
-    durationMinutes: 50,
-    status: 'completed',
-    organizer: CURRENT_USER,
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-002', name: 'Elena Rostova', email: 'elena.rostova@intellmeet.com', avatar: 'ER', role: 'attendee' },
-      { id: 'usr-003', name: 'Marcus Chen', email: 'marcus.chen@intellmeet.com', avatar: 'MC', role: 'attendee' },
-      { id: 'usr-005', name: 'Liam Davies', email: 'liam.davies@intellmeet.com', avatar: 'LD', role: 'attendee' },
-    ],
-    meetingCode: 'itm-302-618',
-    meetingLink: 'https://intellmeet.ai/m/itm-302-618',
-    summaryId: 'sum-201',
-    createdAt: '2026-10-08T09:00:00Z',
-  },
-  {
-    id: 'mtg-105',
-    title: 'Design System Token Unification & Dark Mode Spec',
-    description: 'Review contrast ratios, standard CSS variable tokens, and mobile navigation responsive breakpoints.',
-    date: '2026-10-08',
-    startTime: '10:30',
-    durationMinutes: 40,
-    status: 'completed',
-    organizer: { id: 'usr-006', name: 'Sophia Wu', email: 'sophia.wu@intellmeet.com', avatar: 'SW', role: 'host' },
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-006', name: 'Sophia Wu', email: 'sophia.wu@intellmeet.com', avatar: 'SW', role: 'host' },
-      { id: 'usr-003', name: 'Marcus Chen', email: 'marcus.chen@intellmeet.com', avatar: 'MC', role: 'attendee' },
-    ],
-    meetingCode: 'itm-549-712',
-    meetingLink: 'https://intellmeet.ai/m/itm-549-712',
-    summaryId: 'sum-202',
-    createdAt: '2026-10-07T11:00:00Z',
-  },
-  {
-    id: 'mtg-106',
-    title: 'Weekly Leadership Standup & Pipeline Review',
-    description: 'Discussion of enterprise ARR growth, Q4 hiring goals, and infrastructure budget allocations.',
-    date: '2026-10-07',
-    startTime: '09:00',
-    durationMinutes: 30,
-    status: 'completed',
-    organizer: CURRENT_USER,
-    participants: [
-      CURRENT_USER,
-      { id: 'usr-002', name: 'Elena Rostova', email: 'elena.rostova@intellmeet.com', avatar: 'ER', role: 'attendee' },
-      { id: 'usr-008', name: 'Amara Patel', email: 'amara.patel@intellmeet.com', avatar: 'AP', role: 'attendee' },
-    ],
-    meetingCode: 'itm-193-482',
-    meetingLink: 'https://intellmeet.ai/m/itm-193-482',
-    summaryId: 'sum-203',
-    createdAt: '2026-10-06T15:00:00Z',
-  },
-];
-
-const INITIAL_SUMMARIES: MeetingSummary[] = [
-  {
-    id: 'sum-201',
-    meetingId: 'mtg-104',
-    meetingTitle: 'Sprint 28 Retro & Cross-Functional Alignment',
-    date: '2026-10-09',
-    durationMinutes: 50,
-    sentiment: 'Productive',
-    overview:
-      'The engineering and product team reviewed Sprint 28 delivery metrics. Core WebRTC streaming achieved 99.98% uptime with zero packet-loss regressions across mobile endpoints. The team approved moving ahead with the AI meeting notes export pipeline.',
-    keyPoints: [
-      'Sprint 28 completed 42 story points with an 8% increase in velocity compared to Sprint 27.',
-      'Edge audio latency was tested across 12 worldwide datacenters and stayed under 18ms.',
-      'Design tokens have been decoupled from external CSS frameworks for maximum stability.',
-    ],
-    actionItems: [
-      { id: 'act-1', task: 'Finalize automated WebSocket reconnect unit tests', assignee: 'Marcus Chen', completed: true, dueDate: 'Oct 11' },
-      { id: 'act-2', task: 'Prepare enterprise SOC2 compliance evidence report', assignee: 'Elena Rostova', completed: false, dueDate: 'Oct 14' },
-      { id: 'act-3', task: 'Publish updated CSS token documentation for design team', assignee: 'Alex Morgan', completed: false, dueDate: 'Oct 12' },
-    ],
-    decisions: [
-      'Approved: Transitioning all meeting transcripts to markdown and rich HTML export.',
-      'Approved: Defaulting all scheduled meeting lobbies to camera-preview mode.',
-    ],
-  },
-  {
-    id: 'sum-202',
-    meetingId: 'mtg-105',
-    meetingTitle: 'Design System Token Unification & Dark Mode Spec',
-    date: '2026-10-08',
-    durationMinutes: 40,
-    sentiment: 'Action-Oriented',
-    overview:
-      'Sophia presented the unified CSS variable palette for the IntellMeet SaaS dashboard. The focus was on strict WCAG AAA contrast for dark navy backgrounds and crisp typography without external UI dependencies.',
-    keyPoints: [
-      'Zero external styling dependencies policy reaffirmed: pure native CSS tokens.',
-      'High contrast color ratios: dark navy #0a0f24 paired with subtle #4f46e5 accent and slate #64748b neutrals.',
-      'Mobile drawer layout verified for all screens under 1024px width.',
-    ],
-    actionItems: [
-      { id: 'act-4', task: 'Review color tokens in high-contrast display environments', assignee: 'Sophia Wu', completed: true, dueDate: 'Oct 09' },
-      { id: 'act-5', task: 'Implement persistent theme toggle in user preferences', assignee: 'Alex Morgan', completed: true, dueDate: 'Oct 10' },
-    ],
-    decisions: [
-      'Standardized card border radius to 12px for modern SaaS aesthetics.',
-      'Adopted responsive CSS clamp tokens for typography scales.',
-    ],
-  },
-  {
-    id: 'sum-203',
-    meetingId: 'mtg-106',
-    meetingTitle: 'Weekly Leadership Standup & Pipeline Review',
-    date: '2026-10-07',
-    durationMinutes: 30,
-    sentiment: 'Strategic',
-    overview:
-      'Executive sync covering Q4 Enterprise expansion. Sales confirmed three new trials in the fintech and healthcare sectors requiring on-premises security attestation.',
-    keyPoints: [
-      'Enterprise pipeline expanded 24% month-over-month.',
-      'Zero churn recorded in the enterprise Tier-1 cohort over the past 90 days.',
-      'Customer satisfaction score reached 4.9/5 on AI Companion summaries.',
-    ],
-    actionItems: [
-      { id: 'act-6', task: 'Coordinate pilot kickoff with Apex Holdings security lead', assignee: 'Amara Patel', completed: false, dueDate: 'Oct 15' },
-      { id: 'act-7', task: 'Draft Q4 quarterly board slides on AI meeting metrics', assignee: 'Elena Rostova', completed: false, dueDate: 'Oct 16' },
-    ],
-    decisions: [
-      'Authorized expansion of APAC cloud relay servers for Sydney and Singapore.',
-    ],
-  },
-];
-
-const INITIAL_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-1',
-    title: 'AI Summary Ready',
-    message: 'AI Summary for "Sprint 28 Retro" is available with 3 action items.',
-    timestamp: '10 mins ago',
-    read: false,
-    type: 'ai',
-    actionUrl: '/ai-notes',
-  },
-  {
-    id: 'notif-2',
-    title: 'Upcoming Meeting in 30m',
-    message: '"Executive Architecture & WebRTC Latency Sync" starts at 14:30.',
-    timestamp: '25 mins ago',
-    read: false,
-    type: 'meeting',
-    actionUrl: '/meetings/mtg-101',
-  },
-  {
-    id: 'notif-3',
-    title: 'Team Invitation Accepted',
-    message: 'Dr. Sarah Vance accepted your invitation to IntellMeet Enterprise.',
-    timestamp: '2 hours ago',
-    read: true,
-    type: 'team',
-    actionUrl: '/team',
-  },
-  {
-    id: 'notif-4',
-    title: 'System Security Health Check',
-    message: 'All end-to-end 256-bit AES meeting encryption keys verified active.',
-    timestamp: '5 hours ago',
-    read: true,
-    type: 'system',
-    actionUrl: '/settings',
-  },
-];
-
-const INITIAL_ACTIVITIES: ActivityItem[] = [
-  {
-    id: 'act-log-1',
-    type: 'summary',
-    title: 'AI Summary Generated',
-    description: 'Sprint 28 Retro generated 3 action items and 2 key decisions.',
-    timestamp: 'Today, 11:20 AM',
-    iconType: 'sparkle',
-  },
-  {
-    id: 'act-log-2',
-    type: 'scheduled',
-    title: 'New Meeting Scheduled',
-    description: 'Alex Morgan scheduled "Client Demo: Security & Compliance".',
-    timestamp: 'Today, 09:45 AM',
-    iconType: 'calendar',
-  },
-  {
-    id: 'act-log-3',
-    type: 'completed',
-    title: 'Meeting Concluded',
-    description: '"Design System Token Unification" finished with 3 attendees.',
-    timestamp: 'Yesterday, 11:15 AM',
-    iconType: 'check',
-  },
-  {
-    id: 'act-log-4',
-    type: 'copied',
-    title: 'Meeting Link Copied',
-    description: 'Meeting invitation link copied for itm-782-941.',
-    timestamp: 'Yesterday, 04:30 PM',
-    iconType: 'copy',
-  },
-];
-
+const INITIAL_MEETINGS: Meeting[] = [];
+const INITIAL_SUMMARIES: MeetingSummary[] = [];
+const INITIAL_NOTIFICATIONS: AppNotification[] = [];
+const INITIAL_ACTIVITIES: ActivityItem[] = [];
 const INITIAL_TEAM: TeamMember[] = [];
 
 const INITIAL_PREFERENCES: UserPreferences = {
@@ -424,6 +272,21 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const openNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(true), []);
   const closeNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(false), []);
 
+  // Fetch meetings from real backend on mount
+  useEffect(() => {
+    meetingApi
+      .getMeetings()
+      .then((res) => {
+        if (res && res.data && Array.isArray(res.data.meetings)) {
+          const mapped = res.data.meetings.map(mapBackendMeeting);
+          setMeetings(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn('[MeetingContext] Backend fetch error:', err?.message || err);
+      });
+  }, []);
+
   // Sync to localStorage
   useEffect(() => {
     try {
@@ -495,7 +358,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const createMeeting = useCallback(
-    (data: {
+    async (data: {
       title: string;
       description?: string;
       date: string;
@@ -504,114 +367,111 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       participantsEmails?: string[];
       isInstant?: boolean;
       passcode?: string;
-    }): Meeting => {
-      const codePart1 = Math.floor(100 + Math.random() * 900);
-      const codePart2 = Math.floor(100 + Math.random() * 900);
-      const meetingCode = `itm-${codePart1}-${codePart2}`;
-      const passcode = data.passcode || Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      const parsedParticipants: Participant[] = [CURRENT_USER];
-      if (data.participantsEmails && data.participantsEmails.length > 0) {
-        data.participantsEmails.forEach((email, idx) => {
-          const trimmed = email.trim();
-          if (trimmed && trimmed.toLowerCase() !== CURRENT_USER.email.toLowerCase()) {
-            const namePart = trimmed.split('@')[0].replace(/[._-]/g, ' ');
-            const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-            const initials = formattedName.slice(0, 2).toUpperCase();
-            parsedParticipants.push({
-              id: `usr-guest-${idx + 1}-${Date.now()}`,
-              name: formattedName,
-              email: trimmed,
-              avatar: initials,
-              role: 'attendee',
-            });
-          }
+    }): Promise<Meeting> => {
+      try {
+        const res = await meetingApi.createMeeting({
+          title: data.title.trim(),
+          description: data.description?.trim(),
+          date: data.date,
+          startTime: data.startTime,
+          durationMinutes: data.durationMinutes,
+          participantEmails: data.participantsEmails,
+          isInstant: data.isInstant,
+          passcode: data.passcode,
         });
+
+        if (!res?.data) {
+          throw new Error(res?.message || 'Failed to create meeting');
+        }
+
+        const realMeeting = mapBackendMeeting(res.data);
+        setMeetings((prev) => [realMeeting, ...prev.filter((m) => m.id !== realMeeting.id)]);
+
+        logActivity(
+          'scheduled',
+          data.isInstant ? 'Instant Meeting Launched' : 'New Meeting Scheduled',
+          `"${realMeeting.title}" with code ${realMeeting.meetingCode}`
+        );
+
+        const newNotif: AppNotification = {
+          id: `notif-${Date.now()}`,
+          title: data.isInstant ? 'Live Meeting Started' : 'Meeting Scheduled',
+          message: `"${realMeeting.title}" scheduled for ${realMeeting.date} at ${realMeeting.startTime}.`,
+          timestamp: 'Just now',
+          read: false,
+          type: 'meeting',
+          actionUrl: `/meetings/${realMeeting.id}`,
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+
+        return realMeeting;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to create meeting';
+        showToast(msg, 'error');
+        throw err;
       }
-
-      const newMeeting: Meeting = {
-        id: `mtg-${Date.now()}`,
-        title: data.title.trim(),
-        description: data.description?.trim() || 'IntellMeet high-definition video collaboration session.',
-        date: data.date,
-        startTime: data.startTime,
-        durationMinutes: data.durationMinutes,
-        status: data.isInstant ? 'live' : 'upcoming',
-        organizer: CURRENT_USER,
-        participants: parsedParticipants,
-        meetingCode,
-        passcode,
-        meetingLink: `https://intellmeet.ai/m/${meetingCode}`,
-        isInstant: data.isInstant,
-        createdAt: new Date().toISOString(),
-      };
-
-      setMeetings((prev) => [newMeeting, ...prev]);
-
-      logActivity(
-        'scheduled',
-        data.isInstant ? 'Instant Meeting Launched' : 'New Meeting Scheduled',
-        `"${newMeeting.title}" with code ${newMeeting.meetingCode}`
-      );
-
-      // Add notification
-      const newNotif: AppNotification = {
-        id: `notif-${Date.now()}`,
-        title: data.isInstant ? 'Live Meeting Started' : 'Meeting Scheduled',
-        message: `"${newMeeting.title}" scheduled for ${newMeeting.date} at ${newMeeting.startTime}.`,
-        timestamp: 'Just now',
-        read: false,
-        type: 'meeting',
-        actionUrl: `/meetings/${newMeeting.id}`,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
-
-      return newMeeting;
     },
-    [logActivity]
+    [logActivity, showToast]
   );
 
   const updateMeeting = useCallback(
-    (id: string, updates: Partial<Meeting>) => {
-      setMeetings((prev) =>
-        prev.map((m) => {
-          if (m.id === id) {
-            const updated = { ...m, ...updates };
-            return updated;
-          }
-          return m;
-        })
-      );
-      showToast('Meeting updated successfully', 'success');
+    async (id: string, updates: Partial<Meeting>) => {
+      try {
+        await meetingApi.updateMeeting(id, updates);
+        setMeetings((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+        );
+        showToast('Meeting updated successfully', 'success');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to update meeting';
+        showToast(msg, 'error');
+        throw err;
+      }
     },
     [showToast]
   );
 
   const cancelMeeting = useCallback(
-    (id: string) => {
-      let targetMeeting: Meeting | undefined;
-      setMeetings((prev) =>
-        prev.map((m) => {
-          if (m.id === id) {
-            targetMeeting = m;
-            return { ...m, status: 'cancelled' as MeetingStatus };
-          }
-          return m;
-        })
-      );
+    async (id: string) => {
+      try {
+        await meetingApi.cancelMeeting(id);
+        let targetMeeting: Meeting | undefined;
+        setMeetings((prev) =>
+          prev.map((m) => {
+            if (m.id === id) {
+              targetMeeting = m;
+              return { ...m, status: 'cancelled' as MeetingStatus };
+            }
+            return m;
+          })
+        );
 
-      if (targetMeeting) {
-        logActivity('cancelled', 'Meeting Cancelled', `"${targetMeeting.title}" was cancelled.`);
-        showToast(`Meeting "${targetMeeting.title}" has been cancelled`, 'info');
+        if (targetMeeting) {
+          logActivity('cancelled', 'Meeting Cancelled', `"${(targetMeeting as Meeting).title}" was cancelled.`);
+          showToast(`Meeting "${(targetMeeting as Meeting).title}" has been cancelled`, 'info');
+        } else {
+          showToast('Meeting cancelled successfully', 'info');
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to cancel meeting';
+        showToast(msg, 'error');
+        throw err;
       }
     },
     [logActivity, showToast]
   );
 
   const deleteMeeting = useCallback(
-    (id: string) => {
-      setMeetings((prev) => prev.filter((m) => m.id !== id));
-      showToast('Meeting removed from schedule', 'info');
+    async (id: string) => {
+      try {
+        await meetingApi.deleteMeeting(id);
+        setMeetings((prev) => prev.filter((m) => m.id !== id));
+        showToast('Meeting removed from schedule', 'info');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to delete meeting';
+        showToast(msg, 'error');
+        throw err;
+      }
     },
     [showToast]
   );

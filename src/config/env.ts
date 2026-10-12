@@ -23,12 +23,10 @@ export const env = {
     '',
   apiBaseUrl:
     import.meta.env.VITE_API_BASE_URL ||
-    (import.meta.env.DEV
-      ? '/api/v1'
-      : (import.meta.env.VITE_REMOTE_API_BASE_URL ||
-         (import.meta.env.VITE_BACKEND_URL || (import.meta.env as unknown as Record<string, string>).BACKEND_URL
-           ? `${(import.meta.env.VITE_BACKEND_URL || (import.meta.env as unknown as Record<string, string>).BACKEND_URL).replace(/\/+$/, '')}/api/v1`
-           : '/api/v1'))),
+    (import.meta.env.VITE_REMOTE_API_BASE_URL ||
+      ((import.meta.env.VITE_BACKEND_URL || (import.meta.env as unknown as Record<string, string>).BACKEND_URL)
+        ? `${(import.meta.env.VITE_BACKEND_URL || (import.meta.env as unknown as Record<string, string>).BACKEND_URL).replace(/\/+$/, '')}/api/v1`
+        : '/api/v1')),
   remoteApiBaseUrl:
     import.meta.env.VITE_REMOTE_API_BASE_URL ||
     (import.meta.env.VITE_BACKEND_URL || (import.meta.env as unknown as Record<string, string>).BACKEND_URL

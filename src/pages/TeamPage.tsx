@@ -145,18 +145,22 @@ export const TeamPage: React.FC = () => {
     };
   }, [debouncedQuery, currentPage, limit, fetchUsers]);
 
-  const handleQuickMeetWith = (user: UserItem) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const meeting = createMeeting({
-      title: `1:1 Sync with ${user.name}`,
-      date: todayStr,
-      startTime: new Date().toTimeString().slice(0, 5),
-      durationMinutes: 30,
-      participantsEmails: [user.email],
-      isInstant: true,
-    });
-    toast.success(`Instant 1:1 meeting started with ${user.name}!`);
-    navigate(`/meeting/${meeting.id}`);
+  const handleQuickMeetWith = async (user: UserItem) => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const meeting = await createMeeting({
+        title: `1:1 Sync with ${user.name}`,
+        date: todayStr,
+        startTime: new Date().toTimeString().slice(0, 5),
+        durationMinutes: 30,
+        participantsEmails: [user.email],
+        isInstant: true,
+      });
+      toast.success(`Instant 1:1 meeting started with ${user.name}!`);
+      navigate(`/meeting/${meeting.id}`);
+    } catch {
+      // Toast handled by context
+    }
   };
 
   const handleScheduleWith = (user: UserItem) => {
