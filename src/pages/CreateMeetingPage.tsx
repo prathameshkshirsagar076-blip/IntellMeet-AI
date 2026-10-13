@@ -8,6 +8,7 @@ import {
   PlusIcon,
   CheckCircleIcon,
 } from '../components/icons';
+import { getTodayLocalDateString } from '../utils/dateUtils';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,6 +16,9 @@ export const CreateMeetingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editMeetingId = searchParams.get('edit');
+  const dateParam = searchParams.get('date');
+  const timeParam = searchParams.get('time');
+  const fromParam = searchParams.get('from');
   const { meetings, createMeeting, updateMeeting, showToast } = useMeetings();
 
   const editingMeeting = useMemo(
@@ -22,12 +26,22 @@ export const CreateMeetingPage: React.FC = () => {
     [editMeetingId, meetings]
   );
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => getTodayLocalDateString(), []);
 
   // Form states
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(todayStr);
-  const [startTime, setStartTime] = useState('14:00');
+  const [date, setDate] = useState(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      return dateParam < todayStr ? todayStr : dateParam;
+    }
+    return todayStr;
+  });
+  const [startTime, setStartTime] = useState(() => {
+    if (timeParam && /^\d{2}:\d{2}$/.test(timeParam)) {
+      return timeParam;
+    }
+    return '14:00';
+  });
   const [durationMinutes, setDurationMinutes] = useState(45);
   const [description, setDescription] = useState('');
   const [participantInput, setParticipantInput] = useState('');
@@ -50,8 +64,15 @@ export const CreateMeetingPage: React.FC = () => {
       setDurationMinutes(editingMeeting.durationMinutes);
       setDescription(editingMeeting.description || '');
       setParticipants(editingMeeting.participants.map((p) => p.email).filter(Boolean));
+    } else {
+      if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        setDate(dateParam < todayStr ? todayStr : dateParam);
+      }
+      if (timeParam && /^\d{2}:\d{2}$/.test(timeParam)) {
+        setStartTime(timeParam);
+      }
     }
-  }, [editingMeeting]);
+  }, [editingMeeting, dateParam, timeParam, todayStr]);
 
   const handleAddParticipant = () => {
     const trimmed = participantInput.trim().toLowerCase();
@@ -91,8 +112,8 @@ export const CreateMeetingPage: React.FC = () => {
 
     if (!date) {
       newErrors.date = 'Date is required';
-    } else if (date < todayStr) {
-      newErrors.date = 'Meeting date cannot be in the past';
+    } else if (!editingMeeting && date < todayStr) {
+      newErrors.date = 'Cannot schedule meetings in the past. Please select today or a future date.';
     }
 
     if (!startTime) {
@@ -124,8 +145,12 @@ export const CreateMeetingPage: React.FC = () => {
           description: description.trim(),
           participantsEmails: participants,
         });
-        showToast(`Meeting "${newMtg.title}" scheduled successfully!`, 'success');
-        navigate(`/meetings/${newMtg.id}`);
+        showToast(`Meeting "${newMtg.title}" scheduled for ${date} successfully!`, 'success');
+        if (fromParam === 'schedule') {
+          navigate('/schedule');
+        } else {
+          navigate(`/meetings/${newMtg.id}`);
+        }
       }
     } catch {
       // Error is handled with toast in context
@@ -138,12 +163,12 @@ export const CreateMeetingPage: React.FC = () => {
     <div style={{ maxWidth: 780, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
         <Link
-          to="/meetings"
+          to={fromParam === 'schedule' ? '/schedule' : '/meetings'}
           className="im-btn im-btn-ghost im-btn-sm"
           style={{ paddingLeft: 0, gap: 6, color: 'var(--im-text-muted)' }}
         >
           <ArrowLeftIcon size={14} />
-          Back to Meetings
+          {fromParam === 'schedule' ? 'Back to Schedule' : 'Back to Meetings'}
         </Link>
       </div>
 
@@ -160,6 +185,39 @@ export const CreateMeetingPage: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="im-card-body">
+            {/* Pre-selected date notice from Calendar */}
+            {dateParam && !editingMeeting && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: dateParam < todayStr ? '#fef3c7' : 'var(--im-primary-light, #eef2ff)',
+                  color: dateParam < todayStr ? '#92400e' : 'var(--im-primary, #4f46e5)',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  marginBottom: 16,
+                  border: `1px solid ${dateParam < todayStr ? '#fcd34d' : 'rgba(79, 70, 229, 0.2)'}`,
+                }}
+              >
+                <CalendarIcon size={16} />
+                <span>
+                  {dateParam < todayStr
+                    ? `Past date (${dateParam}) cannot be scheduled. Automatically adjusted to today: `
+                    : 'Date locked from Calendar: '}
+                  <strong>
+                    {new Date(date + 'T00:00:00').toLocaleDateString('default', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </strong>
+                </span>
+              </div>
+            )}
             {/* Title */}
             <div className="im-form-group">
               <label htmlFor="meeting-title" className="im-form-label">

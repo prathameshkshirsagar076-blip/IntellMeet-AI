@@ -13,6 +13,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardOverviewPage from './pages/DashboardOverviewPage';
 import MeetingsPage from './pages/MeetingsPage';
+import SchedulePage from './pages/SchedulePage';
 import CreateMeetingPage from './pages/CreateMeetingPage';
 import JoinMeetingPage from './pages/JoinMeetingPage';
 import MeetingDetailPage from './pages/MeetingDetailPage';
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
             >
               <Route path="/dashboard" element={<DashboardOverviewPage />} />
               <Route path="/meetings" element={<MeetingsPage />} />
+              <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/meetings/new" element={<CreateMeetingPage />} />
               <Route path="/meetings/join" element={<JoinMeetingPage />} />
               <Route path="/meetings/:meetingId" element={<MeetingDetailPage />} />

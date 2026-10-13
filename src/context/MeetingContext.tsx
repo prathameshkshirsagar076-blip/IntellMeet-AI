@@ -13,6 +13,7 @@ import type {
 import { toast as globalToast } from '../components/toast/toast';
 import { applyThemeToDom, DEFAULT_THEME_PRESET_ID } from '../config/themePresets';
 import { getStoredUser } from '../utils/tokenStorage';
+import { getTodayLocalDateString } from '../utils/dateUtils';
 import { meetingApi } from '../api/meeting.api';
 
 export function getCurrentParticipant(): Participant {
@@ -106,9 +107,35 @@ export function mapBackendMeeting(b: BackendMeetingRecord | Record<string, unkno
       }))
     : [organizer];
 
-  const dateObj = record.scheduledStartAt ? new Date(record.scheduledStartAt) : new Date();
-  const dateStr = dateObj.toISOString().split('T')[0];
-  const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  let dateStr = '';
+  if (typeof record.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(record.date.slice(0, 10))) {
+    dateStr = record.date.slice(0, 10);
+  }
+
+  let timeStr = '';
+  if (typeof record.startTime === 'string' && record.startTime) {
+    timeStr = record.startTime;
+  }
+
+  if (!dateStr || !timeStr) {
+    if (record.scheduledStartAt) {
+      const dateObj = new Date(record.scheduledStartAt);
+      if (!isNaN(dateObj.getTime())) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        if (!dateStr) dateStr = `${year}-${month}-${day}`;
+        if (!timeStr) {
+          const hours = String(dateObj.getHours()).padStart(2, '0');
+          const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+          timeStr = `${hours}:${minutes}`;
+        }
+      }
+    }
+  }
+
+  if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+  if (!timeStr) timeStr = '14:00';
   const meetingId = record._id || record.id || '';
   const code = record.meetingCode || meetingId;
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -369,6 +396,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       passcode?: string;
     }): Promise<Meeting> => {
       try {
+        const todayStr = getTodayLocalDateString();
+        if (!data.isInstant && data.date < todayStr) {
+          throw new Error('Cannot schedule meetings in the past. Please choose today or a future date.');
+        }
+
         const res = await meetingApi.createMeeting({
           title: data.title.trim(),
           description: data.description?.trim(),
@@ -384,7 +416,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           throw new Error(res?.message || 'Failed to create meeting');
         }
 
-        const realMeeting = mapBackendMeeting(res.data);
+        const realMeeting = mapBackendMeeting({
+          ...res.data,
+          date: (typeof res.data.date === 'string' && res.data.date) || data.date,
+          startTime: (typeof res.data.startTime === 'string' && res.data.startTime) || data.startTime,
+        });
         setMeetings((prev) => [realMeeting, ...prev.filter((m) => m.id !== realMeeting.id)]);
 
         logActivity(
@@ -417,6 +453,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateMeeting = useCallback(
     async (id: string, updates: Partial<Meeting>) => {
       try {
+        const todayStr = getTodayLocalDateString();
+        if (updates.date && updates.date < todayStr) {
+          throw new Error('Cannot move meetings to a past date. Please choose today or a future date.');
+        }
+
         await meetingApi.updateMeeting(id, updates);
         setMeetings((prev) =>
           prev.map((m) => (m.id === id ? { ...m, ...updates } : m))

@@ -164,8 +164,9 @@ export const DashboardLayout: React.FC = () => {
     if (path.startsWith('/meetings/new')) return 'Schedule Meeting';
     if (path.startsWith('/meetings/join')) return 'Join Meeting';
     if (path.startsWith('/meetings/') && path !== '/meetings') return 'Meeting Details';
-    if (path.startsWith('/meetings') && location.search.includes('filter=upcoming')) return 'My Schedule';
-    if (path.startsWith('/meetings')) return 'Meetings';
+    if (path.startsWith('/schedule')) return 'My Schedule & Calendar';
+    if (path.startsWith('/meetings') && location.search.includes('filter=upcoming')) return 'Upcoming Meetings';
+    if (path.startsWith('/meetings')) return 'Meetings Management';
     if (path.startsWith('/history')) return 'Meeting History';
     if (path.startsWith('/ai-notes')) return 'AI Notes & Summaries';
     if (path.startsWith('/team')) return 'Team & Directory';
@@ -236,9 +237,7 @@ export const DashboardLayout: React.FC = () => {
           <NavLink
             to="/meetings"
             end
-            className={({ isActive }) =>
-              `im-nav-item ${isActive && !location.search.includes('filter=upcoming') ? 'active' : ''}`
-            }
+            className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
               <VideoIcon size={18} />
@@ -247,10 +246,8 @@ export const DashboardLayout: React.FC = () => {
           </NavLink>
 
           <NavLink
-            to="/meetings?filter=upcoming"
-            className={({ isActive }) =>
-              `im-nav-item ${isActive && location.search.includes('filter=upcoming') ? 'active' : ''}`
-            }
+            to="/schedule"
+            className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
               <CalendarIcon size={18} />

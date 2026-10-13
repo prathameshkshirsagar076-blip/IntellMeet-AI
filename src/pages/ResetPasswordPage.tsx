@@ -5,7 +5,7 @@ import PasswordInput from '../components/PasswordInput';
 import PrimaryButton from '../components/PrimaryButton';
 import InfoNotice from '../components/InfoNotice';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
-import { ShieldIcon, CheckCircleIcon } from '../components/icons';
+import { CheckCircleIcon } from '../components/icons';
 import { validatePassword } from '../utils/validation';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/toast/toast';
@@ -253,13 +253,9 @@ export const ResetPasswordPage: React.FC = () => {
 
       {/* Footer */}
       <div className="login-footer">
-        <div className="login-security-badge">
-          <ShieldIcon />
-          SOC-2 Type II Certified &bull; 256-bit AES Enterprise Encryption
-        </div>
-        <p className="login-footer-links">
+        <p className="login-footer-text">
           Remembered your password?{' '}
-          <Link to="/login" id="rp-back-to-login">
+          <Link to="/login" id="rp-back-to-login" className="login-footer-link">
             Back to Sign In
           </Link>
         </p>
