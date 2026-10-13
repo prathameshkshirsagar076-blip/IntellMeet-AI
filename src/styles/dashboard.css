@@ -1934,14 +1934,99 @@ body {
   position: absolute;
   top: 16px;
   left: 16px;
-  background: rgba(15, 23, 42, 0.7);
-  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 5px 12px;
   border-radius: var(--im-radius-full);
-  font-size: 0.7rem;
+  font-size: 0.725rem;
+  font-weight: 600;
   color: #34d399;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 3;
+}
+
+.im-audio-meter-sim.muted {
+  color: #f87171;
+}
+
+.im-audio-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  display: inline-block;
+  animation: imPulse 1.5s infinite;
+}
+
+.im-audio-pulse-dot.muted {
+  background-color: #ef4444;
+  box-shadow: none;
+  animation: none;
+}
+
+.im-video-user-pill {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: var(--im-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
+}
+
+.im-video-preview-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+.im-lobby-meeting-card {
+  background: var(--im-bg-subtle, #f8fafc);
+  border: 1px solid var(--im-border, #e2e8f0);
+  border-radius: var(--im-radius-md, 8px);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.im-lobby-meeting-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--im-primary, #4f46e5);
+}
+
+.im-lobby-meeting-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--im-text-primary, #0f172a);
+  margin: 0;
+}
+
+.im-lobby-meeting-meta {
+  font-size: 0.8rem;
+  color: var(--im-text-muted, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* AI Notes Workspace */

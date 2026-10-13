@@ -735,7 +735,7 @@ export const SchedulePage: React.FC = () => {
                               {m.status !== 'cancelled' && (
                                 <button
                                   className="im-btn im-btn-primary im-btn-sm"
-                                  onClick={() => navigate(`/meeting/${m.id}`)}
+                                  onClick={() => navigate(`/meetings/join?code=${m.meetingCode || m.id}`)}
                                 >
                                   Join
                                 </button>
@@ -852,7 +852,7 @@ export const SchedulePage: React.FC = () => {
                     {m.status !== 'cancelled' && (
                       <button
                         className="im-btn im-btn-primary im-btn-sm"
-                        onClick={() => navigate(`/meeting/${m.id}`)}
+                        onClick={() => navigate(`/meetings/join?code=${m.meetingCode || m.id}`)}
                       >
                         Join Room
                       </button>
@@ -956,7 +956,7 @@ export const SchedulePage: React.FC = () => {
                 <button
                   className="im-btn im-btn-primary"
                   onClick={() => {
-                    navigate(`/meeting/${previewMeeting.id}`);
+                    navigate(`/meetings/join?code=${previewMeeting.meetingCode || previewMeeting.id}`);
                     setPreviewMeeting(null);
                   }}
                 >

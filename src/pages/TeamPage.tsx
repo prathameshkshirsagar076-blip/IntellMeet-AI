@@ -157,7 +157,7 @@ export const TeamPage: React.FC = () => {
         isInstant: true,
       });
       toast.success(`Instant 1:1 meeting started with ${user.name}!`);
-      navigate(`/meeting/${meeting.id}`);
+      navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`);
     } catch {
       // Toast handled by context
     }
