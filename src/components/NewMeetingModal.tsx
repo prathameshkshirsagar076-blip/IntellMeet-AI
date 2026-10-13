@@ -9,6 +9,7 @@ import {
   CalendarIcon,
   SparkleIcon,
 } from './icons';
+import { getTodayLocalDateString } from '../utils/dateUtils';
 import '../styles/newMeetingModal.css';
 
 interface NewMeetingModalProps {
@@ -134,7 +135,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
       setCopiedPasscode(false);
       setIsInitializing(true);
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getTodayLocalDateString();
       const nowTime = new Date().toTimeString().slice(0, 5);
 
       createMeeting({
@@ -263,7 +264,7 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
       let activeMeetingCode = meetingCode;
 
       if (!activeMeetingId) {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getTodayLocalDateString();
         const nowTime = new Date().toTimeString().slice(0, 5);
         const newMeeting = await createMeeting({
           title: title.trim() || `${userName}'s Instant Meeting`,

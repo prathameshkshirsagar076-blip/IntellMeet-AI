@@ -168,7 +168,7 @@ export const DashboardOverviewPage: React.FC = () => {
           <div className="im-stat-label">Meetings Today</div>
         </Link>
 
-        <Link to="/meetings?filter=upcoming" className="im-stat-card clickable">
+        <Link to="/schedule" className="im-stat-card clickable">
           <div className="im-stat-header">
             <div className="im-stat-icon-wrap im-stat-icon-amber">
               <ClockIcon size={20} />

@@ -8,7 +8,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import SocialLoginButton from '../components/SocialLoginButton';
 import { type SSOProvider, SSO_PROVIDER_NAMES } from '../constants/auth';
 import InfoNotice from '../components/InfoNotice';
-import { MailIcon, ShieldIcon } from '../components/icons';
+import { MailIcon } from '../components/icons';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { toast } from '../components/toast/toast';
 import ThemeCustomizationPopover from '../components/theme/ThemeCustomizationPopover';
@@ -205,6 +205,7 @@ export const LoginPage: React.FC = () => {
       {/* Welcome Heading */}
       <div className="login-heading-block">
         <h1>Welcome to IntellMeet</h1>
+        <p>Sign in to access your AI meeting intelligence, live summaries, and workspaces.</p>
       </div>
 
       {/* API Error Notice */}
@@ -288,37 +289,36 @@ export const LoginPage: React.FC = () => {
         >
           {isSubmitting ? 'Signing in...' : 'Sign In'}
         </PrimaryButton>
+      </form>
 
+      {/* Bottom Section: Google SSO & Footer */}
+      <div className="login-bottom-section">
         {/* Divider */}
-        <div className="login-divider" style={{ margin: '16px 0 12px' }}>
+        <div className="login-divider">
           <span className="login-divider-line" />
           <span className="login-divider-text">or continue with</span>
           <span className="login-divider-line" />
         </div>
 
-        {/* Google SSO Button under Sign In button */}
+        {/* Google SSO Button placed at the bottom */}
         <div className="login-sso-group">
           <SocialLoginButton
             provider="google"
-            label="Continue with Google"
+            label="Continue with Google Workspace"
             onClick={handleSSOClick}
             id="im-sso-google"
           />
         </div>
-      </form>
 
-      {/* Footer */}
-      <div className="login-footer">
-        <div className="login-security-badge">
-          <ShieldIcon />
-          SOC-2 Type II Certified &bull; 256-bit AES Enterprise Encryption
+        {/* Footer */}
+        <div className="login-footer">
+          <p className="login-footer-text">
+            Don't have an account?{' '}
+            <Link to="/signup" id="im-signup-link" className="login-footer-link">
+              Create an Account
+            </Link>
+          </p>
         </div>
-        <p className="login-footer-links">
-          Don't have an enterprise workspace?{' '}
-          <Link to="/signup" id="im-signup-link">
-            Create an Account
-          </Link>
-        </p>
       </div>
     </div>
   );

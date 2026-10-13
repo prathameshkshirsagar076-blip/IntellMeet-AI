@@ -9,6 +9,7 @@ import {
   PlusIcon,
   ClockIcon,
   UsersIcon,
+  CheckCircleIcon,
 } from '../components/icons';
 
 // Custom icons
@@ -140,6 +141,10 @@ export const MeetingsPage: React.FC = () => {
         </div>
 
         <div className="im-page-actions">
+          <Link to="/schedule" className="im-btn im-btn-secondary" title="Switch to Interactive Calendar View">
+            <CalendarIcon size={16} />
+            Calendar View
+          </Link>
           <button className="im-btn im-btn-secondary" onClick={() => navigate('/meetings/join')}>
             <VideoIcon size={16} />
             Join with Code
@@ -148,6 +153,59 @@ export const MeetingsPage: React.FC = () => {
             <PlusIcon size={16} />
             Schedule Meeting
           </button>
+        </div>
+      </div>
+
+      {/* High-Level Meetings Summary Cards */}
+      <div className="im-stats-grid" style={{ marginBottom: 20 }}>
+        <div className="im-stat-card">
+          <div className="im-stat-header">
+            <div className="im-stat-icon-wrap im-stat-icon-indigo">
+              <VideoIcon size={18} />
+            </div>
+            <span className="im-stat-trend">Total</span>
+          </div>
+          <div className="im-stat-value">{meetings.length}</div>
+          <div className="im-stat-label">All Meetings</div>
+        </div>
+
+        <div className="im-stat-card">
+          <div className="im-stat-header">
+            <div className="im-stat-icon-wrap im-stat-icon-amber">
+              <ClockIcon size={18} />
+            </div>
+            <span className="im-stat-trend">Ready</span>
+          </div>
+          <div className="im-stat-value">
+            {meetings.filter((m) => m.status === 'upcoming' || m.status === 'live').length}
+          </div>
+          <div className="im-stat-label">Upcoming Sessions</div>
+        </div>
+
+        <div className="im-stat-card">
+          <div className="im-stat-header">
+            <div className="im-stat-icon-wrap im-stat-icon-green">
+              <CheckCircleIcon size={18} />
+            </div>
+            <span className="im-stat-trend">Finished</span>
+          </div>
+          <div className="im-stat-value">
+            {meetings.filter((m) => m.status === 'completed').length}
+          </div>
+          <div className="im-stat-label">Completed Calls</div>
+        </div>
+
+        <div className="im-stat-card">
+          <div className="im-stat-header">
+            <div className="im-stat-icon-wrap im-stat-icon-purple">
+              <CalendarIcon size={18} />
+            </div>
+            <span className="im-stat-trend">Timetable</span>
+          </div>
+          <div className="im-stat-value">
+            {meetings.reduce((acc, m) => acc + (m.durationMinutes || 0), 0)}m
+          </div>
+          <div className="im-stat-label">Total Duration</div>
         </div>
       </div>
 

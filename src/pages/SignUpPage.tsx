@@ -16,7 +16,6 @@ import {
   MailIcon,
   BuildingIcon,
   BriefcaseIcon,
-  ShieldIcon,
   CheckCircleIcon,
 } from '../components/icons';
 import {
@@ -374,23 +373,6 @@ export const SignUpPage: React.FC = () => {
             </InfoNotice>
           )}
 
-          {/* SSO Button (Google Only) */}
-          <div className="login-sso-group">
-            <SocialLoginButton
-              provider="google"
-              label="Sign up with Google Workspace"
-              onClick={handleSSOClick}
-              id="im-signup-sso-google"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="login-divider">
-            <span className="login-divider-line" />
-            <span className="login-divider-text">or register with work email</span>
-            <span className="login-divider-line" />
-          </div>
-
           {/* Registration Form */}
           <form className="login-form" onSubmit={handleSubmit} noValidate>
             {/* Full Name */}
@@ -610,19 +592,32 @@ export const SignUpPage: React.FC = () => {
             >
               {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </PrimaryButton>
+
+            {/* Divider */}
+            <div className="login-divider" style={{ margin: '16px 0 12px' }}>
+              <span className="login-divider-line" />
+              <span className="login-divider-text">or sign up with</span>
+              <span className="login-divider-line" />
+            </div>
+
+            {/* Google SSO Button (Below Create Account) */}
+            <div className="login-sso-group">
+              <SocialLoginButton
+                provider="google"
+                label="Sign up with Google Workspace"
+                onClick={handleSSOClick}
+                id="im-signup-sso-google"
+              />
+            </div>
           </form>
         </>
       )}
 
       {/* Footer */}
       <div className="login-footer">
-        <div className="login-security-badge">
-          <ShieldIcon />
-          SOC-2 Type II Certified &bull; 256-bit AES Enterprise Encryption
-        </div>
-        <p className="login-footer-links">
+        <p className="login-footer-text">
           Already have an account?{' '}
-          <Link to="/login" id="im-signin-link">
+          <Link to="/login" id="im-signin-link" className="login-footer-link">
             Sign in
           </Link>
         </p>

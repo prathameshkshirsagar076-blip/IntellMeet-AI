@@ -4,7 +4,7 @@ import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PrimaryButton from '../components/PrimaryButton';
 import InfoNotice from '../components/InfoNotice';
-import { MailIcon, MailCheckIcon, ShieldIcon } from '../components/icons';
+import { MailIcon, MailCheckIcon } from '../components/icons';
 import { validateEmail } from '../utils/validation';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/toast/toast';
@@ -179,13 +179,9 @@ export const ForgotPasswordPage: React.FC = () => {
 
       {/* Footer */}
       <div className="login-footer">
-        <div className="login-security-badge">
-          <ShieldIcon />
-          SOC-2 Type II Certified &bull; 256-bit AES Enterprise Encryption
-        </div>
-        <p className="login-footer-links">
+        <p className="login-footer-text">
           Remember your credentials?{' '}
-          <Link to="/login" id="fp-back-to-login">
+          <Link to="/login" id="fp-back-to-login" className="login-footer-link">
             Back to Sign In
           </Link>
         </p>
