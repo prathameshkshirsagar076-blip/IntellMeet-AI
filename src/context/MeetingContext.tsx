@@ -98,13 +98,13 @@ export function mapBackendMeeting(b: BackendMeetingRecord | Record<string, unkno
 
   const participants: Participant[] = Array.isArray(record.participants)
     ? record.participants.map((p: BackendParticipant) => ({
-        id: p.id || p._id || p.userId || 'usr',
-        name: p.name || 'Participant',
-        email: p.email || '',
-        avatar: p.avatar || (p.name ? p.name.slice(0, 2).toUpperCase() : 'P'),
-        role: p.role || 'attendee',
-        isOnline: p.status === 'joined',
-      }))
+      id: p.id || p._id || p.userId || 'usr',
+      name: p.name || 'Participant',
+      email: p.email || '',
+      avatar: p.avatar || (p.name ? p.name.slice(0, 2).toUpperCase() : 'P'),
+      role: p.role || 'attendee',
+      isOnline: p.status === 'joined',
+    }))
     : [organizer];
 
   let dateStr = '';

@@ -475,7 +475,8 @@ body {
   min-width: 0;
 }
 
-.im-main.im-main-chat-mode {
+.im-main.im-main-chat-mode,
+.im-main.im-main-ai-mode {
   height: 100vh;
   max-height: 100vh;
   min-height: 0;
@@ -3409,10 +3410,13 @@ body {
   overflow: hidden;
 }
 
-/* Prevent whole page from scrolling when in Chat view */
+/* Prevent whole page from scrolling when in Chat or AI Assistant view */
 html:has(.im-main-chat-mode),
 body:has(.im-main-chat-mode),
-.im-shell:has(.im-main-chat-mode) {
+.im-shell:has(.im-main-chat-mode),
+html:has(.im-main-ai-mode),
+body:has(.im-main-ai-mode),
+.im-shell:has(.im-main-ai-mode) {
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
