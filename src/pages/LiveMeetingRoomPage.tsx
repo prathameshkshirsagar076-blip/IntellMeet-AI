@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
 import { meetingApi } from '../api/meeting.api';
@@ -79,8 +79,22 @@ const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
 export const LiveMeetingRoomPage: React.FC = () => {
   const { meetingId } = useParams<{ meetingId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { getMeetingById, showToast } = useMeetings();
+
+  // Lobby parameters
+  const cameFromLobby = searchParams.get('lobby') === '1' || searchParams.get('lobby') === 'true';
+  const initialVideo = searchParams.get('video') === 'true';
+  const initialAudioMuted = searchParams.get('audio') === 'false';
+  const initialDisplayName = searchParams.get('name') || user?.name || 'IntellMeet User';
+
+  // Enforce lobby requirement: redirect to lobby if accessing directly without having passed through lobby
+  useEffect(() => {
+    if (!cameFromLobby && meetingId) {
+      navigate(`/meetings/join?code=${meetingId}`, { replace: true });
+    }
+  }, [cameFromLobby, meetingId, navigate]);
 
   // Meeting states
   const [realMeeting, setRealMeeting] = useState<Meeting | null>(
@@ -88,7 +102,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
   );
   const [remotePeers, setRemotePeers] = useState<RemotePeer[]>([]);
 
-  const userName = user?.name || 'IntellMeet User';
+  const userName = initialDisplayName || user?.name || 'IntellMeet User';
   const meetingTitle = realMeeting?.title || (meetingId ? `Meeting: ${meetingId}` : `${userName}'s Live Meeting`);
   const meetingCode = realMeeting?.meetingCode || meetingId || '';
   const passcode = realMeeting?.passcode || '';
@@ -101,9 +115,9 @@ export const LiveMeetingRoomPage: React.FC = () => {
            (realMeeting as unknown as { organizerId?: { _id?: string; id?: string } }).organizerId?._id === user?.id)))
   );
 
-  // Audio / Video device states
-  const [isAudioMuted, setIsAudioMuted] = useState(true); // Default muted as in screenshot
-  const [isVideoOn, setIsVideoOn] = useState(false); // Default video off with avatar photo as in screenshot
+  // Audio / Video device states initialized from Lobby selection
+  const [isAudioMuted, setIsAudioMuted] = useState(initialAudioMuted);
+  const [isVideoOn, setIsVideoOn] = useState(initialVideo);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isHandRaised, setIsHandRaised] = useState(false);
 
@@ -335,6 +349,29 @@ export const LiveMeetingRoomPage: React.FC = () => {
       }
     };
   }, [meetingId, user?.id, navigate]);
+
+  // Initialize stream from lobby settings if camera or mic enabled
+  useEffect(() => {
+    if (cameFromLobby && (initialVideo || !initialAudioMuted)) {
+      navigator.mediaDevices
+        ?.getUserMedia({
+          video: initialVideo,
+          audio: !initialAudioMuted,
+        })
+        .then((stream) => {
+          setMediaStream(stream);
+          meetingSocketService.setLocalStream(stream);
+          if (videoRef.current && initialVideo) {
+            videoRef.current.srcObject = stream;
+          }
+          if (initialVideo) meetingSocketService.toggleVideo(true);
+          if (initialAudioMuted) meetingSocketService.toggleAudio(true);
+        })
+        .catch((err) => {
+          console.warn('[LiveMeeting] Error initializing media from lobby:', err);
+        });
+    }
+  }, [cameFromLobby, initialVideo, initialAudioMuted]);
 
   // Clean up media streams on unmount
   useEffect(() => {

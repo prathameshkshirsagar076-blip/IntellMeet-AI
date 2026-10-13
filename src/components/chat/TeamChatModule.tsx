@@ -1115,7 +1115,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         isInstant: true,
       });
       toast.success(`Starting 1:1 meeting with ${selectedConv.otherParticipant.name}`);
-      navigate(`/meeting/${meeting.id}`);
+      navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`);
     } catch {
       // Toast handled by context
     }

@@ -282,8 +282,8 @@ export const NewMeetingModal: React.FC<NewMeetingModalProps> = ({ isOpen, onClos
       }
 
       onClose();
-      showToast(`🚀 Live room launched! Room ID: ${activeMeetingCode || activeMeetingId}`, 'success');
-      navigate(`/meeting/${activeMeetingId}`);
+      showToast(`🚀 Live room prepared! Room ID: ${activeMeetingCode || activeMeetingId}`, 'success');
+      navigate(`/meetings/join?code=${activeMeetingCode || activeMeetingId}`);
     } catch {
       // Error is handled with toast in context
     } finally {
