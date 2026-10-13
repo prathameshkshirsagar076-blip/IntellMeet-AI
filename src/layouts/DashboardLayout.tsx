@@ -18,6 +18,7 @@ import {
   SunIcon,
   MoonIcon,
   ChatIcon,
+  BrainIcon,
 } from '../components/icons';
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
@@ -169,6 +170,7 @@ export const DashboardLayout: React.FC = () => {
     if (path.startsWith('/meetings')) return 'Meetings Management';
     if (path.startsWith('/history')) return 'Meeting History';
     if (path.startsWith('/ai-notes')) return 'AI Notes & Summaries';
+    if (path.startsWith('/ai-assistant') || path.startsWith('/dashboard/ai-assistant')) return 'AI Assistant';
     if (path.startsWith('/team')) return 'Team & Directory';
     if (path.startsWith('/chat')) return 'Direct Messaging & Chat';
     if (path.startsWith('/settings')) return 'Preferences & Settings';
@@ -299,6 +301,19 @@ export const DashboardLayout: React.FC = () => {
           </NavLink>
 
           <NavLink
+            to="/ai-assistant"
+            className={({ isActive }) =>
+              `im-nav-item ${isActive || location.pathname.startsWith('/dashboard/ai-assistant') ? 'active' : ''}`
+            }
+          >
+            <span className="im-nav-item-icon">
+              <BrainIcon size={18} />
+            </span>
+            <span className="im-nav-item-label">AI Assistant</span>
+            <span className="im-nav-badge">AI</span>
+          </NavLink>
+
+          <NavLink
             to="/settings?tab=theme"
             className={() =>
               `im-nav-item ${location.pathname === '/settings' && location.search.includes('tab=theme') ? 'active' : ''}`
@@ -335,7 +350,13 @@ export const DashboardLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className={`im-main ${location.pathname.startsWith('/chat') ? 'im-main-chat-mode' : ''}`}>
+      <div
+        className={`im-main ${location.pathname.startsWith('/chat') ? 'im-main-chat-mode' : ''} ${
+          location.pathname.startsWith('/ai-assistant') || location.pathname.startsWith('/dashboard/ai-assistant')
+            ? 'im-main-ai-mode'
+            : ''
+        }`}
+      >
         {/* Sticky Topbar */}
         <header className="im-topbar" role="banner">
           <div className="im-topbar-left">
