@@ -66,6 +66,7 @@ export const SchedulePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'agenda'>('month');
   const [previewMeeting, setPreviewMeeting] = useState<Meeting | null>(null);
+  const [viewDayModalDate, setViewDayModalDate] = useState<string | null>(null);
 
   // Month and Year formatters
   const monthName = currentDate.toLocaleString('default', { month: 'long' });
@@ -480,7 +481,7 @@ export const SchedulePage: React.FC = () => {
                       </div>
 
                       <div className="im-cal-day-events">
-                        {dayMeetings.slice(0, 3).map((m) => (
+                        {dayMeetings.slice(0, 2).map((m) => (
                           <div
                             key={m.id}
                             className={`im-cal-event-pill ${m.status}`}
@@ -495,10 +496,19 @@ export const SchedulePage: React.FC = () => {
                           </div>
                         ))}
 
-                        {dayMeetings.length > 3 && (
-                          <div className="im-cal-more-events">
-                            +{dayMeetings.length - 3} more
-                          </div>
+                        {dayMeetings.length > 2 && (
+                          <button
+                            type="button"
+                            className="im-cal-more-events-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(dayObj.dateStr);
+                              setViewDayModalDate(dayObj.dateStr);
+                            }}
+                            title={`View all ${dayMeetings.length} meetings on ${dayObj.dateStr}`}
+                          >
+                            +{dayMeetings.length - 2} more
+                          </button>
                         )}
                       </div>
                     </div>
@@ -963,6 +973,129 @@ export const SchedulePage: React.FC = () => {
                   <VideoIcon size={15} /> Join Meeting
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Day Meetings Overview Modal (Opened when clicking +more on calendar box) */}
+      {viewDayModalDate && (
+        <div className="im-cal-preview-backdrop" onClick={() => setViewDayModalDate(null)}>
+          <div
+            className="im-cal-preview-modal"
+            style={{ maxWidth: 520, width: '92%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="im-cal-preview-header">
+              <div>
+                <h3 className="im-cal-preview-title" style={{ fontSize: '1.05rem', margin: 0 }}>
+                  {new Date(viewDayModalDate + 'T00:00:00').toLocaleDateString('default', {
+                    weekday: 'long',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
+                  {(meetingsByDate.get(viewDayModalDate) || []).length} Scheduled Sessions
+                </span>
+              </div>
+              <button
+                type="button"
+                className="im-btn im-btn-ghost im-btn-sm"
+                onClick={() => setViewDayModalDate(null)}
+                title="Close"
+                style={{ width: 30, height: 30, padding: 0, fontSize: '1rem', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="im-cal-preview-body" style={{ maxHeight: '55vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(meetingsByDate.get(viewDayModalDate) || []).map((m) => (
+                <div
+                  key={m.id}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    border: '1px solid var(--im-border)',
+                    background: 'var(--im-bg-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--im-text-primary)' }}>
+                      {m.title}
+                    </span>
+                    <span className={`im-badge im-badge-${m.status}`}>{m.status}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '0.775rem', color: 'var(--im-text-muted)', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <ClockIcon size={12} /> {m.startTime} ({m.durationMinutes}m)
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <UsersIcon size={12} /> {m.organizer.name}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    {m.status !== 'cancelled' && (
+                      <button
+                        type="button"
+                        className="im-btn im-btn-primary im-btn-sm"
+                        onClick={() => {
+                          setViewDayModalDate(null);
+                          navigate(`/meetings/join?code=${m.meetingCode || m.id}`);
+                        }}
+                      >
+                        <VideoIcon size={13} /> Join Room
+                      </button>
+                    )}
+                    <Link
+                      to={`/meetings/${m.id}`}
+                      className="im-btn im-btn-secondary im-btn-sm"
+                      onClick={() => setViewDayModalDate(null)}
+                    >
+                      Details
+                    </Link>
+                    <button
+                      type="button"
+                      className="im-btn im-btn-secondary im-btn-sm"
+                      onClick={() => copyMeetingLink(m)}
+                      title="Copy meeting link"
+                    >
+                      <CopyIcon size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="im-cal-preview-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {viewDayModalDate >= todayStr ? (
+                <button
+                  type="button"
+                  className="im-btn im-btn-primary im-btn-sm"
+                  onClick={() => {
+                    const d = viewDayModalDate;
+                    setViewDayModalDate(null);
+                    navigate(`/meetings/new?date=${d}&from=schedule`);
+                  }}
+                >
+                  <PlusIcon size={14} /> Schedule Another
+                </button>
+              ) : (
+                <span style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>Past Date</span>
+              )}
+              <button
+                type="button"
+                className="im-btn im-btn-secondary im-btn-sm"
+                onClick={() => setViewDayModalDate(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
