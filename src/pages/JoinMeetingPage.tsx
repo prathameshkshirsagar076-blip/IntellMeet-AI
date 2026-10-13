@@ -8,10 +8,13 @@ import {
   VideoIcon,
   ArrowLeftIcon,
   ShieldCheckIcon,
+  LockIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from '../components/icons';
 
 // Custom icons
-const MicIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+const MicIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className }) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
@@ -31,7 +34,7 @@ const MicIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, c
   </svg>
 );
 
-const MicOffIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+const MicOffIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className }) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
@@ -52,7 +55,7 @@ const MicOffIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20
   </svg>
 );
 
-const VideoOffIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+const VideoOffIcon: React.FC<{ size?: number; className?: string }> = ({ size = 18, className }) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
@@ -80,6 +83,11 @@ export const JoinMeetingPage: React.FC = () => {
   // Code input state
   const [meetingInput, setMeetingInput] = useState(codeParam);
   const [inputError, setInputError] = useState<string | null>(null);
+
+  // Passcode state (replaces Display Name in form)
+  const [passcode, setPasscode] = useState('');
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
 
   // User display name from account or fallback
   const storedUser = useMemo(() => getStoredUser(), []);
@@ -137,6 +145,18 @@ export const JoinMeetingPage: React.FC = () => {
       ) || null
     );
   }, [meetingInput, meetings]);
+
+  // Auto-fill passcode if host or already saved
+  useEffect(() => {
+    if (targetMeeting?.passcode) {
+      const isHost =
+        targetMeeting.organizer?.id === user?.id ||
+        targetMeeting.organizer?.email === user?.email;
+      if (isHost && !passcode) {
+        setPasscode(targetMeeting.passcode);
+      }
+    }
+  }, [targetMeeting, user, passcode]);
 
   // Enumerate hardware devices
   const enumerateHardware = useCallback(async () => {
@@ -289,6 +309,19 @@ export const JoinMeetingPage: React.FC = () => {
     }
 
     setInputError(null);
+    setPasscodeError(null);
+
+    // Verify passcode if target meeting has one and user is not host
+    if (targetMeeting?.passcode) {
+      const isHost =
+        targetMeeting.organizer?.id === user?.id ||
+        targetMeeting.organizer?.email === user?.email;
+      if (!isHost && passcode.trim() !== targetMeeting.passcode.trim()) {
+        setPasscodeError('Incorrect passcode. Please enter the valid meeting password.');
+        return;
+      }
+    }
+
     setIsConnecting(true);
 
     // Stop local lobby tracks before handing over to Live Meeting room
@@ -297,7 +330,9 @@ export const JoinMeetingPage: React.FC = () => {
       streamRef.current = null;
     }
 
-    const queryParams = `?lobby=1&video=${isCameraOn}&audio=${isMicOn}&name=${encodeURIComponent(displayName.trim() || 'Participant')}`;
+    const queryParams = `?lobby=1&video=${isCameraOn}&audio=${isMicOn}&name=${encodeURIComponent(
+      displayName.trim() || 'Participant'
+    )}${passcode.trim() ? `&passcode=${encodeURIComponent(passcode.trim())}` : ''}`;
 
     try {
       const res = await meetingApi.getMeetingById(targetCode);
@@ -325,24 +360,27 @@ export const JoinMeetingPage: React.FC = () => {
 
   return (
     <div className="im-lobby-container">
-      <div style={{ marginBottom: 20 }}>
-        <Link
-          to="/meetings"
-          className="im-btn im-btn-ghost im-btn-sm"
-          style={{ paddingLeft: 0, gap: 6, color: 'var(--im-text-muted)' }}
-        >
-          <ArrowLeftIcon size={14} />
-          Back to Meetings
-        </Link>
-      </div>
-
-      <div className="im-page-header">
-        <div className="im-page-title-group">
-          <h1 className="im-page-title">Join Meeting Lobby</h1>
-          <p className="im-page-subtitle">
-            Configure your audio and video equipment before stepping into the room.
-          </p>
+      {/* Compact Top Header Bar */}
+      <div className="im-lobby-header-row">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link to="/meetings" className="im-lobby-back-btn" title="Back to Meetings">
+            <ArrowLeftIcon size={15} />
+          </Link>
+          <div>
+            <h1 className="im-lobby-title">Join Meeting Lobby</h1>
+            <p className="im-lobby-subtitle">
+              Configure camera, microphone, and security credentials
+            </p>
+          </div>
         </div>
+
+        {targetMeeting && (
+          <div className="im-lobby-compact-badge">
+            <span className="im-lobby-badge-dot" />
+            <span>{targetMeeting.title}</span>
+            <span style={{ opacity: 0.75 }}>({targetMeeting.startTime})</span>
+          </div>
+        )}
       </div>
 
       <div className="im-lobby-grid">
@@ -360,14 +398,21 @@ export const JoinMeetingPage: React.FC = () => {
                 aria-label="Webcam Preview"
               />
             ) : (
-              <div style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ textAlign: 'center', padding: 16 }}>
                 <div className="im-video-placeholder-avatar">
                   {(displayName || 'U').slice(0, 2).toUpperCase()}
                 </div>
-                <div style={{ marginTop: 14, color: '#f8fafc', fontWeight: 600, fontSize: '1.05rem' }}>
+                <div
+                  style={{
+                    marginTop: 12,
+                    color: '#f8fafc',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                  }}
+                >
                   {displayName}
                 </div>
-                <div style={{ marginTop: 4, color: '#94a3b8', fontSize: '0.825rem' }}>
+                <div style={{ marginTop: 2, color: '#94a3b8', fontSize: '0.8rem' }}>
                   {cameraError ? cameraError : 'Camera is turned off'}
                 </div>
               </div>
@@ -384,7 +429,7 @@ export const JoinMeetingPage: React.FC = () => {
               <div className="im-video-user-pill">
                 <span>{displayName}</span>
                 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>
-                  (Preview)
+                  (Host Preview)
                 </span>
               </div>
             )}
@@ -398,7 +443,7 @@ export const JoinMeetingPage: React.FC = () => {
                 title={isMicOn ? 'Mute Microphone' : 'Unmute Microphone'}
                 aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
               >
-                {isMicOn ? <MicIcon size={20} /> : <MicOffIcon size={20} />}
+                {isMicOn ? <MicIcon size={18} /> : <MicOffIcon size={18} />}
               </button>
 
               <button
@@ -408,102 +453,159 @@ export const JoinMeetingPage: React.FC = () => {
                 title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
                 aria-label={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
               >
-                {isCameraOn ? <VideoIcon size={20} /> : <VideoOffIcon size={20} />}
+                {isCameraOn ? <VideoIcon size={18} /> : <VideoOffIcon size={18} />}
               </button>
             </div>
           </div>
 
           <div
             style={{
-              marginTop: 14,
-              padding: '12px 16px',
+              marginTop: 10,
+              padding: '10px 14px',
               backgroundColor: 'var(--im-bg-surface)',
               border: '1px solid var(--im-border)',
               borderRadius: 'var(--im-radius-md)',
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              fontSize: '0.8125rem',
+              gap: 8,
+              fontSize: '0.775rem',
               color: 'var(--im-text-muted)',
             }}
           >
-            <ShieldCheckIcon size={18} style={{ color: 'var(--im-success)' }} />
+            <ShieldCheckIcon size={16} style={{ color: 'var(--im-success)', flexShrink: 0 }} />
             <span>
-              <strong>Hardware Ready:</strong> Real-time WebRTC audio and video verified. You can toggle audio or video anytime during the session.
+              Joining session as <strong>{displayName}</strong> • Audio and video verified locally
             </span>
           </div>
         </div>
 
         {/* Right: Join Credentials & Device Selection Form */}
-        <div className="im-card">
-          <div className="im-card-header">
-            <h2 className="im-card-title">Meeting Credentials</h2>
+        <div className="im-card" style={{ padding: '16px 18px', boxSizing: 'border-box' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+              paddingBottom: 8,
+              borderBottom: '1px solid var(--im-border-subtle)',
+            }}
+          >
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--im-text-primary)' }}>
+              Meeting Credentials
+            </h2>
+            <span style={{ fontSize: '0.725rem', color: 'var(--im-text-muted)' }}>
+              TLS 1.3 WebRTC
+            </span>
           </div>
 
           <form onSubmit={handleJoin}>
-            <div className="im-card-body">
-              {/* Meeting Info Card if known meeting */}
-              {targetMeeting && (
-                <div className="im-lobby-meeting-card">
-                  <div className="im-lobby-meeting-tag">Ready to Join</div>
-                  <h3 className="im-lobby-meeting-title">{targetMeeting.title}</h3>
-                  <div className="im-lobby-meeting-meta">
-                    <span>Host: <strong>{targetMeeting.organizer.name}</strong></span>
-                    <span>•</span>
-                    <span>{targetMeeting.date} ({targetMeeting.startTime})</span>
-                    <span>•</span>
-                    <span className={`im-badge im-badge-${targetMeeting.status}`}>
-                      {targetMeeting.status}
-                    </span>
-                  </div>
+            {/* Meeting Info Card if known meeting */}
+            {targetMeeting && (
+              <div className="im-lobby-meeting-card" style={{ padding: '8px 12px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="im-lobby-meeting-tag">Ready to Join</span>
+                  <span
+                    className={`im-badge im-badge-${targetMeeting.status}`}
+                    style={{ fontSize: '0.675rem', padding: '1px 6px' }}
+                  >
+                    {targetMeeting.status}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                  <h3 className="im-lobby-meeting-title" style={{ fontSize: '0.925rem' }}>
+                    {targetMeeting.title}
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
+                    Host: {targetMeeting.organizer.name}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Meeting Code */}
+            <div className="im-lobby-field">
+              <label htmlFor="join-code">
+                <span>Meeting ID or Invite Link</span>
+                <span style={{ color: 'var(--im-danger)' }}>*</span>
+              </label>
+              <input
+                id="join-code"
+                type="text"
+                className={`im-input ${inputError ? 'error' : ''}`}
+                placeholder="e.g. Meeting ID or invite link"
+                value={meetingInput}
+                onChange={(e) => {
+                  setMeetingInput(e.target.value);
+                  if (inputError) setInputError(null);
+                }}
+                style={{ height: 38, fontSize: '0.85rem' }}
+              />
+              {inputError && (
+                <div className="im-input-error-msg" style={{ fontSize: '0.725rem', marginTop: 2 }}>
+                  {inputError}
                 </div>
               )}
+            </div>
 
-              {/* Meeting Code */}
-              <div className="im-form-group">
-                <label htmlFor="join-code" className="im-form-label">
-                  Meeting ID or Invite Link <span style={{ color: 'var(--im-danger)' }}>*</span>
-                </label>
+            {/* Meeting Password / Passcode (replaces Your Display Name) */}
+            <div className="im-lobby-field">
+              <label htmlFor="join-passcode">
+                <LockIcon size={12} style={{ color: 'var(--im-text-muted)' }} />
+                <span>Meeting Password / Passcode</span>
+                {targetMeeting?.passcode ? (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--im-primary)', fontWeight: 500 }}>
+                    (Required)
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)', fontWeight: 400 }}>
+                    (Optional)
+                  </span>
+                )}
+              </label>
+              <div className="im-lobby-passcode-wrap">
                 <input
-                  id="join-code"
-                  type="text"
-                  className={`im-input ${inputError ? 'error' : ''}`}
-                  placeholder="e.g. Meeting ID or invite link"
-                  value={meetingInput}
+                  id="join-passcode"
+                  type={showPasscode ? 'text' : 'password'}
+                  className={`im-input im-lobby-passcode-input ${passcodeError ? 'error' : ''}`}
+                  placeholder="Enter meeting password (if set)"
+                  value={passcode}
                   onChange={(e) => {
-                    setMeetingInput(e.target.value);
-                    if (inputError) setInputError(null);
+                    setPasscode(e.target.value);
+                    if (passcodeError) setPasscodeError(null);
                   }}
+                  style={{ height: 38, fontSize: '0.85rem' }}
                 />
-                {inputError && <div className="im-input-error-msg">{inputError}</div>}
+                <button
+                  type="button"
+                  className="im-lobby-passcode-toggle"
+                  onClick={() => setShowPasscode((prev) => !prev)}
+                  title={showPasscode ? 'Hide passcode' : 'Show passcode'}
+                  tabIndex={-1}
+                >
+                  {showPasscode ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
+                </button>
               </div>
+              {passcodeError && (
+                <div className="im-input-error-msg" style={{ fontSize: '0.725rem', marginTop: 2 }}>
+                  {passcodeError}
+                </div>
+              )}
+            </div>
 
-              {/* Display Name */}
-              <div className="im-form-group">
-                <label htmlFor="join-name" className="im-form-label">
-                  Your Display Name <span style={{ color: 'var(--im-danger)' }}>*</span>
-                </label>
-                <input
-                  id="join-name"
-                  type="text"
-                  className="im-input"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Enter your name"
-                  required
-                />
-              </div>
-
-              {/* Audio & Video Device Selectors */}
-              <div className="im-form-group">
-                <label htmlFor="select-mic" className="im-form-label">
-                  Microphone Source
+            {/* Audio & Video Device Selectors on a single 2-column row */}
+            <div className="im-lobby-form-row">
+              <div className="im-lobby-field">
+                <label htmlFor="select-mic">
+                  <MicIcon size={12} />
+                  <span>Microphone</span>
                 </label>
                 <select
                   id="select-mic"
                   className="im-select"
                   value={selectedMicId}
                   onChange={(e) => setSelectedMicId(e.target.value)}
+                  style={{ height: 38, fontSize: '0.8rem' }}
                 >
                   {availableMics.length > 0 ? (
                     availableMics.map((mic) => (
@@ -513,22 +615,24 @@ export const JoinMeetingPage: React.FC = () => {
                     ))
                   ) : (
                     <>
-                      <option value="default-mic">System Default Microphone</option>
-                      <option value="built-in-mic">Built-in Studio Microphone</option>
+                      <option value="default-mic">System Default Mic</option>
+                      <option value="built-in-mic">Studio Microphone</option>
                     </>
                   )}
                 </select>
               </div>
 
-              <div className="im-form-group">
-                <label htmlFor="select-cam" className="im-form-label">
-                  Camera Source
+              <div className="im-lobby-field">
+                <label htmlFor="select-cam">
+                  <VideoIcon size={12} />
+                  <span>Camera</span>
                 </label>
                 <select
                   id="select-cam"
                   className="im-select"
                   value={selectedCamId}
                   onChange={(e) => setSelectedCamId(e.target.value)}
+                  style={{ height: 38, fontSize: '0.8rem' }}
                 >
                   {availableCams.length > 0 ? (
                     availableCams.map((cam) => (
@@ -538,33 +642,34 @@ export const JoinMeetingPage: React.FC = () => {
                     ))
                   ) : (
                     <>
-                      <option value="default-cam">Integrated HD Camera (1080p)</option>
-                      <option value="external-cam">External USB HD Webcam</option>
+                      <option value="default-cam">Integrated HD Camera</option>
+                      <option value="external-cam">External Webcam</option>
                     </>
                   )}
                 </select>
               </div>
             </div>
 
-            <div className="im-card-footer" style={{ flexDirection: 'column', gap: 10 }}>
+            {/* Submit Action */}
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button
                 type="submit"
                 className="im-btn im-btn-primary"
-                style={{ width: '100%', height: 42 }}
+                style={{ width: '100%', height: 40, fontSize: '0.9rem', fontWeight: 600 }}
                 disabled={isConnecting}
               >
                 {isConnecting ? (
                   <span>Connecting to Live Room...</span>
                 ) : (
                   <>
-                    <VideoIcon size={18} />
-                    {targetMeeting ? `Join "${targetMeeting.title.slice(0, 20)}"` : 'Join Meeting'}
+                    <VideoIcon size={16} />
+                    {targetMeeting ? `Join "${targetMeeting.title.slice(0, 18)}"` : 'Join Meeting Now'}
                   </>
                 )}
               </button>
 
-              <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--im-text-muted)' }}>
-                By joining, you agree to meeting guidelines and AI auto-transcription policies.
+              <div style={{ textAlign: 'center', fontSize: '0.725rem', color: 'var(--im-text-muted)' }}>
+                End-to-end encrypted session • AI transcription & smart notes
               </div>
             </div>
           </form>

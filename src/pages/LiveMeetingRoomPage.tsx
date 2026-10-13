@@ -126,12 +126,25 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
   // Active Drawers / Overlays
   const [activeDrawer, setActiveDrawer] = useState<'participants' | 'chat' | 'ai' | null>(null);
-  const [infoPopupOpen, setInfoPopupOpen] = useState(false);
-  const [reactionsTrayOpen, setReactionsTrayOpen] = useState(false);
-  const [audioMenuOpen, setAudioMenuOpen] = useState(false);
-  const [videoMenuOpen, setVideoMenuOpen] = useState(false);
-  const [hostToolsOpen, setHostToolsOpen] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+  // Active Popover Menus (Mutually Exclusive: only ONE menu can be open at a time to prevent overlapping)
+  type ActiveMenu = 'info' | 'audio' | 'video' | 'react' | 'host' | 'more' | null;
+  const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
+
+  const toggleMenu = (menu: ActiveMenu) => {
+    setActiveMenu((prev) => (prev === menu ? null : menu));
+  };
+
+  const closeMenus = () => {
+    setActiveMenu(null);
+  };
+
+  const infoPopupOpen = activeMenu === 'info';
+  const reactionsTrayOpen = activeMenu === 'react';
+  const audioMenuOpen = activeMenu === 'audio';
+  const videoMenuOpen = activeMenu === 'video';
+  const hostToolsOpen = activeMenu === 'host';
+  const moreMenuOpen = activeMenu === 'more';
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
 
@@ -166,21 +179,21 @@ export const LiveMeetingRoomPage: React.FC = () => {
   const [wbColor, setWbColor] = useState('#0f172a');
   const [wbTool, setWbTool] = useState<'pen' | 'eraser'>('pen');
 
-  // Search input in workplace header
-  const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Live meeting elapsed timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Handle Ctrl+K shortcut for search
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
+
+  const formatElapsed = (total: number) => {
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Reaction counter ref for unique deterministic particle keys
   const reactionCounterRef = useRef(0);
@@ -402,7 +415,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
       leftPercent,
     };
     setReactions((prev) => [...prev, newReaction]);
-    setReactionsTrayOpen(false);
+    closeMenus();
 
     setTimeout(() => {
       setReactions((prev) => prev.filter((r) => r.id !== particleId));
@@ -569,216 +582,92 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
   return (
     <div className="zm-live-meeting-viewport">
+      {/* Click outside to dismiss any active popover menu */}
+      {activeMenu !== null && (
+        <div
+          className="zm-menu-backdrop"
+          onClick={closeMenus}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 48,
+            background: 'transparent',
+            cursor: 'default',
+          }}
+        />
+      )}
       {/* ===================================================================
-          1. TOP NAVIGATION HEADER (IntellMeet Workplace Bar)
+          FULL-SCREEN MEETING STAGE & CONTROLS
           =================================================================== */}
-      <header className="zm-wp-header">
-        <div className="zm-wp-header-left">
-          {/* Brand Logo & Workplace Text */}
-          <div className="zm-wp-brand" onClick={() => navigate('/dashboard')} title="IntellMeet Home">
-            <div style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <main className="zm-call-container">
+        {/* Sleek In-Meeting Topbar */}
+        <div className="zm-call-topbar">
+          <div className="zm-call-topbar-left">
+            {/* Brand Logo & Name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginRight: 4 }}>
               <img
                 src="/intellmeet-icon.png"
                 alt="IntellMeet"
-                style={{ width: 24, height: 24, objectFit: 'contain' }}
+                style={{ width: 22, height: 22, objectFit: 'contain' }}
               />
-            </div>
-            <div className="zm-wp-brand-name">
-              <span className="zm-wp-brand-intell" style={{ color: '#2563eb', fontWeight: 900, fontSize: 20 }}>
-                Intell
-              </span>
-              <span className="zm-wp-brand-meet" style={{ color: '#7c3aed', fontWeight: 900, fontSize: 20 }}>
-                Meet
-              </span>
-              <span className="zm-wp-brand-tag" style={{ color: '#64748b', fontWeight: 600, fontSize: 13, marginLeft: 6 }}>
-                Workplace
+              <span style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center' }}>
+                <span style={{ color: '#38bdf8' }}>Intell</span>
+                <span style={{ color: '#a855f7' }}>Meet</span>
               </span>
             </div>
-          </div>
 
-          {/* Links & Menus */}
-          <div className="zm-wp-nav-links">
-            <button className="zm-wp-nav-btn" onClick={() => showToast('IntellMeet Workplace Ecosystem', 'info')}>
-              Discover Products
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+            <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
+
+            {/* Meeting Info Button (i) */}
+            <button
+              className="zm-call-info-btn"
+              onClick={() => toggleMenu('info')}
+              title="Meeting Information"
+            >
+              i
             </button>
-            <button className="zm-wp-nav-btn" onClick={() => showToast('Enterprise Plans: Active', 'info')}>
-              Pricing
-            </button>
-          </div>
 
-          {/* History Back/Forward Controls */}
-          <div className="zm-wp-arrows">
-            <button className="zm-wp-arrow-btn" onClick={() => window.history.back()} title="Back">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button className="zm-wp-arrow-btn" onClick={() => window.history.forward()} title="Forward">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
+            {/* Title */}
+            <div className="zm-call-title">
+              <span>{meetingTitle}</span>
+            </div>
 
-          {/* Search Bar with Ctrl+K */}
-          <div className="zm-wp-search-bar" onClick={() => searchInputRef.current?.focus()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <span className="zm-wp-kbd">Ctrl+K</span>
-          </div>
-        </div>
-
-        <div className="zm-wp-header-right">
-          <button className="zm-wp-nav-btn" onClick={() => navigate('/settings')}>
-            Admin Center
-          </button>
-          <button className="zm-wp-nav-btn" onClick={() => showToast('Desktop Client version up to date', 'info')}>
-            Download
-          </button>
-          <button
-            className="zm-wp-upgrade-btn"
-            onClick={() => showToast('You are on IntellMeet Pro Plan', 'success')}
-          >
-            Upgrade
-          </button>
-
-          {/* Notification Bell */}
-          <button
-            className="zm-wp-arrow-btn"
-            onClick={() => showToast('No pending notifications', 'info')}
-            title="Notifications"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
-
-          {/* User Profile Avatar */}
-          <div
-            className="zm-wp-avatar-btn"
-            onClick={() => navigate('/settings')}
-            title={userName}
-          >
-            <div className="zm-wp-avatar">
-              <img
-                src="/user-avatar.png"
-                alt={userName}
-                className="zm-wp-avatar-img"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+            {/* Live Elapsed Duration Indicator */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '2px 8px',
+                borderRadius: 999,
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#fca5a5',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                letterSpacing: '0.5px',
+                marginLeft: 4,
+              }}
+              title="Live Meeting Duration"
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#ef4444',
+                  boxShadow: '0 0 6px #ef4444',
                 }}
               />
-              <span className="zm-wp-avatar-fallback">
-                {userName.split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'IM'}
-              </span>
+              <span>{formatElapsed(elapsedSeconds)}</span>
             </div>
-            <span className="zm-wp-status-dot" />
           </div>
-        </div>
-      </header>
-
-      {/* ===================================================================
-          2. MAIN BODY (Narrow Rail + Meeting Stage)
-          =================================================================== */}
-      <div className="zm-wp-body">
-        {/* Left Narrow Workplace Icon Rail */}
-        <aside className="zm-wp-rail">
-          <div className="zm-wp-rail-top">
-            <button className="zm-wp-rail-item" onClick={() => navigate('/dashboard')} title="Home">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-              <span>Home</span>
-            </button>
-
-            <button
-              className={`zm-wp-rail-item ${activeDrawer === 'chat' ? 'active' : ''}`}
-              onClick={() => setActiveDrawer(activeDrawer === 'chat' ? null : 'chat')}
-              title="Team Chat"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <span>Chat</span>
-            </button>
-
-            <button className="zm-wp-rail-item active" title="Active Meeting">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span>Meetings</span>
-            </button>
-
-            <button
-              className="zm-wp-rail-item"
-              onClick={() => setActiveDrawer(activeDrawer === 'participants' ? null : 'participants')}
-              title="Contacts & People"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <span>Contacts</span>
-            </button>
-          </div>
-
-          <div className="zm-wp-rail-bottom">
-            <button className="zm-wp-rail-item" onClick={() => navigate('/settings')} title="Settings">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-              <span>Settings</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* ===================================================================
-            3. MEETING STAGE & CONTROLS
-            =================================================================== */}
-        <main className="zm-call-container">
-          {/* Sub-Header inside meeting */}
-          <div className="zm-call-topbar">
-            <div className="zm-call-topbar-left">
-              {/* Meeting Info Button (i) */}
-              <button
-                className="zm-call-info-btn"
-                onClick={() => setInfoPopupOpen(!infoPopupOpen)}
-                title="Meeting Information"
-              >
-                i
-              </button>
-
-              {/* Title */}
-              <div className="zm-call-title">
-                <span>{meetingTitle}</span>
-              </div>
-            </div>
 
             <div className="zm-call-topbar-right">
               {/* Green Verified Security Shield */}
               <button
                 className="zm-call-top-btn zm-call-top-shield"
-                onClick={() => setInfoPopupOpen(!infoPopupOpen)}
+                onClick={() => toggleMenu('info')}
                 title="Enhanced 256-bit encryption verified"
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="#10b981">
@@ -1429,7 +1318,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                 </button>
                 <button
                   className="zm-dock-chevron-btn"
-                  onClick={() => setAudioMenuOpen(!audioMenuOpen)}
+                  onClick={() => toggleMenu('audio')}
                   title="Audio Settings"
                 >
                   ^
@@ -1437,24 +1326,24 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
                 {/* Audio Settings Menu */}
                 {audioMenuOpen && (
-                  <div className="zm-dock-menu">
+                  <div className="zm-dock-menu" style={{ left: 0 }}>
                     <span className="zm-dock-menu-title">Select a Microphone</span>
-                    <button className="zm-dock-menu-item active" onClick={() => setAudioMenuOpen(false)}>
+                    <button className="zm-dock-menu-item active" onClick={closeMenus}>
                       ✓ Default - Built-in Microphone
                     </button>
-                    <button className="zm-dock-menu-item" onClick={() => setAudioMenuOpen(false)}>
+                    <button className="zm-dock-menu-item" onClick={closeMenus}>
                       External USB Headset
                     </button>
                     <div className="zm-dock-menu-divider" />
                     <span className="zm-dock-menu-title">Select a Speaker</span>
-                    <button className="zm-dock-menu-item active" onClick={() => setAudioMenuOpen(false)}>
+                    <button className="zm-dock-menu-item active" onClick={closeMenus}>
                       ✓ Default - Built-in Speakers
                     </button>
                     <div className="zm-dock-menu-divider" />
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setAudioMenuOpen(false);
+                        closeMenus();
                         showToast('Testing audio speaker tone...', 'info');
                       }}
                     >
@@ -1488,7 +1377,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                 </button>
                 <button
                   className="zm-dock-chevron-btn"
-                  onClick={() => setVideoMenuOpen(!videoMenuOpen)}
+                  onClick={() => toggleMenu('video')}
                   title="Video Settings"
                 >
                   ^
@@ -1496,16 +1385,16 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
                 {/* Video Settings Menu */}
                 {videoMenuOpen && (
-                  <div className="zm-dock-menu">
+                  <div className="zm-dock-menu" style={{ left: 0 }}>
                     <span className="zm-dock-menu-title">Select a Camera</span>
-                    <button className="zm-dock-menu-item active" onClick={() => setVideoMenuOpen(false)}>
+                    <button className="zm-dock-menu-item active" onClick={closeMenus}>
                       ✓ Integrated HD Webcam (720p)
                     </button>
                     <div className="zm-dock-menu-divider" />
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setVideoMenuOpen(false);
+                        closeMenus();
                         showToast('Virtual Background: Studio Blur applied', 'success');
                       }}
                     >
@@ -1514,7 +1403,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setVideoMenuOpen(false);
+                        closeMenus();
                         navigate('/settings');
                       }}
                     >
@@ -1531,7 +1420,10 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div className="zm-dock-btn-group">
                 <button
                   className={`zm-dock-btn ${activeDrawer === 'participants' ? 'active' : ''}`}
-                  onClick={() => setActiveDrawer(activeDrawer === 'participants' ? null : 'participants')}
+                  onClick={() => {
+                    closeMenus();
+                    setActiveDrawer(activeDrawer === 'participants' ? null : 'participants');
+                  }}
                 >
                   <div className="zm-dock-btn-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1544,7 +1436,14 @@ export const LiveMeetingRoomPage: React.FC = () => {
                   </div>
                   <span className="zm-dock-btn-label">Participants</span>
                 </button>
-                <button className="zm-dock-chevron-btn" onClick={handleCopyLink} title="Invite link">
+                <button
+                  className="zm-dock-chevron-btn"
+                  onClick={() => {
+                    closeMenus();
+                    handleCopyLink();
+                  }}
+                  title="Invite link"
+                >
                   ^
                 </button>
               </div>
@@ -1552,7 +1451,10 @@ export const LiveMeetingRoomPage: React.FC = () => {
               {/* Chat */}
               <button
                 className={`zm-dock-btn ${activeDrawer === 'chat' ? 'active' : ''}`}
-                onClick={() => setActiveDrawer(activeDrawer === 'chat' ? null : 'chat')}
+                onClick={() => {
+                  closeMenus();
+                  setActiveDrawer(activeDrawer === 'chat' ? null : 'chat');
+                }}
               >
                 <div className="zm-dock-btn-icon">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1566,7 +1468,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <button
                   className={`zm-dock-btn ${reactionsTrayOpen ? 'active' : ''}`}
-                  onClick={() => setReactionsTrayOpen(!reactionsTrayOpen)}
+                  onClick={() => toggleMenu('react')}
                 >
                   <div className="zm-dock-btn-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1578,7 +1480,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
                 {/* Reactions Popover Tray */}
                 {reactionsTrayOpen && (
-                  <div className="zm-reactions-tray">
+                  <div className="zm-reactions-tray" style={{ left: '50%', transform: 'translateX(-50%)' }}>
                     {['👏', '👍', '❤️', '😂', '😮', '🎉'].map((emoji) => (
                       <button
                         key={emoji}
@@ -1592,7 +1494,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                       className="zm-raise-hand-btn"
                       onClick={() => {
                         setIsHandRaised(!isHandRaised);
-                        setReactionsTrayOpen(false);
+                        closeMenus();
                         showToast(isHandRaised ? 'Hand lowered' : 'Hand raised', 'info');
                       }}
                     >
@@ -1606,7 +1508,10 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div className="zm-dock-btn-group">
                 <button
                   className="zm-dock-btn zm-dock-btn-share"
-                  onClick={handleToggleScreenShare}
+                  onClick={() => {
+                    closeMenus();
+                    handleToggleScreenShare();
+                  }}
                 >
                   <div className="zm-dock-btn-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -1619,7 +1524,10 @@ export const LiveMeetingRoomPage: React.FC = () => {
                 </button>
                 <button
                   className="zm-dock-chevron-btn"
-                  onClick={handleToggleScreenShare}
+                  onClick={() => {
+                    closeMenus();
+                    handleToggleScreenShare();
+                  }}
                   title="Screen Share Options"
                 >
                   ^
@@ -1630,7 +1538,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <button
                   className={`zm-dock-btn ${hostToolsOpen ? 'active' : ''}`}
-                  onClick={() => setHostToolsOpen(!hostToolsOpen)}
+                  onClick={() => toggleMenu('host')}
                 >
                   <div className="zm-dock-btn-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1642,7 +1550,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
                 {/* Host Tools Popover */}
                 {hostToolsOpen && (
-                  <div className="zm-dock-menu" style={{ width: 260 }}>
+                  <div className="zm-dock-menu" style={{ width: 250, left: '50%', transform: 'translateX(-50%)' }}>
                     <span className="zm-dock-menu-title">Security & Host Controls</span>
                     <button
                       className="zm-dock-menu-item"
@@ -1688,7 +1596,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <button
                   className={`zm-dock-btn ${moreMenuOpen ? 'active' : ''}`}
-                  onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                  onClick={() => toggleMenu('more')}
                   title="More Options"
                 >
                   <div className="zm-dock-btn-icon">
@@ -1704,11 +1612,11 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
                 {/* More Menu Dropdown */}
                 {moreMenuOpen && (
-                  <div className="zm-dock-menu">
+                  <div className="zm-dock-menu" style={{ width: 220, right: 0 }}>
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setMoreMenuOpen(false);
+                        closeMenus();
                         setActiveDrawer('ai');
                       }}
                     >
@@ -1717,7 +1625,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setMoreMenuOpen(false);
+                        closeMenus();
                         setWhiteboardOpen(true);
                       }}
                     >
@@ -1726,7 +1634,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setMoreMenuOpen(false);
+                        closeMenus();
                         showToast('Cloud recording started', 'success');
                       }}
                     >
@@ -1735,7 +1643,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     <button
                       className="zm-dock-menu-item"
                       onClick={() => {
-                        setMoreMenuOpen(false);
+                        closeMenus();
                         if (!document.fullscreenElement) {
                           document.documentElement.requestFullscreen();
                         } else {
@@ -1768,7 +1676,6 @@ export const LiveMeetingRoomPage: React.FC = () => {
             </div>
           </footer>
         </main>
-      </div>
 
       {/* ===================================================================
           5. END MEETING CONFIRMATION MODAL
