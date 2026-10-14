@@ -330,14 +330,15 @@ export const JoinMeetingPage: React.FC = () => {
       streamRef.current = null;
     }
 
-    const queryParams = `?lobby=1&video=${isCameraOn}&audio=${isMicOn}&name=${encodeURIComponent(
-      displayName.trim() || 'Participant'
-    )}${passcode.trim() ? `&passcode=${encodeURIComponent(passcode.trim())}` : ''}`;
-
     try {
       const res = await meetingApi.getMeetingById(targetCode);
       const meetingData = res?.data;
       const destinationId = meetingData?.id || meetingData?._id || targetCode;
+      const effectivePasscode = passcode.trim() || (meetingData as { passcode?: string })?.passcode || targetMeeting?.passcode || '';
+      const queryParams = `?lobby=1&video=${isCameraOn}&audio=${isMicOn}&name=${encodeURIComponent(
+        displayName.trim() || 'Participant'
+      )}${effectivePasscode ? `&passcode=${encodeURIComponent(effectivePasscode)}` : ''}`;
+
       showToast(`Connected to meeting: "${meetingData?.title || targetCode}"`, 'success');
       navigate(`/meeting/${destinationId}${queryParams}`);
     } catch {
@@ -346,6 +347,11 @@ export const JoinMeetingPage: React.FC = () => {
           m.meetingCode.toLowerCase() === targetCode.toLowerCase() ||
           m.id.toLowerCase() === targetCode.toLowerCase()
       );
+      const effectivePasscode = passcode.trim() || matched?.passcode || targetMeeting?.passcode || '';
+      const queryParams = `?lobby=1&video=${isCameraOn}&audio=${isMicOn}&name=${encodeURIComponent(
+        displayName.trim() || 'Participant'
+      )}${effectivePasscode ? `&passcode=${encodeURIComponent(effectivePasscode)}` : ''}`;
+
       if (matched) {
         showToast(`Connected to room: "${matched.title}"`, 'success');
         navigate(`/meeting/${matched.id}${queryParams}`);

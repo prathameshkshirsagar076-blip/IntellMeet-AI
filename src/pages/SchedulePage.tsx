@@ -59,7 +59,7 @@ const HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 8 AM to 8 PM
 
 export const SchedulePage: React.FC = () => {
   const navigate = useNavigate();
-  const { meetings, copyMeetingLink } = useMeetings();
+  const { meetings, copyMeetingLink, acceptInvitation, declineInvitation } = useMeetings();
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const todayStr = useMemo(() => getTodayLocalDateString(), []);
@@ -921,7 +921,7 @@ export const SchedulePage: React.FC = () => {
               <div className="im-cal-preview-field">
                 <ClockIcon size={16} />
                 <span>
-                  <strong>Time:</strong> {previewMeeting.startTime} ({previewMeeting.durationMinutes} minutes)
+                  <strong>Time:</strong> {previewMeeting.startTime} ({previewMeeting.durationMinutes} minutes) • {previewMeeting.timezone || 'UTC'}
                 </span>
               </div>
 
@@ -929,6 +929,27 @@ export const SchedulePage: React.FC = () => {
                 <UsersIcon size={16} />
                 <span>
                   <strong>Organizer:</strong> {previewMeeting.organizer.name} ({previewMeeting.organizer.email})
+                </span>
+              </div>
+
+              <div className="im-cal-preview-field">
+                <UsersIcon size={16} />
+                <span>
+                  <strong>Your RSVP:</strong>{' '}
+                  <span
+                    className={`im-badge ${
+                      previewMeeting.myRole === 'host'
+                        ? 'im-badge-upcoming'
+                        : previewMeeting.myInvitationStatus === 'accepted'
+                        ? 'im-badge-completed'
+                        : previewMeeting.myInvitationStatus === 'declined'
+                        ? 'im-badge-cancelled'
+                        : 'im-badge-live'
+                    }`}
+                    style={{ fontSize: '0.72rem', textTransform: 'capitalize' }}
+                  >
+                    {previewMeeting.myRole === 'host' ? 'Host' : previewMeeting.myInvitationStatus || 'Pending'}
+                  </span>
                 </span>
               </div>
 
@@ -955,6 +976,30 @@ export const SchedulePage: React.FC = () => {
             </div>
 
             <div className="im-cal-preview-footer">
+              {previewMeeting.myInvitationStatus === 'pending' && previewMeeting.status !== 'cancelled' && (
+                <div style={{ display: 'inline-flex', gap: 6, marginRight: 'auto' }}>
+                  <button
+                    className="im-btn im-btn-primary im-btn-sm"
+                    style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                    onClick={async () => {
+                      await acceptInvitation(previewMeeting.id);
+                      setPreviewMeeting({ ...previewMeeting, myInvitationStatus: 'accepted' });
+                    }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    className="im-btn im-btn-secondary im-btn-sm"
+                    style={{ color: 'var(--im-danger, #ef4444)' }}
+                    onClick={async () => {
+                      await declineInvitation(previewMeeting.id);
+                      setPreviewMeeting({ ...previewMeeting, myInvitationStatus: 'declined' });
+                    }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              )}
               <Link
                 to={`/meetings/${previewMeeting.id}`}
                 className="im-btn im-btn-secondary"

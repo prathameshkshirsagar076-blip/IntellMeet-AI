@@ -26,11 +26,13 @@ interface ReactionParticle {
 const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const hasVideo = (peer.isVideoOn || peer.isScreenSharing) && Boolean(peer.stream);
+
   useEffect(() => {
     if (videoRef.current && peer.stream) {
       videoRef.current.srcObject = peer.stream;
     }
-  }, [peer.stream]);
+  }, [peer.stream, hasVideo, peer.isVideoOn, peer.isScreenSharing]);
 
   const initials = peer.name
     ? peer.name
@@ -41,12 +43,20 @@ const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
         .toUpperCase()
     : 'U';
 
-  const hasVideo = peer.isVideoOn && peer.stream;
-
   return (
     <div className={`zm-gallery-tile ${!peer.isAudioMuted ? 'speaking' : ''}`}>
       {hasVideo ? (
-        <video ref={videoRef} autoPlay playsInline className="zm-live-video-element" />
+        <video
+          ref={(el) => {
+            videoRef.current = el;
+            if (el && peer.stream) {
+              el.srcObject = peer.stream;
+            }
+          }}
+          autoPlay
+          playsInline
+          className="zm-live-video-element"
+        />
       ) : (
         <div
           style={{
@@ -70,7 +80,7 @@ const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
           {peer.isAudioMuted ? '🔇' : '🎙️'}
         </span>
         <span>
-          {peer.name} {peer.role === 'host' ? '(Host)' : ''}
+          {peer.name} {peer.role === 'host' ? '(Host)' : ''} {peer.isScreenSharing ? '🖥️ (Screen)' : ''}
         </span>
       </div>
     </div>
@@ -106,7 +116,8 @@ export const LiveMeetingRoomPage: React.FC = () => {
   const userName = initialDisplayName || user?.name || 'IntellMeet User';
   const meetingTitle = realMeeting?.title || (meetingId ? `Meeting: ${meetingId}` : `${userName}'s Live Meeting`);
   const meetingCode = realMeeting?.meetingCode || meetingId || '';
-  const passcode = realMeeting?.passcode || '';
+  const lobbyPasscode = searchParams.get('passcode') || '';
+  const passcode = lobbyPasscode || realMeeting?.passcode || '';
   const isHost = Boolean(
     realMeeting &&
       (realMeeting.organizer?.id === user?.id ||
@@ -201,8 +212,8 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
   // 1. Dedicated, deduplicated message history fetcher
   useEffect(() => {
-    if (!meetingId) {
-      setChatMessages([]);
+    if (!cameFromLobby || !meetingId) {
+      if (!meetingId) setChatMessages([]);
       return;
     }
 
@@ -245,14 +256,15 @@ export const LiveMeetingRoomPage: React.FC = () => {
       controller.abort();
       isFetchingMessagesRef.current = false;
     };
-  }, [meetingId, user?.id, user?.name]);
+  }, [cameFromLobby, meetingId, user?.id, user?.name]);
 
   // 2. Real WebRTC & Backend Meeting Room Lifecycle
   useEffect(() => {
-    if (!meetingId) return;
+    if (!cameFromLobby || !meetingId) return;
 
     let isMounted = true;
     const controller = new AbortController();
+    const effectivePasscode = searchParams.get('passcode') || passcode;
 
     // Fetch meeting details from backend
     meetingApi
@@ -278,22 +290,35 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
     // Register Join via REST and connect Socket.IO
     meetingApi
-      .joinMeeting(meetingId)
+      .joinMeeting(meetingId, effectivePasscode)
       .then((joinRes) => {
         if (!isMounted) return;
         if (joinRes?.data?.iceServers) {
           meetingSocketService.setIceServers(joinRes.data.iceServers);
         }
-        return meetingSocketService.joinMeeting(meetingId);
+        if (joinRes?.data?.meeting) {
+          setRealMeeting(mapBackendMeeting(joinRes.data.meeting as unknown as Record<string, unknown>));
+        }
+        return meetingSocketService.joinMeeting(meetingId, effectivePasscode);
       })
       .then((socketRes) => {
         if (!isMounted) return;
         if (socketRes?.success) {
           globalToast.success('Connected to live meeting session');
+        } else if (socketRes && !socketRes.success && socketRes.error) {
+          console.warn('[LiveMeeting] Socket join warning:', socketRes.error);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.warn('[LiveMeeting] Join error:', err);
+        const error = err as { code?: string; status?: number; message?: string };
+        if (error?.code === 'INVALID_PASSCODE' || error?.status === 403) {
+          globalToast.error('Meeting requires a valid passcode. Redirecting to lobby...');
+          navigate(`/meetings/join?code=${meetingId}`, { replace: true });
+        } else if (error?.code === 'MEETING_ENDED' || error?.code === 'MEETING_CANCELLED') {
+          globalToast.error(error.message || 'Meeting has ended or been cancelled');
+          navigate('/meetings', { replace: true });
+        }
       });
 
     // Listen for WebRTC remote peers updates
@@ -384,7 +409,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
         meetingApi.leaveMeeting(meetingId).catch(() => {});
       }
     };
-  }, [meetingId, user?.id, navigate]);
+  }, [cameFromLobby, meetingId, passcode, searchParams, user?.id, navigate]);
 
   // Initialize stream from lobby settings if camera or mic enabled
   useEffect(() => {
@@ -417,6 +442,17 @@ export const LiveMeetingRoomPage: React.FC = () => {
       }
     };
   }, [mediaStream]);
+
+  // Ensure video element always binds media stream or screen share across views and re-renders
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isScreenSharing && meetingSocketService.getScreenStream()) {
+        videoRef.current.srcObject = meetingSocketService.getScreenStream();
+      } else if (mediaStream) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    }
+  }, [mediaStream, isVideoOn, isScreenSharing, viewMode, remotePeers.length]);
 
   // Scroll chat to bottom when messages update
   useEffect(() => {
@@ -507,15 +543,24 @@ export const LiveMeetingRoomPage: React.FC = () => {
     if (isScreenSharing) {
       meetingSocketService.stopScreenShare();
       setIsScreenSharing(false);
+      if (videoRef.current && mediaStream) {
+        videoRef.current.srcObject = mediaStream;
+      }
       showToast('Screen sharing stopped', 'info');
     } else {
       const stream = await meetingSocketService.startScreenShare();
       if (stream) {
         setIsScreenSharing(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
         showToast('You are sharing your screen', 'success');
         stream.getVideoTracks()[0].onended = () => {
           setIsScreenSharing(false);
           meetingSocketService.stopScreenShare();
+          if (videoRef.current && mediaStream) {
+            videoRef.current.srcObject = mediaStream;
+          }
         };
       } else {
         showToast('Screen sharing cancelled or unavailable', 'info');
@@ -633,6 +678,17 @@ export const LiveMeetingRoomPage: React.FC = () => {
     showToast('Meeting link copied to clipboard!', 'success');
   };
 
+
+  if (!cameFromLobby && meetingId) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090d16', color: '#94a3b8' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="im-spinner" style={{ margin: '0 auto 16px', width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p>Redirecting to meeting lobby...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="zm-live-meeting-viewport">
@@ -929,86 +985,120 @@ export const LiveMeetingRoomPage: React.FC = () => {
               {viewMode === 'speaker' ? (
                 /* Speaker View — Zoom Centered Layout */
                 <div className="zm-speaker-tile">
-                  {remotePeers.length > 0 ? (
-                    remotePeers[0].isVideoOn && remotePeers[0].stream ? (
-                      <video
-                        ref={(el) => {
-                          if (el && remotePeers[0].stream) el.srcObject = remotePeers[0].stream;
-                        }}
-                        autoPlay
-                        playsInline
-                        className="zm-live-video-element"
-                      />
-                    ) : (
-                      <div className="zm-center-avatar-box">
-                        <div
-                          style={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 42,
-                            fontWeight: 700,
-                            color: '#fff',
+                  {(() => {
+                    const activeScreenPeer = remotePeers.find((p) => p.isScreenSharing);
+                    const activePeer = activeScreenPeer || remotePeers[0];
+
+                    if (remotePeers.length > 0 && activePeer) {
+                      const showVideo = (activePeer.isVideoOn || activePeer.isScreenSharing) && Boolean(activePeer.stream);
+                      return showVideo ? (
+                        <video
+                          ref={(el) => {
+                            if (el && activePeer.stream) el.srcObject = activePeer.stream;
                           }}
-                        >
-                          {remotePeers[0].name.slice(0, 2).toUpperCase()}
-                        </div>
-                      </div>
-                    )
-                  ) : isVideoOn ? (
-                    <video ref={videoRef} autoPlay playsInline muted className="zm-live-video-element" />
-                  ) : (
-                    /* Centered User Avatar */
-                    <div className="zm-center-avatar-box">
-                      {user?.avatar && user.avatar.startsWith('http') ? (
-                        <img
-                          src={user.avatar}
-                          alt={userName}
-                          className="zm-center-avatar-img"
+                          autoPlay
+                          playsInline
+                          className="zm-live-video-element"
                         />
                       ) : (
-                        <div
-                          style={{
-                            width: 140,
-                            height: 140,
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 48,
-                            fontWeight: 700,
-                            color: '#ffffff',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                          }}
-                        >
-                          {userName.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                        <div className="zm-center-avatar-box">
+                          <div
+                            style={{
+                              width: 120,
+                              height: 120,
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 42,
+                              fontWeight: 700,
+                              color: '#fff',
+                            }}
+                          >
+                            {activePeer.name.slice(0, 2).toUpperCase()}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  )}
+                      );
+                    }
+
+                    if (isVideoOn || isScreenSharing) {
+                      return (
+                        <video
+                          ref={(el) => {
+                            videoRef.current = el;
+                            if (el) {
+                              if (isScreenSharing && meetingSocketService.getScreenStream()) {
+                                el.srcObject = meetingSocketService.getScreenStream();
+                              } else if (mediaStream) {
+                                el.srcObject = mediaStream;
+                              }
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="zm-live-video-element"
+                        />
+                      );
+                    }
+
+                    return (
+                      /* Centered User Avatar */
+                      <div className="zm-center-avatar-box">
+                        {user?.avatar && user.avatar.startsWith('http') ? (
+                          <img
+                            src={user.avatar}
+                            alt={userName}
+                            className="zm-center-avatar-img"
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 140,
+                              height: 140,
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 48,
+                              fontWeight: 700,
+                              color: '#ffffff',
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                            }}
+                          >
+                            {userName.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Speaker Tag Pill */}
                   <div className="zm-speaker-tag">
-                    {remotePeers.length > 0 ? (
-                      <>
-                        <span className={remotePeers[0].isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
-                          {remotePeers[0].isAudioMuted ? '🔇' : '🎙️'}
-                        </span>
-                        <span>{remotePeers[0].name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className={isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
-                          {isAudioMuted ? '🔇' : '🎙️'}
-                        </span>
-                        <span>{userName} (Me)</span>
-                      </>
-                    )}
+                    {(() => {
+                      const activeScreenPeer = remotePeers.find((p) => p.isScreenSharing);
+                      const activePeer = activeScreenPeer || remotePeers[0];
+                      if (remotePeers.length > 0 && activePeer) {
+                        return (
+                          <>
+                            <span className={activePeer.isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
+                              {activePeer.isAudioMuted ? '🔇' : '🎙️'}
+                            </span>
+                            <span>{activePeer.name} {activePeer.isScreenSharing ? '🖥️ (Screen)' : ''}</span>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <span className={isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
+                            {isAudioMuted ? '🔇' : '🎙️'}
+                          </span>
+                          <span>{userName} (Me) {isScreenSharing ? '🖥️ (Screen)' : ''}</span>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Floating PiP thumbnail for local camera when remote peer is on stage */}
@@ -1027,8 +1117,23 @@ export const LiveMeetingRoomPage: React.FC = () => {
                         zIndex: 10,
                       }}
                     >
-                      {isVideoOn ? (
-                        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {isVideoOn || isScreenSharing ? (
+                        <video
+                          ref={(el) => {
+                            videoRef.current = el;
+                            if (el) {
+                              if (isScreenSharing && meetingSocketService.getScreenStream()) {
+                                el.srcObject = meetingSocketService.getScreenStream();
+                              } else if (mediaStream) {
+                                el.srcObject = mediaStream;
+                              }
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                       ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12 }}>
                           {userName} (You)
@@ -1042,8 +1147,23 @@ export const LiveMeetingRoomPage: React.FC = () => {
                 <div className="zm-gallery-grid">
                   {/* Tile 1: You */}
                   <div className={`zm-gallery-tile ${!isAudioMuted ? 'speaking' : ''}`}>
-                    {isVideoOn ? (
-                      <video ref={videoRef} autoPlay playsInline muted className="zm-live-video-element" />
+                    {isVideoOn || isScreenSharing ? (
+                      <video
+                        ref={(el) => {
+                          videoRef.current = el;
+                          if (el) {
+                            if (isScreenSharing && meetingSocketService.getScreenStream()) {
+                              el.srcObject = meetingSocketService.getScreenStream();
+                            } else if (mediaStream) {
+                              el.srcObject = mediaStream;
+                            }
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="zm-live-video-element"
+                      />
                     ) : (
                       <div
                         style={{

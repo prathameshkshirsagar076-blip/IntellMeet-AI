@@ -21,6 +21,12 @@ export interface Meeting {
   participants: Participant[];
   meetingCode: string;
   passcode?: string;
+  timezone?: string;
+  myInvitationStatus?: 'invited' | 'pending' | 'accepted' | 'declined' | 'tentative' | 'none';
+  myRole?: 'host' | 'co-host' | 'attendee';
+  participantCount?: number;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
   meetingLink: string;
   summaryId?: string;
   isInstant?: boolean;
@@ -126,7 +132,11 @@ export interface CreateMeetingPayload {
   date: string;
   startTime: string;
   durationMinutes: number;
+  timezone?: string;
   participantEmails?: string[];
+  participantUserIds?: string[];
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
   isInstant?: boolean;
   passcode?: string;
   settings?: {
@@ -136,6 +146,31 @@ export interface CreateMeetingPayload {
     isMutedOnEntry?: boolean;
     isVideoOffOnEntry?: boolean;
   };
+}
+
+export interface ParticipantInvitationInfo {
+  id: string;
+  participantId: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: string;
+  status: 'invited' | 'pending' | 'accepted' | 'declined' | 'tentative' | 'joined' | 'left';
+  invitationSentAt?: string;
+  invitationDeliveryStatus?: 'not_sent' | 'sent' | 'delivered' | 'failed';
+  invitationError?: string | null;
+  respondedAt?: string;
+}
+
+export interface MeetingInvitationItem {
+  id: string;
+  invitationId: string;
+  status: 'invited' | 'pending' | 'accepted' | 'declined' | 'tentative';
+  role: string;
+  respondedAt?: string;
+  invitationSentAt?: string;
+  meeting: Meeting;
 }
 
 export interface MeetingIceServer {

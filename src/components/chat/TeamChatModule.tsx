@@ -894,7 +894,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         toast.error((err as Error)?.message || 'Failed to initialize conversation');
       }
     },
-    [conversations, currentUser?.id]
+    [conversations, currentUser]
   );
 
   // Sync external recipient prop (from Team & People page navigation)

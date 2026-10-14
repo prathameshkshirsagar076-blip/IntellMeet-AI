@@ -70,10 +70,15 @@ export interface BackendMeetingRecord {
   title?: string;
   description?: string;
   scheduledStartAt?: string;
+  scheduledEndAt?: string;
   durationMinutes?: number;
   status?: MeetingStatus;
   meetingCode?: string;
   passcode?: string;
+  timezone?: string;
+  myInvitationStatus?: 'invited' | 'pending' | 'accepted' | 'declined' | 'tentative' | 'none';
+  myRole?: 'host' | 'co-host' | 'attendee';
+  participantCount?: number;
   isInstant?: boolean;
   createdAt?: string;
   organizerId?: BackendOrganizer | string;
@@ -152,10 +157,39 @@ export function mapBackendMeeting(b: BackendMeetingRecord | Record<string, unkno
     participants,
     meetingCode: code,
     passcode: record.passcode || '',
+    timezone: (typeof record.timezone === 'string' && record.timezone) ? record.timezone : 'UTC',
+    myInvitationStatus: (typeof record.myInvitationStatus === 'string' ? record.myInvitationStatus : undefined) || (orgId === fallback.id ? 'accepted' : 'pending'),
+    myRole: (typeof record.myRole === 'string' ? record.myRole : undefined) || (orgId === fallback.id ? 'host' : 'attendee'),
+    participantCount: typeof record.participantCount === 'number' ? record.participantCount : participants.length,
+    scheduledStartAt: typeof record.scheduledStartAt === 'string' ? record.scheduledStartAt : undefined,
+    scheduledEndAt: typeof record.scheduledEndAt === 'string' ? record.scheduledEndAt : undefined,
     meetingLink: `${origin}/meeting/${code}`,
     isInstant: Boolean(record.isInstant),
     createdAt: record.createdAt || new Date().toISOString(),
   };
+}
+
+export function sortMeetingsLatestFirst(list: Meeting[]): Meeting[] {
+  return [...list].sort((a, b) => {
+    // 1. Live meetings always on top
+    if (a.status === 'live' && b.status !== 'live') return -1;
+    if (b.status === 'live' && a.status !== 'live') return 1;
+
+    // 2. Latest created on top
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (createdA && createdB && createdA !== createdB && !isNaN(createdA) && !isNaN(createdB)) {
+      return createdB - createdA;
+    }
+
+    // 3. Fallback: scheduled start time latest first
+    const schedA = new Date(a.scheduledStartAt || `${a.date}T${a.startTime}`).getTime();
+    const schedB = new Date(b.scheduledStartAt || `${b.date}T${b.startTime}`).getTime();
+    if (!isNaN(schedA) && !isNaN(schedB)) {
+      return schedB - schedA;
+    }
+    return 0;
+  });
 }
 
 interface ToastData {
@@ -183,13 +217,19 @@ interface MeetingContextType {
     date: string;
     startTime: string;
     durationMinutes: number;
+    timezone?: string;
     participantsEmails?: string[];
+    participantUserIds?: string[];
     isInstant?: boolean;
     passcode?: string;
   }) => Promise<Meeting>;
+  fetchMeetings: () => Promise<void>;
   updateMeeting: (id: string, data: Partial<Meeting>) => Promise<void>;
   cancelMeeting: (id: string) => Promise<void>;
   deleteMeeting: (id: string) => Promise<void>;
+  acceptInvitation: (meetingId: string) => Promise<void>;
+  declineInvitation: (meetingId: string) => Promise<void>;
+  resendInvitation: (meetingId: string, invitationId: string) => Promise<{ success: boolean; deliveryStatus: string }>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   clearAllNotifications: () => void;
@@ -238,7 +278,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [meetings, setMeetings] = useState<Meeting[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.MEETINGS);
-      if (stored) return JSON.parse(stored);
+      if (stored) return sortMeetingsLatestFirst(JSON.parse(stored));
     } catch {
       // ignore
     }
@@ -299,20 +339,23 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const openNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(true), []);
   const closeNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(false), []);
 
+  const fetchMeetings = useCallback(async () => {
+    try {
+      const res = await meetingApi.getMeetings();
+      if (res && res.data && Array.isArray(res.data.meetings)) {
+        const mapped = res.data.meetings.map(mapBackendMeeting);
+        setMeetings(sortMeetingsLatestFirst(mapped));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[MeetingContext] Backend fetch error:', msg);
+    }
+  }, []);
+
   // Fetch meetings from real backend on mount
   useEffect(() => {
-    meetingApi
-      .getMeetings()
-      .then((res) => {
-        if (res && res.data && Array.isArray(res.data.meetings)) {
-          const mapped = res.data.meetings.map(mapBackendMeeting);
-          setMeetings(mapped);
-        }
-      })
-      .catch((err) => {
-        console.warn('[MeetingContext] Backend fetch error:', err?.message || err);
-      });
-  }, []);
+    fetchMeetings();
+  }, [fetchMeetings]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -391,7 +434,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       date: string;
       startTime: string;
       durationMinutes: number;
+      timezone?: string;
       participantsEmails?: string[];
+      participantUserIds?: string[];
       isInstant?: boolean;
       passcode?: string;
     }): Promise<Meeting> => {
@@ -401,13 +446,17 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           throw new Error('Cannot schedule meetings in the past. Please choose today or a future date.');
         }
 
+        const resolvedTimezone = data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
         const res = await meetingApi.createMeeting({
           title: data.title.trim(),
           description: data.description?.trim(),
           date: data.date,
           startTime: data.startTime,
           durationMinutes: data.durationMinutes,
+          timezone: resolvedTimezone,
           participantEmails: data.participantsEmails,
+          participantUserIds: data.participantUserIds,
           isInstant: data.isInstant,
           passcode: data.passcode,
         });
@@ -421,7 +470,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           date: (typeof res.data.date === 'string' && res.data.date) || data.date,
           startTime: (typeof res.data.startTime === 'string' && res.data.startTime) || data.startTime,
         });
-        setMeetings((prev) => [realMeeting, ...prev.filter((m) => m.id !== realMeeting.id)]);
+        setMeetings((prev) => sortMeetingsLatestFirst([realMeeting, ...prev.filter((m) => m.id !== realMeeting.id)]));
 
         logActivity(
           'scheduled',
@@ -510,6 +559,55 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         showToast('Meeting removed from schedule', 'info');
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to delete meeting';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast]
+  );
+
+  const acceptInvitation = useCallback(
+    async (meetingId: string) => {
+      try {
+        await meetingApi.acceptInvitation(meetingId);
+        setMeetings((prev) =>
+          prev.map((m) => (m.id === meetingId ? { ...m, myInvitationStatus: 'accepted' } : m))
+        );
+        showToast('Meeting invitation accepted', 'success');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to accept invitation';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast]
+  );
+
+  const declineInvitation = useCallback(
+    async (meetingId: string) => {
+      try {
+        await meetingApi.declineInvitation(meetingId);
+        setMeetings((prev) =>
+          prev.map((m) => (m.id === meetingId ? { ...m, myInvitationStatus: 'declined' } : m))
+        );
+        showToast('Meeting invitation declined', 'info');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to decline invitation';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast]
+  );
+
+  const resendInvitation = useCallback(
+    async (meetingId: string, invitationId: string): Promise<{ success: boolean; deliveryStatus: string }> => {
+      try {
+        const res = await meetingApi.resendInvitation(meetingId, invitationId);
+        showToast('Invitation email resent successfully', 'success');
+        return res.data;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to resend invitation';
         showToast(msg, 'error');
         throw err;
       }
@@ -609,9 +707,13 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       openNewMeetingModal,
       closeNewMeetingModal,
       createMeeting,
+      fetchMeetings,
       updateMeeting,
       cancelMeeting,
       deleteMeeting,
+      acceptInvitation,
+      declineInvitation,
+      resendInvitation,
       markNotificationAsRead,
       markAllNotificationsAsRead,
       clearAllNotifications,
@@ -634,9 +736,13 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       openNewMeetingModal,
       closeNewMeetingModal,
       createMeeting,
+      fetchMeetings,
       updateMeeting,
       cancelMeeting,
       deleteMeeting,
+      acceptInvitation,
+      declineInvitation,
+      resendInvitation,
       markNotificationAsRead,
       markAllNotificationsAsRead,
       clearAllNotifications,
