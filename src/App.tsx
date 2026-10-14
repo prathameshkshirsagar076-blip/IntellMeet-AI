@@ -27,17 +27,19 @@ import LiveMeetingRoomPage from './pages/LiveMeetingRoomPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import NotFoundPage from './pages/NotFoundPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './App.css';
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <MeetingProvider>
-        <ToastContainer />
-        <BrowserRouter>
-          <Routes>
-            {/* 1. Public Landing Page */}
-            <Route path="/" element={<LandingPage />} />
+    <ErrorBoundary fallbackTitle="Application Error">
+      <AuthProvider>
+        <MeetingProvider>
+          <ToastContainer />
+          <BrowserRouter>
+            <Routes>
+              {/* 1. Public Landing Page */}
+              <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<Navigate to="/" replace />} />
 
             {/* 2. Authentication Flow */}
@@ -85,6 +87,7 @@ export const App: React.FC = () => {
         </BrowserRouter>
       </MeetingProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 };
 
