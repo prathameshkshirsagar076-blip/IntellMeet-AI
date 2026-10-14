@@ -43,6 +43,8 @@ class MeetingSocketService {
   private socket: Socket | null = null;
   private currentMeetingId: string | null = null;
   private isHost = false;
+  private isDisconnecting = false;
+  private isLeavingMeeting = false;
 
   private localStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
@@ -105,7 +107,7 @@ class MeetingSocketService {
   }
 
   public getSocket(): Socket | null {
-    if (this.socket && this.socket.connected) {
+    if (this.socket) {
       return this.socket;
     }
 
@@ -143,11 +145,26 @@ class MeetingSocketService {
   }
 
   public disconnect() {
-    this.leaveMeeting();
-    if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+    if (this.isDisconnecting) return;
+
+    this.isDisconnecting = true;
+    const socket = this.socket;
+    try {
+      if (this.currentMeetingId || this.peers.size || this.localStream || this.screenStream) {
+        this.leaveMeeting();
+      }
+    } finally {
+      try {
+        if (socket) {
+          socket.removeAllListeners();
+          socket.disconnect();
+        }
+      } finally {
+        if (this.socket === socket) {
+          this.socket = null;
+        }
+        this.isDisconnecting = false;
+      }
     }
   }
 
@@ -197,11 +214,21 @@ class MeetingSocketService {
         };
 
         pc.ontrack = (event) => {
-          event.streams[0]?.getTracks().forEach((track) => {
-            if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
-              remoteStream.addTrack(track);
+          if (event.track) {
+            if (!remoteStream.getTracks().some((t) => t.id === event.track.id)) {
+              remoteStream.addTrack(event.track);
             }
-          });
+            event.track.onunmute = () => this.notifyPeersChanged();
+            event.track.onmute = () => this.notifyPeersChanged();
+            event.track.onended = () => this.notifyPeersChanged();
+          }
+          if (event.streams && event.streams[0]) {
+            event.streams[0].getTracks().forEach((track) => {
+              if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+                remoteStream.addTrack(track);
+              }
+            });
+          }
           this.notifyPeersChanged();
         };
 
@@ -303,6 +330,32 @@ class MeetingSocketService {
     }
   }
 
+  public getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+
+  public getScreenStream(): MediaStream | null {
+    return this.screenStream;
+  }
+
+  public async renegotiatePeer(peer: PeerRecord) {
+    try {
+      if (peer.peerConnection.signalingState !== 'stable') return;
+      const offer = await peer.peerConnection.createOffer();
+      await peer.peerConnection.setLocalDescription(offer);
+
+      if (this.socket && this.currentMeetingId) {
+        this.socket.emit('meeting:signal:offer', {
+          meetingId: this.currentMeetingId,
+          targetSocketId: peer.socketId,
+          offer
+        });
+      }
+    } catch (err) {
+      console.warn('[WebRTC] Renegotiation error:', err);
+    }
+  }
+
   public setLocalStream(stream: MediaStream | null) {
     this.localStream = stream;
     if (stream) {
@@ -312,16 +365,25 @@ class MeetingSocketService {
       }
     }
 
-    // Add local tracks to existing peer connections if any
+    // Add or update local tracks to existing peer connections
     if (stream) {
       this.peers.forEach((peer) => {
+        let needsRenegotiate = false;
         stream.getTracks().forEach((track) => {
           const senders = peer.peerConnection.getSenders();
-          const alreadyAdded = senders.some((s) => s.track && s.track.kind === track.kind);
-          if (!alreadyAdded) {
+          const sender = senders.find(
+            (s) => (s.track && s.track.kind === track.kind) || (!s.track && s.track === null)
+          );
+          if (sender) {
+            sender.replaceTrack(track).catch(() => {});
+          } else {
             peer.peerConnection.addTrack(track, stream);
+            needsRenegotiate = true;
           }
         });
+        if (needsRenegotiate) {
+          this.renegotiatePeer(peer);
+        }
       });
     }
   }
@@ -333,6 +395,10 @@ class MeetingSocketService {
     meetingId: string,
     passcode?: string
   ): Promise<{ success: boolean; isHost?: boolean; peers?: ParticipantPayload[]; error?: string }> {
+    if (this.currentMeetingId && this.currentMeetingId !== meetingId) {
+      this.leaveMeeting();
+    }
+
     const socket = this.getSocket();
     if (!socket) {
       return { success: false, error: 'Socket connection failed' };
@@ -341,20 +407,30 @@ class MeetingSocketService {
     this.currentMeetingId = meetingId;
 
     return new Promise((resolve) => {
-      socket.emit('meeting:join', { meetingId, passcode }, (res: { success?: boolean; isHost?: boolean; peers?: ParticipantPayload[]; error?: string }) => {
-        if (res && res.success) {
-          this.isHost = Boolean(res.isHost);
-          // If there are existing peers in the room, initiate WebRTC to each
-          if (Array.isArray(res.peers)) {
-            res.peers.forEach((peer: ParticipantPayload) => {
-              this.initiatePeerConnection(peer);
-            });
+      socket.emit(
+        'meeting:join',
+        {
+          meetingId,
+          passcode,
+          isAudioMuted: this.isAudioMuted,
+          isVideoOn: this.isVideoOn,
+          isScreenSharing: this.isScreenSharing
+        },
+        (res: { success?: boolean; isHost?: boolean; peers?: ParticipantPayload[]; error?: string }) => {
+          if (res && res.success) {
+            this.isHost = Boolean(res.isHost);
+            // If there are existing peers in the room, initiate WebRTC to each
+            if (Array.isArray(res.peers)) {
+              res.peers.forEach((peer: ParticipantPayload) => {
+                this.initiatePeerConnection(peer);
+              });
+            }
+            resolve({ success: true, isHost: this.isHost, peers: res.peers });
+          } else {
+            resolve({ success: false, error: res?.error || 'Failed to join meeting room' });
           }
-          resolve({ success: true, isHost: this.isHost, peers: res.peers });
-        } else {
-          resolve({ success: false, error: res?.error || 'Failed to join meeting room' });
         }
-      });
+      );
     });
   }
 
@@ -398,11 +474,21 @@ class MeetingSocketService {
 
       // Handle remote incoming tracks
       pc.ontrack = (event) => {
-        event.streams[0]?.getTracks().forEach((track) => {
-          if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
-            remoteStream.addTrack(track);
+        if (event.track) {
+          if (!remoteStream.getTracks().some((t) => t.id === event.track.id)) {
+            remoteStream.addTrack(event.track);
           }
-        });
+          event.track.onunmute = () => this.notifyPeersChanged();
+          event.track.onmute = () => this.notifyPeersChanged();
+          event.track.onended = () => this.notifyPeersChanged();
+        }
+        if (event.streams && event.streams[0]) {
+          event.streams[0].getTracks().forEach((track) => {
+            if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+              remoteStream.addTrack(track);
+            }
+          });
+        }
         this.notifyPeersChanged();
       };
 
@@ -473,11 +559,21 @@ class MeetingSocketService {
         };
 
         pc.ontrack = (event) => {
-          event.streams[0]?.getTracks().forEach((track) => {
-            if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
-              remoteStream.addTrack(track);
+          if (event.track) {
+            if (!remoteStream.getTracks().some((t) => t.id === event.track.id)) {
+              remoteStream.addTrack(event.track);
             }
-          });
+            event.track.onunmute = () => this.notifyPeersChanged();
+            event.track.onmute = () => this.notifyPeersChanged();
+            event.track.onended = () => this.notifyPeersChanged();
+          }
+          if (event.streams && event.streams[0]) {
+            event.streams[0].getTracks().forEach((track) => {
+              if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+                remoteStream.addTrack(track);
+              }
+            });
+          }
           this.notifyPeersChanged();
         };
 
@@ -646,13 +742,17 @@ class MeetingSocketService {
 
       const screenVideoTrack = screenStream.getVideoTracks()[0];
 
-      // Replace video track for all connected peers
+      // Replace or add video track for all connected peers
       this.peers.forEach((peer) => {
-        const sender = peer.peerConnection
-          .getSenders()
-          .find((s) => s.track && s.track.kind === 'video');
+        const senders = peer.peerConnection.getSenders();
+        const sender = senders.find(
+          (s) => (s.track && s.track.kind === 'video') || (!s.track && s.track === null)
+        );
         if (sender) {
-          sender.replaceTrack(screenVideoTrack);
+          sender.replaceTrack(screenVideoTrack).catch(() => {});
+        } else {
+          peer.peerConnection.addTrack(screenVideoTrack, screenStream);
+          this.renegotiatePeer(peer);
         }
       });
 
@@ -676,17 +776,17 @@ class MeetingSocketService {
     }
     this.isScreenSharing = false;
 
-    // Restore camera video track on all senders
-    if (this.cameraTrack) {
-      this.peers.forEach((peer) => {
-        const sender = peer.peerConnection
-          .getSenders()
-          .find((s) => s.track && s.track.kind === 'video');
-        if (sender) {
-          sender.replaceTrack(this.cameraTrack!);
-        }
-      });
-    }
+    // Restore camera video track on all senders if camera is active
+    const restoreTrack = this.isVideoOn && this.cameraTrack ? this.cameraTrack : null;
+    this.peers.forEach((peer) => {
+      const senders = peer.peerConnection.getSenders();
+      const sender = senders.find(
+        (s) => (s.track && s.track.kind === 'video') || (!s.track && s.track === null)
+      );
+      if (sender) {
+        sender.replaceTrack(restoreTrack).catch(() => {});
+      }
+    });
 
     this.emitMediaState();
   }
@@ -752,30 +852,44 @@ class MeetingSocketService {
    * Clean Leave
    */
   public leaveMeeting() {
-    if (this.socket && this.currentMeetingId) {
-      this.socket.emit('meeting:leave', { meetingId: this.currentMeetingId });
-    }
+    if (this.isLeavingMeeting) return;
+    if (!this.currentMeetingId && !this.peers.size && !this.localStream && !this.screenStream) return;
 
-    // Close all peer connections
-    this.peers.forEach((peer) => {
-      peer.peerConnection.close();
-      peer.remoteStream.getTracks().forEach((t) => t.stop());
-    });
-    this.peers.clear();
+    this.isLeavingMeeting = true;
+    try {
+      const meetingId = this.currentMeetingId;
+      if (meetingId && this.socket) {
+        this.socket.emit('meeting:leave', { meetingId });
+      }
+      this.currentMeetingId = null;
 
-    // Stop local streams
-    if (this.screenStream) {
-      this.screenStream.getTracks().forEach((t) => t.stop());
+      this.peers.forEach((peer) => {
+        peer.peerConnection.onicecandidate = null;
+        peer.peerConnection.ontrack = null;
+        peer.peerConnection.close();
+        peer.remoteStream.getTracks().forEach((track) => {
+          track.onended = null;
+          track.onmute = null;
+          track.onunmute = null;
+          track.stop();
+        });
+      });
+      this.peers.clear();
+
+      this.screenStream?.getTracks().forEach((track) => track.stop());
+      this.localStream?.getTracks().forEach((track) => track.stop());
       this.screenStream = null;
-    }
-    if (this.localStream) {
-      this.localStream.getTracks().forEach((t) => t.stop());
       this.localStream = null;
-    }
+      this.cameraTrack = null;
+      this.isScreenSharing = false;
+      this.isAudioMuted = true;
+      this.isVideoOn = false;
+      this.isHost = false;
 
-    this.currentMeetingId = null;
-    this.notifyPeersChanged();
-    this.disconnect();
+      this.notifyPeersChanged();
+    } finally {
+      this.isLeavingMeeting = false;
+    }
   }
 
   /**

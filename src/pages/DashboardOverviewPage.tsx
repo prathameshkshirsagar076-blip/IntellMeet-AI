@@ -101,7 +101,23 @@ export const DashboardOverviewPage: React.FC = () => {
   const upcomingMeetings = useMemo(() => {
     return meetings
       .filter((m) => m.status === 'upcoming' || m.status === 'live')
-      .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
+      .sort((a, b) => {
+        if (a.status === 'live' && b.status !== 'live') return -1;
+        if (b.status === 'live' && a.status !== 'live') return 1;
+
+        const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (createdA && createdB && createdA !== createdB && !isNaN(createdA) && !isNaN(createdB)) {
+          return createdB - createdA;
+        }
+
+        const schedA = new Date(a.scheduledStartAt || `${a.date}T${a.startTime}`).getTime();
+        const schedB = new Date(b.scheduledStartAt || `${b.date}T${b.startTime}`).getTime();
+        if (!isNaN(schedA) && !isNaN(schedB)) {
+          return schedB - schedA;
+        }
+        return 0;
+      });
   }, [meetings]);
 
   const completedMeetingsCount = useMemo(() => {

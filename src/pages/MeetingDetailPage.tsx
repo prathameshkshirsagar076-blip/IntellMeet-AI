@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
 import { meetingApi } from '../api/meeting.api';
-import type { Meeting, Participant } from '../types/meeting';
+import type { Meeting, Participant, ParticipantInvitationInfo } from '../types/meeting';
 import {
   CalendarIcon,
   UsersIcon,
@@ -33,11 +33,35 @@ const CopyIcon: React.FC<{ size?: number; className?: string }> = ({ size = 15, 
 export const MeetingDetailPage: React.FC = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
-  const { getMeetingById, getSummaryByMeetingId, copyMeetingLink, cancelMeeting } = useMeetings();
+  const {
+    getMeetingById,
+    getSummaryByMeetingId,
+    copyMeetingLink,
+    cancelMeeting,
+    acceptInvitation,
+    declineInvitation,
+    resendInvitation,
+  } = useMeetings();
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [remoteMeeting, setRemoteMeeting] = useState<Meeting | null>(null);
+  const [invitations, setInvitations] = useState<ParticipantInvitationInfo[]>([]);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadInvitations = useCallback(() => {
+    if (!meetingId) return;
+    meetingApi
+      .getMeetingInvitations(meetingId)
+      .then((res) => {
+        if (res?.data?.invitations) {
+          setInvitations(res.data.invitations);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load meeting invitations:', err);
+      });
+  }, [meetingId]);
 
   useEffect(() => {
     if (!meetingId) {
@@ -49,6 +73,7 @@ export const MeetingDetailPage: React.FC = () => {
     if (local) {
       setRemoteMeeting(local);
       setIsLoading(false);
+      loadInvitations();
       return;
     }
 
@@ -63,11 +88,16 @@ export const MeetingDetailPage: React.FC = () => {
       .catch(() => {})
       .finally(() => {
         setIsLoading(false);
+        loadInvitations();
       });
-  }, [meetingId, getMeetingById]);
+  }, [meetingId, getMeetingById, loadInvitations]);
 
   const meeting = getMeetingById(meetingId || '') || remoteMeeting;
-  const summary = meeting?.summaryId || meetingId ? getSummaryByMeetingId(meetingId || '') || (meeting?.summaryId ? getSummaryByMeetingId(meeting.id) : undefined) : undefined;
+  const summary =
+    meeting?.summaryId || meetingId
+      ? getSummaryByMeetingId(meetingId || '') ||
+        (meeting?.summaryId ? getSummaryByMeetingId(meeting.summaryId) : undefined)
+      : undefined;
 
   if (isLoading) {
     return (
@@ -98,10 +128,38 @@ export const MeetingDetailPage: React.FC = () => {
     );
   }
 
-  const handleCancelMeeting = () => {
-    cancelMeeting(meeting.id);
+  const handleCancelMeeting = async () => {
+    await cancelMeeting(meeting.id);
     setCancelDialogOpen(false);
   };
+
+  const handleAcceptRsvp = async () => {
+    await acceptInvitation(meeting.id);
+    if (remoteMeeting) {
+      setRemoteMeeting({ ...remoteMeeting, myInvitationStatus: 'accepted' });
+    }
+    loadInvitations();
+  };
+
+  const handleDeclineRsvp = async () => {
+    await declineInvitation(meeting.id);
+    if (remoteMeeting) {
+      setRemoteMeeting({ ...remoteMeeting, myInvitationStatus: 'declined' });
+    }
+    loadInvitations();
+  };
+
+  const handleResend = async (invitationId: string) => {
+    setResendingId(invitationId);
+    try {
+      await resendInvitation(meeting.id, invitationId);
+      loadInvitations();
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const isHost = meeting.myRole === 'host';
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -119,9 +177,17 @@ export const MeetingDetailPage: React.FC = () => {
       {/* Header Banner */}
       <div className="im-card" style={{ marginBottom: 24 }}>
         <div className="im-card-body" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 20,
+              flexWrap: 'wrap',
+            }}
+          >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span
                   className={`im-badge ${
                     meeting.status === 'live'
@@ -135,12 +201,46 @@ export const MeetingDetailPage: React.FC = () => {
                 >
                   {meeting.status}
                 </span>
+
+                {isHost ? (
+                  <span
+                    className="im-badge"
+                    style={{
+                      background: 'var(--im-primary-light, #eef2ff)',
+                      color: 'var(--im-primary, #4f46e5)',
+                      fontSize: '0.72rem',
+                    }}
+                  >
+                    You are Host
+                  </span>
+                ) : (
+                  <span
+                    className={`im-badge ${
+                      meeting.myInvitationStatus === 'accepted'
+                        ? 'im-badge-completed'
+                        : meeting.myInvitationStatus === 'declined'
+                        ? 'im-badge-cancelled'
+                        : 'im-badge-upcoming'
+                    }`}
+                    style={{ fontSize: '0.72rem', textTransform: 'capitalize' }}
+                  >
+                    Your RSVP: {meeting.myInvitationStatus || 'Pending'}
+                  </span>
+                )}
+
                 <span style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)' }}>
                   ID: {meeting.meetingCode}
                 </span>
               </div>
 
-              <h1 style={{ fontSize: '1.625rem', fontWeight: 800, margin: '0 0 10px 0', color: 'var(--im-text-primary)' }}>
+              <h1
+                style={{
+                  fontSize: '1.625rem',
+                  fontWeight: 800,
+                  margin: '0 0 10px 0',
+                  color: 'var(--im-text-primary)',
+                }}
+              >
                 {meeting.title}
               </h1>
 
@@ -149,26 +249,47 @@ export const MeetingDetailPage: React.FC = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* RSVP Action Buttons for Invitees */}
+              {meeting.myInvitationStatus === 'pending' && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="im-btn im-btn-primary"
+                    style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                    onClick={handleAcceptRsvp}
+                  >
+                    Accept RSVP
+                  </button>
+                  <button
+                    className="im-btn im-btn-secondary"
+                    style={{ color: 'var(--im-danger, #ef4444)' }}
+                    onClick={handleDeclineRsvp}
+                  >
+                    Decline
+                  </button>
+                </div>
+              )}
+
               {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                 <button
                   className="im-btn im-btn-primary"
                   onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`)}
                 >
                   <VideoIcon size={16} />
-                  Join Meeting Now
+                  {meeting.status === 'live' ? 'Join Live Now' : 'Join Meeting'}
                 </button>
               )}
 
               <button
                 className="im-btn im-btn-secondary"
                 onClick={() => copyMeetingLink(meeting)}
+                title="Copy meeting link"
               >
                 <CopyIcon size={15} />
                 Copy Link
               </button>
 
-              {meeting.status === 'upcoming' && (
+              {meeting.status === 'upcoming' && isHost && (
                 <>
                   <button
                     className="im-btn im-btn-secondary"
@@ -207,6 +328,9 @@ export const MeetingDetailPage: React.FC = () => {
                 <div style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
                   {meeting.date} at {meeting.startTime} ({meeting.durationMinutes} minutes)
                 </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', marginTop: 2 }}>
+                  Configured Timezone: <strong>{meeting.timezone || 'UTC'}</strong>
+                </div>
               </div>
             </div>
 
@@ -236,49 +360,108 @@ export const MeetingDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Participants */}
+        {/* Right: Participants & Invitations Roster */}
         <div className="im-card">
           <div className="im-card-header">
             <h2 className="im-card-title">
               <UsersIcon size={18} />
-              Participants ({meeting.participants.length})
+              Participants & Invitees ({invitations.length || meeting.participants.length})
             </h2>
           </div>
-          <div className="im-card-body" style={{ maxHeight: 300, overflowY: 'auto' }}>
+          <div className="im-card-body" style={{ maxHeight: 340, overflowY: 'auto' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {meeting.participants.map((p: Participant, idx: number) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--im-radius-md)',
-                    backgroundColor: 'var(--im-bg-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30 }}>
-                      {p.avatar || p.name.slice(0, 2).toUpperCase()}
+              {invitations.length > 0
+                ? invitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--im-radius-md)',
+                        backgroundColor: 'var(--im-bg-subtle)',
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 32, height: 32, flexShrink: 0 }}>
+                          {inv.avatar || (inv.name ? inv.name.slice(0, 2).toUpperCase() : 'U')}
+                        </div>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {inv.name}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {inv.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        {/* RSVP Status badge */}
+                        <span
+                          className={`im-badge ${
+                            inv.status === 'accepted' || inv.status === 'joined'
+                              ? 'im-badge-completed'
+                              : inv.status === 'declined'
+                              ? 'im-badge-cancelled'
+                              : 'im-badge-upcoming'
+                          }`}
+                          style={{ fontSize: '0.68rem', textTransform: 'capitalize' }}
+                        >
+                          {inv.status}
+                        </span>
+
+                        {/* Host Resend button */}
+                        {isHost && inv.role !== 'host' && (
+                          <button
+                            type="button"
+                            className="im-btn im-btn-secondary im-btn-sm"
+                            disabled={resendingId === inv.id}
+                            onClick={() => handleResend(inv.id)}
+                            style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                            title="Resend invitation email with .ics file"
+                          >
+                            {resendingId === inv.id ? 'Sending...' : 'Resend'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)' }}>{p.email}</div>
+                  ))
+                : meeting.participants.map((p: Participant, idx: number) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--im-radius-md)',
+                        backgroundColor: 'var(--im-bg-subtle)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30 }}>
+                          {p.avatar || p.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{p.name}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)' }}>{p.email}</div>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          color: p.role === 'host' ? 'var(--im-primary)' : 'var(--im-text-muted)',
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {p.role || 'Attendee'}
+                      </span>
                     </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: p.role === 'host' ? 'var(--im-primary)' : 'var(--im-text-muted)',
-                      textTransform: 'capitalize',
-                    }}
-                  >
-                    {p.role || 'Attendee'}
-                  </span>
-                </div>
-              ))}
+                  ))}
             </div>
           </div>
         </div>
@@ -304,7 +487,9 @@ export const MeetingDetailPage: React.FC = () => {
             <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 8 }}>Key Discussion Points</h3>
             <ul style={{ paddingLeft: 20, margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--im-text-secondary)' }}>
               {summary.keyPoints.map((pt, i) => (
-                <li key={i} style={{ marginBottom: 4 }}>{pt}</li>
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {pt}
+                </li>
               ))}
             </ul>
 
@@ -314,7 +499,13 @@ export const MeetingDetailPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {summary.actionItems.map((act) => (
                 <div key={act.id} className="im-action-item-check">
-                  <span style={{ fontSize: '0.8125rem', flex: 1, textDecoration: act.completed ? 'line-through' : 'none' }}>
+                  <span
+                    style={{
+                      fontSize: '0.8125rem',
+                      flex: 1,
+                      textDecoration: act.completed ? 'line-through' : 'none',
+                    }}
+                  >
                     {act.task} <em>({act.assignee})</em>
                   </span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)' }}>Due {act.dueDate}</span>
@@ -330,14 +521,16 @@ export const MeetingDetailPage: React.FC = () => {
         <div className="im-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="dialog-cancel-title">
           <div className="im-modal">
             <div className="im-modal-header">
-              <h2 id="dialog-cancel-title" className="im-modal-title">Cancel Meeting?</h2>
+              <h2 id="dialog-cancel-title" className="im-modal-title">
+                Cancel Meeting?
+              </h2>
               <button className="im-modal-close" onClick={() => setCancelDialogOpen(false)} aria-label="Close dialog">
                 ✕
               </button>
             </div>
             <div className="im-modal-body">
               <p style={{ margin: 0, color: 'var(--im-text-secondary)', lineHeight: 1.5 }}>
-                Are you sure you want to cancel "{meeting.title}"? Attendees will be notified that the room has been closed.
+                Are you sure you want to cancel "{meeting.title}"? Attendees will be notified by email with an updated cancellation notice.
               </p>
             </div>
             <div className="im-modal-footer">

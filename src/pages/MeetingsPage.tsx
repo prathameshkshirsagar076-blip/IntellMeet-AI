@@ -72,16 +72,16 @@ const EditIcon: React.FC<{ size?: number; className?: string }> = ({ size = 15, 
 export const MeetingsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { meetings, cancelMeeting, deleteMeeting, copyMeetingLink } = useMeetings();
+  const { meetings, cancelMeeting, deleteMeeting, copyMeetingLink, acceptInvitation, declineInvitation } = useMeetings();
 
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'invitations' | 'completed' | 'cancelled'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [cancelModalId, setCancelModalId] = useState<string | null>(null);
 
   // Sync with URL query params
   useEffect(() => {
     const filterParam = searchParams.get('filter');
-    if (filterParam === 'upcoming' || filterParam === 'completed' || filterParam === 'cancelled') {
+    if (filterParam === 'upcoming' || filterParam === 'invitations' || filterParam === 'completed' || filterParam === 'cancelled') {
       setActiveTab(filterParam);
     } else if (filterParam === 'today') {
       setActiveTab('all');
@@ -94,7 +94,7 @@ export const MeetingsPage: React.FC = () => {
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: 'all' | 'upcoming' | 'completed' | 'cancelled') => {
+  const handleTabChange = (tab: 'all' | 'upcoming' | 'invitations' | 'completed' | 'cancelled') => {
     setActiveTab(tab);
     const newParams = new URLSearchParams(searchParams);
     if (tab === 'all') {
@@ -110,6 +110,10 @@ export const MeetingsPage: React.FC = () => {
       // Tab filter
       if (activeTab === 'upcoming' && meeting.status !== 'upcoming' && meeting.status !== 'live') {
         return false;
+      }
+      if (activeTab === 'invitations') {
+        const isInvited = meeting.myRole === 'attendee' || (meeting.myInvitationStatus && meeting.myInvitationStatus !== 'none');
+        if (!isInvited) return false;
       }
       if (activeTab === 'completed' && meeting.status !== 'completed') {
         return false;
@@ -129,6 +133,26 @@ export const MeetingsPage: React.FC = () => {
       }
 
       return true;
+    }).sort((a, b) => {
+      // 1. Live meetings always on top
+      if (a.status === 'live' && b.status !== 'live') return -1;
+      if (b.status === 'live' && a.status !== 'live') return 1;
+
+      // 2. Latest created on top
+      const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (createdA && createdB && createdA !== createdB && !isNaN(createdA) && !isNaN(createdB)) {
+        return createdB - createdA;
+      }
+
+      // 3. Fallback: latest scheduled on top
+      const schedA = new Date(a.scheduledStartAt || `${a.date}T${a.startTime}`).getTime();
+      const schedB = new Date(b.scheduledStartAt || `${b.date}T${b.startTime}`).getTime();
+      if (!isNaN(schedA) && !isNaN(schedB)) {
+        return schedB - schedA;
+      }
+
+      return 0;
     });
   }, [meetings, activeTab, searchQuery]);
 
@@ -265,22 +289,25 @@ export const MeetingsPage: React.FC = () => {
         </div>
 
         <div
-          className="im-meetings-stat-card"
-          onClick={() => navigate('/schedule')}
-          title="Open Schedule & Calendar Timetable"
+          className={`im-meetings-stat-card ${activeTab === 'invitations' ? 'active' : ''}`}
+          onClick={() => {
+            setSearchQuery('');
+            handleTabChange('invitations');
+          }}
+          title="Filter: Pending Invitations & Invites"
         >
           <div className="im-meetings-stat-card-left">
             <div className="im-meetings-stat-card-icon im-stat-icon-purple">
-              <CalendarIcon size={18} />
+              <UsersIcon size={18} />
             </div>
             <div className="im-meetings-stat-card-info">
               <span className="im-meetings-stat-card-value">
-                {meetings.reduce((acc, m) => acc + (m.durationMinutes || 0), 0)}m
+                {meetings.filter((m) => m.myInvitationStatus === 'pending').length}
               </span>
-              <span className="im-meetings-stat-card-label">Total Duration</span>
+              <span className="im-meetings-stat-card-label">Pending RSVPs</span>
             </div>
           </div>
-          <span className="im-stat-trend">Timetable</span>
+          <span className="im-stat-trend">Invites</span>
         </div>
       </div>
 
@@ -302,6 +329,14 @@ export const MeetingsPage: React.FC = () => {
             aria-selected={activeTab === 'upcoming'}
           >
             Upcoming ({meetings.filter((m) => m.status === 'upcoming' || m.status === 'live').length})
+          </button>
+          <button
+            className={`im-tab-btn ${activeTab === 'invitations' ? 'active' : ''}`}
+            onClick={() => handleTabChange('invitations')}
+            role="tab"
+            aria-selected={activeTab === 'invitations'}
+          >
+            Invitations ({meetings.filter((m) => m.myRole === 'attendee' || (m.myInvitationStatus && m.myInvitationStatus !== 'none')).length})
           </button>
           <button
             className={`im-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
@@ -416,11 +451,40 @@ export const MeetingsPage: React.FC = () => {
                         {meeting.date}
                       </span>
                       <span className="im-meeting-meta-item">
+                        <ClockIcon size={13} />
+                        {meeting.startTime} ({meeting.timezone || 'UTC'})
+                      </span>
+                      <span className="im-meeting-meta-item">
                         <UsersIcon size={13} />
                         Hosted by {meeting.organizer.name}
                       </span>
+                      {meeting.myRole === 'host' ? (
+                        <span
+                          className="im-badge"
+                          style={{
+                            background: 'var(--im-primary-light, #eef2ff)',
+                            color: 'var(--im-primary, #4f46e5)',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Host
+                        </span>
+                      ) : (
+                        <span
+                          className={`im-badge ${
+                            meeting.myInvitationStatus === 'accepted'
+                              ? 'im-badge-completed'
+                              : meeting.myInvitationStatus === 'declined'
+                              ? 'im-badge-cancelled'
+                              : 'im-badge-upcoming'
+                          }`}
+                          style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'capitalize' }}
+                        >
+                          RSVP: {meeting.myInvitationStatus || 'Pending'}
+                        </span>
+                      )}
                       <span className="im-meeting-meta-item">
-                        <ClockIcon size={13} />
                         Code: <strong>{meeting.meetingCode}</strong>
                       </span>
 
@@ -435,12 +499,33 @@ export const MeetingsPage: React.FC = () => {
                   </div>
 
                   <div className="im-meeting-actions">
+                    {meeting.myInvitationStatus === 'pending' && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                      <div style={{ display: 'inline-flex', gap: 6 }}>
+                        <button
+                          className="im-btn im-btn-primary im-btn-sm"
+                          style={{ background: '#16a34a', borderColor: '#16a34a', padding: '4px 10px', fontSize: '0.75rem' }}
+                          onClick={() => acceptInvitation(meeting.id)}
+                          title="Accept meeting invitation"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          className="im-btn im-btn-secondary im-btn-sm"
+                          style={{ color: 'var(--im-danger, #ef4444)', padding: '4px 10px', fontSize: '0.75rem' }}
+                          onClick={() => declineInvitation(meeting.id)}
+                          title="Decline meeting invitation"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+
                     {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                       <button
                         className="im-btn im-btn-primary im-btn-sm"
                         onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`)}
                       >
-                        Join
+                        {meeting.status === 'live' ? 'Join Live' : 'Join'}
                       </button>
                     )}
 
@@ -459,7 +544,7 @@ export const MeetingsPage: React.FC = () => {
                       <CopyIcon size={14} />
                     </button>
 
-                    {meeting.status === 'upcoming' && (
+                    {meeting.status === 'upcoming' && meeting.myRole === 'host' && (
                       <>
                         <button
                           className="im-btn im-btn-secondary im-btn-sm"
