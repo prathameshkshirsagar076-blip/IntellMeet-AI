@@ -4,7 +4,9 @@ import type {
   CreateMeetingPayload,
   JoinMeetingResponse,
   MeetingMessageItem,
-  MeetingIceServer
+  MeetingIceServer,
+  ParticipantInvitationInfo,
+  MeetingInvitationItem
 } from '../types/meeting';
 
 interface ApiResponse<T> {
@@ -242,6 +244,74 @@ export const meetingApi = {
    */
   async muteParticipant(meetingId: string, userId: string): Promise<ApiResponse<{ success: boolean }>> {
     return apiClient.post<ApiResponse<{ success: boolean }>>(`/meetings/${meetingId}/participants/${userId}/mute`);
+  },
+
+  /**
+   * 23. GET /meetings/upcoming
+   */
+  async getUpcomingMeetings(params: { page?: number; limit?: number } = {}): Promise<ApiResponse<ListMeetingsResponse>> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return apiClient.get<ApiResponse<ListMeetingsResponse>>(qs ? `/meetings/upcoming?${qs}` : '/meetings/upcoming');
+  },
+
+  /**
+   * 24. GET /meetings/past
+   */
+  async getPastMeetings(params: { page?: number; limit?: number } = {}): Promise<ApiResponse<ListMeetingsResponse>> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return apiClient.get<ApiResponse<ListMeetingsResponse>>(qs ? `/meetings/past?${qs}` : '/meetings/past');
+  },
+
+  /**
+   * 25. GET /meetings/invitations (User's invitations)
+   */
+  async getUserInvitations(params: { status?: string; page?: number; limit?: number } = {}): Promise<ApiResponse<{
+    invitations: MeetingInvitationItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return apiClient.get(qs ? `/meetings/invitations?${qs}` : '/meetings/invitations');
+  },
+
+  /**
+   * 26. GET /meetings/:meetingId/invitations (Meeting's invitee list)
+   */
+  async getMeetingInvitations(meetingId: string): Promise<ApiResponse<{ invitations: ParticipantInvitationInfo[] }>> {
+    return apiClient.get(`/meetings/${meetingId}/invitations`);
+  },
+
+  /**
+   * 27. POST /meetings/:meetingId/accept
+   */
+  async acceptInvitation(meetingId: string): Promise<ApiResponse<{ success: boolean; status: string }>> {
+    return apiClient.post(`/meetings/${meetingId}/accept`);
+  },
+
+  /**
+   * 28. POST /meetings/:meetingId/decline
+   */
+  async declineInvitation(meetingId: string): Promise<ApiResponse<{ success: boolean; status: string }>> {
+    return apiClient.post(`/meetings/${meetingId}/decline`);
+  },
+
+  /**
+   * 29. POST /meetings/:meetingId/invitations/:invitationId/resend
+   */
+  async resendInvitation(meetingId: string, invitationId: string): Promise<ApiResponse<{ success: boolean; deliveryStatus: string }>> {
+    return apiClient.post(`/meetings/${meetingId}/invitations/${invitationId}/resend`);
   }
 };
 
