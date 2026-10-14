@@ -11,6 +11,7 @@ import type {
   ChatMessage,
   ChatSearchItem,
   RawChatMessageItem,
+  ChatParticipant,
 } from '../../types/chat';
 import { toast } from '../toast/toast';
 import {
@@ -109,13 +110,113 @@ function formatChatTime(dateStr?: string | null): string {
   }
 }
 
+function normalizeConversation(
+  raw: unknown,
+  currentUserId?: string
+): ChatConversation {
+  const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+
+  const id = String(item.id || item._id || `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+  const type = item.type === 'group' ? 'group' : 'direct';
+
+  // Extract otherParticipant safely
+  let otherParticipant: ChatParticipant = {
+    id: 'unknown',
+    name: 'Teammate',
+    email: '',
+    role: 'Member',
+    isActive: false,
+  };
+
+  const rawOther = item.otherParticipant as Record<string, unknown> | undefined;
+  const rawParticipants = Array.isArray(item.participants) ? (item.participants as Array<Record<string, unknown> | string>) : [];
+
+  if (rawOther && typeof rawOther === 'object') {
+    otherParticipant = {
+      id: String(rawOther.id || rawOther._id || 'unknown'),
+      name: String(rawOther.name || rawOther.fullName || rawOther.email || 'Teammate'),
+      email: String(rawOther.email || ''),
+      role: String(rawOther.role || 'Member'),
+      isActive: Boolean(rawOther.isActive),
+    };
+  } else if (rawParticipants.length > 0) {
+    const foundOther = rawParticipants.find((p) => {
+      const pid = typeof p === 'object' && p ? String(p.id || p._id || '') : String(p || '');
+      return pid && pid !== currentUserId;
+    });
+
+    if (foundOther && typeof foundOther === 'object') {
+      otherParticipant = {
+        id: String(foundOther.id || foundOther._id || 'unknown'),
+        name: String(foundOther.name || foundOther.fullName || foundOther.email || 'Teammate'),
+        email: String(foundOther.email || ''),
+        role: String(foundOther.role || 'Member'),
+        isActive: Boolean(foundOther.isActive),
+      };
+    } else if (typeof foundOther === 'string' && foundOther) {
+      otherParticipant = {
+        id: foundOther,
+        name: 'Teammate',
+        email: '',
+        role: 'Member',
+        isActive: false,
+      };
+    } else {
+      const first = rawParticipants[0];
+      if (first && typeof first === 'object') {
+        otherParticipant = {
+          id: String(first.id || first._id || 'unknown'),
+          name: String(first.name || first.fullName || first.email || 'Teammate'),
+          email: String(first.email || ''),
+          role: String(first.role || 'Member'),
+          isActive: Boolean(first.isActive),
+        };
+      }
+    }
+  }
+
+  const rawLastMsg = item.lastMessage;
+  let lastMessageText: string | null = null;
+  if (typeof rawLastMsg === 'string') {
+    lastMessageText = rawLastMsg;
+  } else if (rawLastMsg && typeof rawLastMsg === 'object' && 'content' in rawLastMsg) {
+    lastMessageText = String((rawLastMsg as { content?: unknown }).content || '');
+  }
+
+  return {
+    id,
+    type,
+    otherParticipant,
+    participants: Array.isArray(item.participants) ? (item.participants as ChatParticipant[]) : undefined,
+    lastMessageId: item.lastMessageId ? String(item.lastMessageId) : null,
+    lastMessage: lastMessageText,
+    lastMessageAt: item.lastMessageAt ? String(item.lastMessageAt) : item.updatedAt ? String(item.updatedAt) : item.createdAt ? String(item.createdAt) : null,
+    unreadCount: typeof item.unreadCount === 'number' ? item.unreadCount : 0,
+    createdAt: item.createdAt ? String(item.createdAt) : new Date().toISOString(),
+    updatedAt: item.updatedAt ? String(item.updatedAt) : new Date().toISOString(),
+  };
+}
+
 function normalizeRawMessage(raw: RawChatMessageItem, currentUserId?: string, fallbackOtherName = 'Teammate'): ChatMessage {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      conversationId: '',
+      senderId: '',
+      senderName: fallbackOtherName,
+      content: '',
+      createdAt: new Date().toISOString(),
+      status: 'sent',
+      isMine: false,
+    };
+  }
+
   const senderIdStr =
     typeof raw.senderId === 'object' && raw.senderId
       ? String((raw.senderId as { id?: string; _id?: string }).id || (raw.senderId as { _id?: string })._id)
       : String(raw.senderId || '');
 
-  const isMine = senderIdStr === currentUserId;
+  const isMine = Boolean(currentUserId && senderIdStr === currentUserId);
   const senderName = isMine
     ? 'You'
     : typeof raw.senderId === 'object' && (raw.senderId as { name?: string })?.name
@@ -131,11 +232,11 @@ function normalizeRawMessage(raw: RawChatMessageItem, currentUserId?: string, fa
 
   return {
     id: String(raw.id || raw._id || `msg-${Math.random()}`),
-    conversationId: String(raw.conversationId),
+    conversationId: String(raw.conversationId || ''),
     senderId: senderIdStr,
     senderName,
     clientMessageId: raw.clientMessageId,
-    content: raw.isDeleted ? 'This message was deleted' : raw.content,
+    content: raw.isDeleted ? 'This message was deleted' : raw.content || '',
     createdAt: raw.createdAt || new Date().toISOString(),
     status,
     isMine,
@@ -221,7 +322,6 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   const selectedConvRef = useRef<ChatConversation | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingEmittedRef = useRef<boolean>(false);
-  const hasConnectedSocketRef = useRef<boolean>(false);
 
   // Sync ref for access inside socket callbacks
   useEffect(() => {
@@ -234,7 +334,17 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     setConversationsError(null);
     try {
       const res = await chatApi.getConversations({ limit: 50 });
-      const fetched = res?.data?.conversations || [];
+      const rawList = Array.isArray(res?.data?.conversations)
+        ? res.data.conversations
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray((res as unknown as { conversations?: unknown[] })?.conversations)
+        ? (res as unknown as { conversations: unknown[] }).conversations
+        : Array.isArray(res)
+        ? res
+        : [];
+
+      const fetched = rawList.map((item: unknown) => normalizeConversation(item, currentUser?.id));
       setConversations(fetched);
       if (fetched.length > 0 && !selectedConvRef.current) {
         setSelectedConv(fetched[0]);
@@ -245,18 +355,15 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     } finally {
       setIsLoadingConversations(false);
     }
-  }, []);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
 
-  // 2. Real-time Socket.IO Connection & Listeners - Strictly connects ONCE
+  // 2. Real-time Socket.IO Connection & Listeners
   useEffect(() => {
-    if (!hasConnectedSocketRef.current) {
-      hasConnectedSocketRef.current = true;
-      chatSocketService.connect();
-    }
+    chatSocketService.connect();
 
     // Listener: Incoming new message
     const unsubMessage = chatSocketService.onMessageNew((data) => {
@@ -278,7 +385,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       }
 
       // Update messages thread if this message belongs to active conversation
-      if (selectedConvRef.current && selectedConvRef.current.id === convId) {
+      if (selectedConvRef.current && String(selectedConvRef.current.id) === convId) {
         setMessages((prev) => {
           const alreadyExists = prev.some(
             (m) =>
@@ -293,7 +400,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                 ? {
                     ...m,
                     id: incomingMsgId,
-                    status: m.status === 'read' ? 'read' : incoming.receipt?.readAt ? 'read' : 'delivered',
+                    status: m.status === 'read' ? 'read' : incoming.receipt?.readAt ? 'read' : isMine ? (m.status || 'sent') : 'delivered',
                   }
                 : m
             );
@@ -303,7 +410,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
             ? 'You'
             : typeof incoming.senderId === 'object' && (incoming.senderId as { name?: string })?.name
             ? (incoming.senderId as { name?: string }).name!
-            : selectedConvRef.current?.otherParticipant.name || 'Teammate';
+            : selectedConvRef.current?.otherParticipant?.name || 'Teammate';
 
           return [
             ...prev,
@@ -329,9 +436,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
       // Update conversations list with latest snippet and unread count
       setConversations((prev) => {
-        const existingIdx = prev.findIndex((c) => c.id === convId);
+        const existingIdx = prev.findIndex((c) => String(c.id) === convId);
         const nowIso = incoming.createdAt || new Date().toISOString();
-        const isCurrentlyViewed = selectedConvRef.current?.id === convId;
+        const isCurrentlyViewed = selectedConvRef.current && String(selectedConvRef.current.id) === convId;
 
         if (existingIdx >= 0) {
           const current = prev[existingIdx];
@@ -339,15 +446,20 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
             ...current,
             lastMessage: incoming.content,
             lastMessageAt: nowIso,
-            unreadCount: isCurrentlyViewed ? 0 : (current.unreadCount || 0) + 1,
+            unreadCount: isCurrentlyViewed ? 0 : isMine ? (current.unreadCount || 0) : (current.unreadCount || 0) + 1,
           };
           const others = prev.filter((_, idx) => idx !== existingIdx);
           return [updated, ...others];
         } else {
           // If brand new conversation, re-fetch list from backend
           chatApi.getConversations({ limit: 50 }).then((res) => {
-            if (res?.data?.conversations) {
-              setConversations(res.data.conversations);
+            const rawList = Array.isArray(res?.data?.conversations)
+              ? res.data.conversations
+              : Array.isArray(res?.data)
+              ? res.data
+              : [];
+            if (rawList.length > 0) {
+              setConversations(rawList.map((item: unknown) => normalizeConversation(item, currentUser?.id)));
             }
           }).catch(() => {});
           return prev;
@@ -454,6 +566,27 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       setConnectionStatus(status);
     });
 
+    // Listener: On reconnect, recover offline messages and update conversation list
+    const unsubReconnect = chatSocketService.onReconnect(() => {
+      chatApi.getConversations({ limit: 50 }).then((res) => {
+        if (res?.data?.conversations) {
+          setConversations(res.data.conversations);
+        }
+      }).catch(() => {});
+
+      const activeConv = selectedConvRef.current;
+      if (activeConv?.id) {
+        chatApi.getMessages(activeConv.id, { limit: 50 }).then((res) => {
+          if (res?.data?.messages && Array.isArray(res.data.messages) && selectedConvRef.current?.id === activeConv.id) {
+            const mapped = res.data.messages.map((m) =>
+              normalizeRawMessage(m, currentUser?.id, activeConv.otherParticipant.name)
+            );
+            setMessages(mapped);
+          }
+        }).catch(() => {});
+      }
+    });
+
     return () => {
       unsubMessage();
       unsubMsgEdited();
@@ -463,6 +596,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       unsubTyping();
       unsubPresence();
       unsubConnStatus();
+      unsubReconnect();
       chatSocketService.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -482,6 +616,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }
 
     const convId = selectedConv.id;
+    const controller = new AbortController();
+    let isCurrent = true;
+
     setIsLoadingMessages(true);
     setIsPeerTyping(false);
     setEditingMsgId(null);
@@ -490,16 +627,17 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     chatSocketService.joinConversation(convId);
 
     // Query 1: Get Conversation Details: GET /chat/conversations/:id
-    chatApi.getConversationById(convId).then((res) => {
+    chatApi.getConversationById(convId, { signal: controller.signal }).then((res) => {
+      if (!isCurrent) return;
       if (res?.data?.conversation) {
         const fetchedConv = res.data.conversation;
+        const normalized = normalizeConversation(fetchedConv, currentUser?.id);
         setSelectedConv((prev) =>
           prev && prev.id === convId
             ? {
                 ...prev,
-                participants: fetchedConv.participants,
-                otherParticipant: fetchedConv.otherParticipant || prev.otherParticipant,
-                unreadCount: fetchedConv.unreadCount ?? 0,
+                ...normalized,
+                otherParticipant: normalized.otherParticipant || prev.otherParticipant,
               }
             : prev
         );
@@ -507,7 +645,8 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }).catch(() => {});
 
     // Query 2: Get Unread Count: GET /chat/conversations/:id/unread-count
-    chatApi.getUnreadCount(convId).then((res) => {
+    chatApi.getUnreadCount(convId, { signal: controller.signal }).then((res) => {
+      if (!isCurrent) return;
       if (res?.data) {
         setConversations((prev) =>
           prev.map((c) =>
@@ -518,12 +657,13 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }).catch(() => {});
 
     // Query 3: Fetch conversation message history: GET /chat/conversations/:id/messages
-    chatApi.getMessages(convId, { limit: 50 })
+    chatApi.getMessages(convId, { limit: 50 }, { signal: controller.signal })
       .then((res) => {
+        if (!isCurrent) return;
         if (res?.data?.messages && Array.isArray(res.data.messages)) {
           const rawList = res.data.messages;
           const mapped: ChatMessage[] = rawList.map((m) =>
-            normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant.name)
+            normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant?.name || 'Teammate')
           );
 
           setMessages(mapped);
@@ -552,8 +692,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
         // Mark conversation as read: POST /chat/conversations/:id/read
         chatSocketService.markAsRead(convId);
-        chatApi.markAsRead(convId)
+        chatApi.markAsRead(convId, undefined, { signal: controller.signal })
           .then(() => {
+            if (!isCurrent) return;
             // Patch unread count in conversations list to 0
             setConversations((prev) =>
               prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
@@ -561,14 +702,19 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
           })
           .catch(() => {});
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!isCurrent || (err as Error)?.name === 'AbortError') return;
         setMessages([]);
       })
       .finally(() => {
-        setIsLoadingMessages(false);
+        if (isCurrent) {
+          setIsLoadingMessages(false);
+        }
       });
 
     return () => {
+      isCurrent = false;
+      controller.abort();
       chatSocketService.leaveConversation(convId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -589,7 +735,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
       if (res?.data?.messages && Array.isArray(res.data.messages)) {
         const older = res.data.messages.map((m) =>
-          normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant.name)
+          normalizeRawMessage(m, currentUser?.id, selectedConv.otherParticipant?.name || 'Teammate')
         );
 
         setMessages((prev) => {
@@ -716,7 +862,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
       // Check if conversation already exists in current list
       const existing = conversations.find(
-        (c) => c.otherParticipant.id === recipient.id
+        (c) => c.otherParticipant?.id === recipient.id
       );
 
       if (existing) {
@@ -730,21 +876,16 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         const convData = res?.data?.conversation;
         const convId = String(convData?.id || convData?._id || `conv-${recipient.id}`);
 
-        const newConversation: ChatConversation = {
-          id: convId,
-          type: 'direct',
-          otherParticipant: {
+        const newConversation = normalizeConversation(convData, currentUser?.id);
+        if (!newConversation.otherParticipant || newConversation.otherParticipant.id === 'unknown') {
+          newConversation.otherParticipant = {
             id: recipient.id,
-            name: recipient.name,
-            email: recipient.email,
+            name: recipient.name || 'Teammate',
+            email: recipient.email || '',
             role: recipient.role,
             isActive: recipient.isActive,
-          },
-          lastMessage: convData?.lastMessage || null,
-          lastMessageAt: convData?.lastMessageAt || new Date().toISOString(),
-          unreadCount: 0,
-          createdAt: convData?.createdAt || new Date().toISOString(),
-        };
+          };
+        }
 
         // Proper response patching: update conversations list and select active
         setConversations((prev) => [newConversation, ...prev.filter((c) => c.id !== convId)]);
@@ -753,7 +894,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
         toast.error((err as Error)?.message || 'Failed to initialize conversation');
       }
     },
-    [conversations]
+    [conversations, currentUser?.id]
   );
 
   // Sync external recipient prop (from Team & People page navigation)
@@ -809,7 +950,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
       // 3. Patch message into stream and highlight
       if (rawMsg) {
-        const norm = normalizeRawMessage(rawMsg, currentUser?.id, selectedConv?.otherParticipant.name);
+        const norm = normalizeRawMessage(rawMsg, currentUser?.id, selectedConv?.otherParticipant?.name || 'Teammate');
         setMessages((prev) => {
           if (!prev.some((m) => m.id === norm.id)) {
             return [...prev, norm];
@@ -935,33 +1076,96 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       return [updatedConv, ...remaining];
     });
 
-    // Send through authenticated Socket.IO connection
-    chatSocketService.sendMessage(
-      {
-        conversationId: convId,
-        clientMessageId,
+    // Send through authenticated Socket.IO connection if connected, or fallback to REST API
+    if (chatSocketService.isConnected()) {
+      chatSocketService.sendMessage(
+        {
+          conversationId: convId,
+          clientMessageId,
+          content: text,
+          messageType: 'text',
+        },
+        async (ack) => {
+          if (ack?.success && ack.message) {
+            setIsSending(false);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === clientMessageId || m.clientMessageId === clientMessageId
+                  ? {
+                      ...m,
+                      id: String(ack.message?.id || clientMessageId),
+                      status: 'sent',
+                    }
+                  : m
+              )
+            );
+          } else {
+            // Socket emit failed or returned error, try REST API fallback: POST /chat/conversations/:id/messages
+            try {
+              const restRes = await chatApi.sendMessage(convId, {
+                content: text,
+                clientMessageId,
+                messageType: 'text',
+              });
+              setIsSending(false);
+              if (restRes?.data?.message) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === clientMessageId || m.clientMessageId === clientMessageId
+                      ? {
+                          ...m,
+                          id: String(restRes.data.message.id || restRes.data.message._id || clientMessageId),
+                          status: 'sent',
+                        }
+                      : m
+                  )
+                );
+              }
+            } catch (fallbackErr: unknown) {
+              setIsSending(false);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === clientMessageId ? { ...m, status: 'failed' } : m
+                )
+              );
+              toast.error((fallbackErr as Error)?.message || 'Message delivery failed');
+            }
+          }
+        }
+      );
+    } else {
+      // Socket not connected: send directly via REST API: POST /chat/conversations/:id/messages
+      chatApi.sendMessage(convId, {
         content: text,
+        clientMessageId,
         messageType: 'text',
-      },
-      (ack) => {
-        setIsSending(false);
-        if (ack?.success && ack.message) {
+      })
+        .then((restRes) => {
+          setIsSending(false);
+          if (restRes?.data?.message) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === clientMessageId || m.clientMessageId === clientMessageId
+                  ? {
+                      ...m,
+                      id: String(restRes.data.message.id || restRes.data.message._id || clientMessageId),
+                      status: 'sent',
+                    }
+                  : m
+              )
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          setIsSending(false);
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === clientMessageId || m.clientMessageId === clientMessageId
-                ? {
-                    ...m,
-                    id: String(ack.message?.id || clientMessageId),
-                    status: 'sent',
-                  }
-                : m
+              m.id === clientMessageId ? { ...m, status: 'failed' } : m
             )
           );
-        } else {
-          toast.error(ack?.error?.message || 'Message delivery failed. Reconnecting...');
-        }
-      }
-    );
+          toast.error((err as Error)?.message || 'Failed to send message');
+        });
+    }
   };
 
   // 11. Edit message: PATCH /chat/messages/:messageId
@@ -1106,22 +1310,24 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     if (!selectedConv) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
+      const otherName = selectedConv.otherParticipant?.name || 'Teammate';
       const meeting = await createMeeting({
-        title: `1:1 Chat Call with ${selectedConv.otherParticipant.name}`,
+        title: `1:1 Chat Call with ${otherName}`,
         date: todayStr,
         startTime: new Date().toTimeString().slice(0, 5),
         durationMinutes: 30,
-        participantsEmails: [selectedConv.otherParticipant.email],
+        participantsEmails: selectedConv.otherParticipant?.email ? [selectedConv.otherParticipant.email] : [],
         isInstant: true,
       });
-      toast.success(`Starting 1:1 meeting with ${selectedConv.otherParticipant.name}`);
-      navigate(`/meeting/${meeting.id}`);
+      toast.success(`Starting 1:1 meeting with ${otherName}`);
+      navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`);
     } catch {
       // Toast handled by context
     }
   };
 
-  const isOtherOnline = (userId: string, defaultActive?: boolean) => {
+  const isOtherOnline = (userId?: string, defaultActive?: boolean) => {
+    if (!userId) return Boolean(defaultActive);
     if (presenceMap[userId] === 'online') return true;
     if (presenceMap[userId] === 'offline') return false;
     return Boolean(defaultActive);
@@ -1497,8 +1703,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
               /* Case E: Active conversations list */
               conversations.map((conv) => {
                 const isSelected = selectedConv?.id === conv.id;
-                const initials = getInitials(conv.otherParticipant.name);
-                const isOnline = isOtherOnline(conv.otherParticipant.id, conv.otherParticipant.isActive);
+                const otherName = conv.otherParticipant?.name || 'Teammate';
+                const initials = getInitials(otherName);
+                const isOnline = isOtherOnline(conv.otherParticipant?.id, conv.otherParticipant?.isActive);
 
                 return (
                   <button
@@ -1556,7 +1763,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {conv.otherParticipant.name}
+                          {otherName}
                         </span>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--im-text-muted)', whiteSpace: 'nowrap', marginLeft: 6 }}>
                           {formatChatTime(conv.lastMessageAt)}
@@ -1631,30 +1838,30 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                       border: '2px solid var(--im-border)',
                     }}
                   >
-                    {getInitials(selectedConv.otherParticipant.name)}
+                    {getInitials(selectedConv.otherParticipant?.name || 'Teammate')}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--im-text-primary)' }}>
-                        {selectedConv.otherParticipant.name}
+                        {selectedConv.otherParticipant?.name || 'Teammate'}
                       </span>
                       <span
-                        className={`im-role-badge ${selectedConv.otherParticipant.role === 'admin' ? 'im-role-badge-admin' : 'im-role-badge-user'}`}
+                        className={`im-role-badge ${selectedConv.otherParticipant?.role === 'admin' ? 'im-role-badge-admin' : 'im-role-badge-user'}`}
                       >
-                        {selectedConv.otherParticipant.role || 'Member'}
+                        {selectedConv.otherParticipant?.role || 'Member'}
                       </span>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--im-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{selectedConv.otherParticipant.email}</span>
+                      <span>{selectedConv.otherParticipant?.email || ''}</span>
                       <span>•</span>
                       <span
                         style={{
-                          color: isOtherOnline(selectedConv.otherParticipant.id, selectedConv.otherParticipant.isActive)
+                          color: isOtherOnline(selectedConv.otherParticipant?.id, selectedConv.otherParticipant?.isActive)
                             ? 'var(--im-success)'
                             : 'var(--im-text-muted)',
                         }}
                       >
-                        {isOtherOnline(selectedConv.otherParticipant.id, selectedConv.otherParticipant.isActive)
+                        {isOtherOnline(selectedConv.otherParticipant?.id, selectedConv.otherParticipant?.isActive)
                           ? 'Online'
                           : 'Offline'}
                       </span>
@@ -1678,7 +1885,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                     className="im-btn im-btn-secondary im-btn-sm"
                     onClick={() => {
                       navigate('/meetings/new');
-                      toast.info(`Schedule meeting with ${selectedConv.otherParticipant.name}`);
+                      toast.info(`Schedule meeting with ${selectedConv.otherParticipant?.name || 'Teammate'}`);
                     }}
                   >
                     Schedule
@@ -1741,7 +1948,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                       Start a conversation
                     </h3>
                     <p style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                      Send your first message to {selectedConv.otherParticipant.name} to connect.
+                      Send your first message to {selectedConv.otherParticipant?.name || 'your teammate'} to connect.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1876,7 +2083,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                 {/* Peer Typing Indicator Bubble */}
                 {isPeerTyping && (
                   <div className="im-chat-typing-indicator">
-                    <span>{selectedConv.otherParticipant.name} is typing</span>
+                    <span>{selectedConv.otherParticipant?.name || 'Teammate'} is typing</span>
                     <span className="im-chat-typing-dot" />
                     <span className="im-chat-typing-dot" />
                     <span className="im-chat-typing-dot" />
@@ -1926,7 +2133,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                     type="text"
                     className="im-input"
                     style={{ height: 38, fontSize: '0.875rem', borderRadius: 'var(--im-radius-md)' }}
-                    placeholder={`Message ${selectedConv.otherParticipant.name}... (Press Enter to send)`}
+                    placeholder={`Message ${selectedConv.otherParticipant?.name || 'teammate'}... (Press Enter to send)`}
                     value={messageInput}
                     onChange={handleInputChange}
                   />
@@ -2139,7 +2346,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
             </div>
             <div className="im-modal-body" style={{ padding: '20px' }}>
               <p style={{ fontSize: '0.875rem', color: 'var(--im-text-primary)', margin: '0 0 10px 0', lineHeight: 1.5 }}>
-                Are you sure you want to hide this conversation with <strong>{selectedConv.otherParticipant.name}</strong>?
+                Are you sure you want to hide this conversation with <strong>{selectedConv.otherParticipant?.name || 'this contact'}</strong>?
               </p>
               <p style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', margin: 0, lineHeight: 1.45 }}>
                 This will remove the conversation from your active inbox without deleting message history for the other participant. New incoming messages will restore it to your inbox automatically.

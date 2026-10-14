@@ -283,7 +283,7 @@ export const DashboardOverviewPage: React.FC = () => {
                       <div className="im-meeting-actions">
                         <button
                           className="im-btn im-btn-primary im-btn-sm"
-                          onClick={() => navigate(`/meeting/${meeting.id}`)}
+                          onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`)}
                           title="Join live meeting"
                         >
                           Join

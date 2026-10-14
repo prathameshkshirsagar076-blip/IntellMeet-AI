@@ -10,6 +10,8 @@ import {
   ClockIcon,
   UsersIcon,
   CheckCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '../components/icons';
 
 // Custom icons
@@ -130,6 +132,46 @@ export const MeetingsPage: React.FC = () => {
     });
   }, [meetings, activeTab, searchQuery]);
 
+  // Professional Pagination State (default 5 items per page for instant responsiveness)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  // Auto-reset to first page when filtering or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, itemsPerPage]);
+
+  const totalMeetings = filteredMeetings.length;
+  const totalPages = Math.max(1, Math.ceil(totalMeetings / itemsPerPage));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // Clamp current page if meetings deleted or changed
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalMeetings);
+
+  const paginatedMeetings = useMemo(() => {
+    return filteredMeetings.slice(startIndex, endIndex);
+  }, [filteredMeetings, startIndex, endIndex]);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (safeCurrentPage <= 3) {
+      return [1, 2, 3, 4, '...', totalPages];
+    }
+    if (safeCurrentPage >= totalPages - 2) {
+      return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+  }, [safeCurrentPage, totalPages]);
+
   return (
     <div>
       <div className="im-page-header">
@@ -156,56 +198,89 @@ export const MeetingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* High-Level Meetings Summary Cards */}
-      <div className="im-stats-grid" style={{ marginBottom: 20 }}>
-        <div className="im-stat-card">
-          <div className="im-stat-header">
-            <div className="im-stat-icon-wrap im-stat-icon-indigo">
+      {/* High-Level Meetings Summary Cards (Compact Horizontal Row) */}
+      <div className="im-meetings-stat-grid">
+        <div
+          className={`im-meetings-stat-card ${activeTab === 'all' && !searchQuery ? 'active' : ''}`}
+          onClick={() => {
+            setSearchQuery('');
+            handleTabChange('all');
+          }}
+          title="Filter: All Meetings"
+        >
+          <div className="im-meetings-stat-card-left">
+            <div className="im-meetings-stat-card-icon im-stat-icon-indigo">
               <VideoIcon size={18} />
             </div>
-            <span className="im-stat-trend">Total</span>
+            <div className="im-meetings-stat-card-info">
+              <span className="im-meetings-stat-card-value">{meetings.length}</span>
+              <span className="im-meetings-stat-card-label">All Meetings</span>
+            </div>
           </div>
-          <div className="im-stat-value">{meetings.length}</div>
-          <div className="im-stat-label">All Meetings</div>
+          <span className="im-stat-trend">Total</span>
         </div>
 
-        <div className="im-stat-card">
-          <div className="im-stat-header">
-            <div className="im-stat-icon-wrap im-stat-icon-amber">
+        <div
+          className={`im-meetings-stat-card ${activeTab === 'upcoming' ? 'active' : ''}`}
+          onClick={() => {
+            setSearchQuery('');
+            handleTabChange('upcoming');
+          }}
+          title="Filter: Upcoming Sessions"
+        >
+          <div className="im-meetings-stat-card-left">
+            <div className="im-meetings-stat-card-icon im-stat-icon-amber">
               <ClockIcon size={18} />
             </div>
-            <span className="im-stat-trend">Ready</span>
+            <div className="im-meetings-stat-card-info">
+              <span className="im-meetings-stat-card-value">
+                {meetings.filter((m) => m.status === 'upcoming' || m.status === 'live').length}
+              </span>
+              <span className="im-meetings-stat-card-label">Upcoming Sessions</span>
+            </div>
           </div>
-          <div className="im-stat-value">
-            {meetings.filter((m) => m.status === 'upcoming' || m.status === 'live').length}
-          </div>
-          <div className="im-stat-label">Upcoming Sessions</div>
+          <span className="im-stat-trend">Ready</span>
         </div>
 
-        <div className="im-stat-card">
-          <div className="im-stat-header">
-            <div className="im-stat-icon-wrap im-stat-icon-green">
+        <div
+          className={`im-meetings-stat-card ${activeTab === 'completed' ? 'active' : ''}`}
+          onClick={() => {
+            setSearchQuery('');
+            handleTabChange('completed');
+          }}
+          title="Filter: Completed Calls"
+        >
+          <div className="im-meetings-stat-card-left">
+            <div className="im-meetings-stat-card-icon im-stat-icon-green">
               <CheckCircleIcon size={18} />
             </div>
-            <span className="im-stat-trend">Finished</span>
+            <div className="im-meetings-stat-card-info">
+              <span className="im-meetings-stat-card-value">
+                {meetings.filter((m) => m.status === 'completed').length}
+              </span>
+              <span className="im-meetings-stat-card-label">Completed Calls</span>
+            </div>
           </div>
-          <div className="im-stat-value">
-            {meetings.filter((m) => m.status === 'completed').length}
-          </div>
-          <div className="im-stat-label">Completed Calls</div>
+          <span className="im-stat-trend">Finished</span>
         </div>
 
-        <div className="im-stat-card">
-          <div className="im-stat-header">
-            <div className="im-stat-icon-wrap im-stat-icon-purple">
+        <div
+          className="im-meetings-stat-card"
+          onClick={() => navigate('/schedule')}
+          title="Open Schedule & Calendar Timetable"
+        >
+          <div className="im-meetings-stat-card-left">
+            <div className="im-meetings-stat-card-icon im-stat-icon-purple">
               <CalendarIcon size={18} />
             </div>
-            <span className="im-stat-trend">Timetable</span>
+            <div className="im-meetings-stat-card-info">
+              <span className="im-meetings-stat-card-value">
+                {meetings.reduce((acc, m) => acc + (m.durationMinutes || 0), 0)}m
+              </span>
+              <span className="im-meetings-stat-card-label">Total Duration</span>
+            </div>
           </div>
-          <div className="im-stat-value">
-            {meetings.reduce((acc, m) => acc + (m.durationMinutes || 0), 0)}m
-          </div>
-          <div className="im-stat-label">Total Duration</div>
+          <span className="im-stat-trend">Timetable</span>
         </div>
       </div>
 
@@ -308,7 +383,7 @@ export const MeetingsPage: React.FC = () => {
             </div>
           ) : (
             <div className="im-meeting-list">
-              {filteredMeetings.map((meeting: Meeting) => (
+              {paginatedMeetings.map((meeting: Meeting) => (
                 <div key={meeting.id} className="im-meeting-item">
                   <div className="im-meeting-item-time">
                     <span className="im-meeting-time-start">{meeting.startTime}</span>
@@ -363,7 +438,7 @@ export const MeetingsPage: React.FC = () => {
                     {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                       <button
                         className="im-btn im-btn-primary im-btn-sm"
-                        onClick={() => navigate(`/meeting/${meeting.id}`)}
+                        onClick={() => navigate(`/meetings/join?code=${meeting.meetingCode || meeting.id}`)}
                       >
                         Join
                       </button>
@@ -420,6 +495,84 @@ export const MeetingsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Card Footer with Professional Pagination */}
+        {filteredMeetings.length > 0 && (
+          <div className="im-card-footer im-meetings-pagination">
+            <div className="im-pagination-left">
+              <span className="im-pagination-info">
+                Showing <strong>{startIndex + 1}</strong>–<strong>{endIndex}</strong> of{' '}
+                <strong>{totalMeetings}</strong> {totalMeetings === 1 ? 'meeting' : 'meetings'}
+              </span>
+
+              <div className="im-pagination-limit">
+                <label htmlFor="meetings-per-page">Rows per page:</label>
+                <select
+                  id="meetings-per-page"
+                  className="im-pagination-select"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Meetings per page"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="im-pagination-controls">
+              <div className="im-pagination-nav">
+                <button
+                  type="button"
+                  className="im-pagination-nav-btn"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeftIcon size={14} />
+                  <span>Previous</span>
+                </button>
+
+                <div className="im-pagination-pages">
+                  {pageNumbers.map((pageNum, idx) =>
+                    pageNum === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="im-pagination-ellipsis" aria-hidden="true">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${pageNum}`}
+                        type="button"
+                        className={`im-pagination-page-btn ${safeCurrentPage === pageNum ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(Number(pageNum))}
+                        aria-current={safeCurrentPage === pageNum ? 'page' : undefined}
+                        aria-label={`Go to page ${pageNum}`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="im-pagination-nav-btn"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  aria-label="Next page"
+                >
+                  <span>Next</span>
+                  <ChevronRightIcon size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cancel Confirmation Modal */}

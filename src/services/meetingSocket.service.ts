@@ -112,23 +112,38 @@ class MeetingSocketService {
     const token = getAccessToken();
     if (!token) return null;
 
+    const rawToken = token.replace(/^Bearer\s+/i, '');
+    const bearerToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
     const socketUrl = this.resolveSocketUrl();
+    const isAwsApiGateway = socketUrl.includes('execute-api');
+    const transports = isAwsApiGateway ? ['polling'] : ['polling', 'websocket'];
+    const upgrade = !isAwsApiGateway;
+
     this.socket = io(socketUrl, {
-      path: '/socket.io/',
-      transports: ['polling'],
+      path: '/socket.io',
+      transports,
+      upgrade,
       autoConnect: true,
-      auth: { token: `Bearer ${token}` },
+      auth: { token: rawToken, Authorization: bearerToken },
       extraHeaders: {
-        Authorization: `Bearer ${token}`,
+        Authorization: bearerToken,
       },
-      reconnection: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     this.bindSocketEvents();
     return this.socket;
   }
 
+  public isConnected(): boolean {
+    return Boolean(this.socket && this.socket.connected);
+  }
+
   public disconnect() {
+    this.leaveMeeting();
     if (this.socket) {
       this.socket.removeAllListeners();
       this.socket.disconnect();
@@ -139,11 +154,66 @@ class MeetingSocketService {
   private bindSocketEvents() {
     if (!this.socket) return;
 
-    // Participant joined
+    // Participant joined: register peer metadata and peer connection so UI syncs immediately
     this.socket.on('meeting:participant:joined', (data: { participant: ParticipantPayload }) => {
       const p = data.participant;
       if (!p || p.socketId === this.socket?.id) return;
-      this.initiatePeerConnection(p);
+      let existing = this.peers.get(p.socketId);
+      if (existing) {
+        existing.name = p.name || existing.name;
+        existing.email = p.email || existing.email;
+        existing.role = p.role || existing.role;
+        if (p.isAudioMuted !== undefined) existing.isAudioMuted = p.isAudioMuted;
+        if (p.isVideoOn !== undefined) existing.isVideoOn = p.isVideoOn;
+        if (p.isScreenSharing !== undefined) existing.isScreenSharing = p.isScreenSharing;
+        if (p.isHandRaised !== undefined) existing.isHandRaised = p.isHandRaised;
+      } else {
+        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
+        const remoteStream = new MediaStream();
+
+        existing = {
+          socketId: p.socketId,
+          userId: p.userId,
+          name: p.name || 'Participant',
+          email: p.email || '',
+          role: p.role || 'attendee',
+          peerConnection: pc,
+          remoteStream,
+          isAudioMuted: p.isAudioMuted ?? true,
+          isVideoOn: p.isVideoOn ?? false,
+          isScreenSharing: p.isScreenSharing ?? false,
+          isHandRaised: p.isHandRaised ?? false,
+          iceQueue: []
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && this.socket && this.currentMeetingId) {
+            this.socket.emit('meeting:signal:ice-candidate', {
+              meetingId: this.currentMeetingId,
+              targetSocketId: p.socketId,
+              candidate: event.candidate.toJSON()
+            });
+          }
+        };
+
+        pc.ontrack = (event) => {
+          event.streams[0]?.getTracks().forEach((track) => {
+            if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+              remoteStream.addTrack(track);
+            }
+          });
+          this.notifyPeersChanged();
+        };
+
+        if (this.localStream) {
+          this.localStream.getTracks().forEach((track) => {
+            pc.addTrack(track, this.localStream!);
+          });
+        }
+
+        this.peers.set(p.socketId, existing);
+      }
+      this.notifyPeersChanged();
     });
 
     // Participant left
@@ -152,8 +222,22 @@ class MeetingSocketService {
     });
 
     // WebRTC Signaling: Offer
-    this.socket.on('meeting:signal:offer', async (data: { senderSocketId: string; senderUserId: string; offer: RTCSessionDescriptionInit }) => {
-      await this.handleReceiveOffer(data.senderSocketId, data.senderUserId, data.offer);
+    this.socket.on('meeting:signal:offer', async (data: {
+      senderSocketId: string;
+      senderUserId: string;
+      senderName?: string;
+      senderEmail?: string;
+      senderRole?: string;
+      offer: RTCSessionDescriptionInit;
+    }) => {
+      await this.handleReceiveOffer(
+        data.senderSocketId,
+        data.senderUserId,
+        data.offer,
+        data.senderName,
+        data.senderEmail,
+        data.senderRole
+      );
     });
 
     // WebRTC Signaling: Answer
@@ -353,7 +437,10 @@ class MeetingSocketService {
   private async handleReceiveOffer(
     senderSocketId: string,
     senderUserId: string,
-    offer: RTCSessionDescriptionInit
+    offer: RTCSessionDescriptionInit,
+    senderName?: string,
+    senderEmail?: string,
+    senderRole?: string
   ) {
     try {
       let peerRecord = this.peers.get(senderSocketId);
@@ -365,9 +452,9 @@ class MeetingSocketService {
         peerRecord = {
           socketId: senderSocketId,
           userId: senderUserId,
-          name: 'Participant',
-          email: '',
-          role: 'attendee',
+          name: senderName || 'Participant',
+          email: senderEmail || '',
+          role: senderRole || 'attendee',
           peerConnection: pc,
           remoteStream,
           iceQueue: []
@@ -398,6 +485,26 @@ class MeetingSocketService {
         if (this.localStream) {
           this.localStream.getTracks().forEach((track) => {
             pc.addTrack(track, this.localStream!);
+          });
+        }
+      } else {
+        if (senderName && (!peerRecord.name || peerRecord.name === 'Participant')) {
+          peerRecord.name = senderName;
+        }
+        if (senderEmail && !peerRecord.email) {
+          peerRecord.email = senderEmail;
+        }
+        if (senderRole) {
+          peerRecord.role = senderRole;
+        }
+        if (this.localStream) {
+          const targetPeer = peerRecord;
+          const senders = targetPeer.peerConnection.getSenders();
+          this.localStream.getTracks().forEach((track) => {
+            const alreadyAdded = senders.some((s) => s.track && s.track.kind === track.kind);
+            if (!alreadyAdded) {
+              targetPeer.peerConnection.addTrack(track, this.localStream!);
+            }
           });
         }
       }
