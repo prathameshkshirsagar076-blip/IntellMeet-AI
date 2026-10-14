@@ -10,6 +10,7 @@ import '../styles/liveMeeting.css';
 
 interface ChatMessage {
   id: string;
+  clientMessageId?: string;
   sender: string;
   text: string;
   timestamp: string;
@@ -310,11 +311,32 @@ export const LiveMeetingRoomPage: React.FC = () => {
         `${msg.sender?.name || 'Participant'}: ${msg.content}`,
       ]);
       setChatMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        const clientMsgId = msg.clientMessageId;
+        const exists = prev.some(
+          (m) =>
+            m.id === msg.id ||
+            Boolean(clientMsgId && (m.clientMessageId === clientMsgId || m.id === clientMsgId))
+        );
+        if (exists) {
+          return prev.map((m) => {
+            if (m.id === clientMsgId || (clientMsgId && m.clientMessageId === clientMsgId)) {
+              return {
+                ...m,
+                id: msg.id,
+                clientMessageId: clientMsgId,
+                timestamp: msg.createdAt
+                  ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : m.timestamp,
+              };
+            }
+            return m;
+          });
+        }
         return [
           ...prev,
           {
             id: msg.id,
+            clientMessageId: msg.clientMessageId,
             sender: msg.sender?.name || 'Participant',
             text: msg.content,
             timestamp: msg.createdAt
@@ -357,6 +379,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
       unsubRemoved();
       unsubMuted();
       meetingSocketService.leaveMeeting();
+      meetingSocketService.disconnect();
       if (meetingId) {
         meetingApi.leaveMeeting(meetingId).catch(() => {});
       }
@@ -509,6 +532,7 @@ export const LiveMeetingRoomPage: React.FC = () => {
     const tempId = `temp-${Date.now()}`;
     const newMsg: ChatMessage = {
       id: tempId,
+      clientMessageId: tempId,
       sender: userName,
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -519,16 +543,46 @@ export const LiveMeetingRoomPage: React.FC = () => {
     setChatInputText('');
 
     try {
-      const res = await meetingApi.sendMessage(meetingId, text, tempId);
-      if (res?.data) {
-        setChatMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id: res.data.id || tempId } : m))
-        );
+      if (meetingSocketService.isConnected()) {
+        const ack = await meetingSocketService.sendChatMessage(text, tempId);
+        if (ack && typeof ack === 'object') {
+          const ackMsg = (ack as { message?: { id?: string; _id?: string } }).message;
+          const realId = ackMsg?.id || ackMsg?._id;
+          if (realId) {
+            setChatMessages((prev) =>
+              prev.map((m) =>
+                m.id === tempId || m.clientMessageId === tempId ? { ...m, id: realId } : m
+              )
+            );
+          }
+        }
+      } else {
+        const res = await meetingApi.sendMessage(meetingId, text, tempId);
+        if (res?.data?.id) {
+          const realId = res.data.id;
+          setChatMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempId || m.clientMessageId === tempId ? { ...m, id: realId } : m
+            )
+          );
+        }
       }
-      meetingSocketService.sendChatMessage(text, tempId).catch(() => {});
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send message';
-      globalToast.error(msg);
+      // If socket failed, attempt REST fallback once
+      try {
+        const res = await meetingApi.sendMessage(meetingId, text, tempId);
+        if (res?.data?.id) {
+          const realId = res.data.id;
+          setChatMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempId || m.clientMessageId === tempId ? { ...m, id: realId } : m
+            )
+          );
+        }
+      } catch (fallbackErr: unknown) {
+        const msg = fallbackErr instanceof Error ? fallbackErr.message : (err instanceof Error ? err.message : 'Failed to send message');
+        globalToast.error(msg);
+      }
     }
   };
 

@@ -221,7 +221,6 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
   const selectedConvRef = useRef<ChatConversation | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingEmittedRef = useRef<boolean>(false);
-  const hasConnectedSocketRef = useRef<boolean>(false);
 
   // Sync ref for access inside socket callbacks
   useEffect(() => {
@@ -251,12 +250,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     loadConversations();
   }, [loadConversations]);
 
-  // 2. Real-time Socket.IO Connection & Listeners - Strictly connects ONCE
+  // 2. Real-time Socket.IO Connection & Listeners
   useEffect(() => {
-    if (!hasConnectedSocketRef.current) {
-      hasConnectedSocketRef.current = true;
-      chatSocketService.connect();
-    }
+    chatSocketService.connect();
 
     // Listener: Incoming new message
     const unsubMessage = chatSocketService.onMessageNew((data) => {
@@ -278,7 +274,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       }
 
       // Update messages thread if this message belongs to active conversation
-      if (selectedConvRef.current && selectedConvRef.current.id === convId) {
+      if (selectedConvRef.current && String(selectedConvRef.current.id) === convId) {
         setMessages((prev) => {
           const alreadyExists = prev.some(
             (m) =>
@@ -293,7 +289,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                 ? {
                     ...m,
                     id: incomingMsgId,
-                    status: m.status === 'read' ? 'read' : incoming.receipt?.readAt ? 'read' : 'delivered',
+                    status: m.status === 'read' ? 'read' : incoming.receipt?.readAt ? 'read' : isMine ? (m.status || 'sent') : 'delivered',
                   }
                 : m
             );
@@ -329,9 +325,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
       // Update conversations list with latest snippet and unread count
       setConversations((prev) => {
-        const existingIdx = prev.findIndex((c) => c.id === convId);
+        const existingIdx = prev.findIndex((c) => String(c.id) === convId);
         const nowIso = incoming.createdAt || new Date().toISOString();
-        const isCurrentlyViewed = selectedConvRef.current?.id === convId;
+        const isCurrentlyViewed = selectedConvRef.current && String(selectedConvRef.current.id) === convId;
 
         if (existingIdx >= 0) {
           const current = prev[existingIdx];
@@ -339,7 +335,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
             ...current,
             lastMessage: incoming.content,
             lastMessageAt: nowIso,
-            unreadCount: isCurrentlyViewed ? 0 : (current.unreadCount || 0) + 1,
+            unreadCount: isCurrentlyViewed ? 0 : isMine ? (current.unreadCount || 0) : (current.unreadCount || 0) + 1,
           };
           const others = prev.filter((_, idx) => idx !== existingIdx);
           return [updated, ...others];
@@ -454,6 +450,27 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       setConnectionStatus(status);
     });
 
+    // Listener: On reconnect, recover offline messages and update conversation list
+    const unsubReconnect = chatSocketService.onReconnect(() => {
+      chatApi.getConversations({ limit: 50 }).then((res) => {
+        if (res?.data?.conversations) {
+          setConversations(res.data.conversations);
+        }
+      }).catch(() => {});
+
+      const activeConv = selectedConvRef.current;
+      if (activeConv?.id) {
+        chatApi.getMessages(activeConv.id, { limit: 50 }).then((res) => {
+          if (res?.data?.messages && Array.isArray(res.data.messages) && selectedConvRef.current?.id === activeConv.id) {
+            const mapped = res.data.messages.map((m) =>
+              normalizeRawMessage(m, currentUser?.id, activeConv.otherParticipant.name)
+            );
+            setMessages(mapped);
+          }
+        }).catch(() => {});
+      }
+    });
+
     return () => {
       unsubMessage();
       unsubMsgEdited();
@@ -463,6 +480,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       unsubTyping();
       unsubPresence();
       unsubConnStatus();
+      unsubReconnect();
       chatSocketService.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -482,6 +500,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }
 
     const convId = selectedConv.id;
+    const controller = new AbortController();
+    let isCurrent = true;
+
     setIsLoadingMessages(true);
     setIsPeerTyping(false);
     setEditingMsgId(null);
@@ -490,7 +511,8 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     chatSocketService.joinConversation(convId);
 
     // Query 1: Get Conversation Details: GET /chat/conversations/:id
-    chatApi.getConversationById(convId).then((res) => {
+    chatApi.getConversationById(convId, { signal: controller.signal }).then((res) => {
+      if (!isCurrent) return;
       if (res?.data?.conversation) {
         const fetchedConv = res.data.conversation;
         setSelectedConv((prev) =>
@@ -507,7 +529,8 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }).catch(() => {});
 
     // Query 2: Get Unread Count: GET /chat/conversations/:id/unread-count
-    chatApi.getUnreadCount(convId).then((res) => {
+    chatApi.getUnreadCount(convId, { signal: controller.signal }).then((res) => {
+      if (!isCurrent) return;
       if (res?.data) {
         setConversations((prev) =>
           prev.map((c) =>
@@ -518,8 +541,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
     }).catch(() => {});
 
     // Query 3: Fetch conversation message history: GET /chat/conversations/:id/messages
-    chatApi.getMessages(convId, { limit: 50 })
+    chatApi.getMessages(convId, { limit: 50 }, { signal: controller.signal })
       .then((res) => {
+        if (!isCurrent) return;
         if (res?.data?.messages && Array.isArray(res.data.messages)) {
           const rawList = res.data.messages;
           const mapped: ChatMessage[] = rawList.map((m) =>
@@ -552,8 +576,9 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
 
         // Mark conversation as read: POST /chat/conversations/:id/read
         chatSocketService.markAsRead(convId);
-        chatApi.markAsRead(convId)
+        chatApi.markAsRead(convId, undefined, { signal: controller.signal })
           .then(() => {
+            if (!isCurrent) return;
             // Patch unread count in conversations list to 0
             setConversations((prev) =>
               prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
@@ -561,14 +586,19 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
           })
           .catch(() => {});
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!isCurrent || (err as Error)?.name === 'AbortError') return;
         setMessages([]);
       })
       .finally(() => {
-        setIsLoadingMessages(false);
+        if (isCurrent) {
+          setIsLoadingMessages(false);
+        }
       });
 
     return () => {
+      isCurrent = false;
+      controller.abort();
       chatSocketService.leaveConversation(convId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -935,33 +965,96 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
       return [updatedConv, ...remaining];
     });
 
-    // Send through authenticated Socket.IO connection
-    chatSocketService.sendMessage(
-      {
-        conversationId: convId,
-        clientMessageId,
+    // Send through authenticated Socket.IO connection if connected, or fallback to REST API
+    if (chatSocketService.isConnected()) {
+      chatSocketService.sendMessage(
+        {
+          conversationId: convId,
+          clientMessageId,
+          content: text,
+          messageType: 'text',
+        },
+        async (ack) => {
+          if (ack?.success && ack.message) {
+            setIsSending(false);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === clientMessageId || m.clientMessageId === clientMessageId
+                  ? {
+                      ...m,
+                      id: String(ack.message?.id || clientMessageId),
+                      status: 'sent',
+                    }
+                  : m
+              )
+            );
+          } else {
+            // Socket emit failed or returned error, try REST API fallback: POST /chat/conversations/:id/messages
+            try {
+              const restRes = await chatApi.sendMessage(convId, {
+                content: text,
+                clientMessageId,
+                messageType: 'text',
+              });
+              setIsSending(false);
+              if (restRes?.data?.message) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === clientMessageId || m.clientMessageId === clientMessageId
+                      ? {
+                          ...m,
+                          id: String(restRes.data.message.id || restRes.data.message._id || clientMessageId),
+                          status: 'sent',
+                        }
+                      : m
+                  )
+                );
+              }
+            } catch (fallbackErr: unknown) {
+              setIsSending(false);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === clientMessageId ? { ...m, status: 'failed' } : m
+                )
+              );
+              toast.error((fallbackErr as Error)?.message || 'Message delivery failed');
+            }
+          }
+        }
+      );
+    } else {
+      // Socket not connected: send directly via REST API: POST /chat/conversations/:id/messages
+      chatApi.sendMessage(convId, {
         content: text,
+        clientMessageId,
         messageType: 'text',
-      },
-      (ack) => {
-        setIsSending(false);
-        if (ack?.success && ack.message) {
+      })
+        .then((restRes) => {
+          setIsSending(false);
+          if (restRes?.data?.message) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === clientMessageId || m.clientMessageId === clientMessageId
+                  ? {
+                      ...m,
+                      id: String(restRes.data.message.id || restRes.data.message._id || clientMessageId),
+                      status: 'sent',
+                    }
+                  : m
+              )
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          setIsSending(false);
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === clientMessageId || m.clientMessageId === clientMessageId
-                ? {
-                    ...m,
-                    id: String(ack.message?.id || clientMessageId),
-                    status: 'sent',
-                  }
-                : m
+              m.id === clientMessageId ? { ...m, status: 'failed' } : m
             )
           );
-        } else {
-          toast.error(ack?.error?.message || 'Message delivery failed. Reconnecting...');
-        }
-      }
-    );
+          toast.error((err as Error)?.message || 'Failed to send message');
+        });
+    }
   };
 
   // 11. Edit message: PATCH /chat/messages/:messageId

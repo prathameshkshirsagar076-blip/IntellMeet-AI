@@ -215,6 +215,26 @@ export const AiAssistantPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
 
+  // Create New Chat
+  const handleNewChat = useCallback(async () => {
+    if (isStreaming) {
+      abortControllerRef.current?.abort();
+      setIsStreaming(false);
+    }
+    const newConv = await aiAssistantApi.createConversation({
+      title: 'New Conversation',
+      contextMeetingId: selectedMeetingContextId || undefined,
+    });
+    setConversations((prev) => [newConv, ...prev]);
+    setActiveConversationId(newConv.id);
+    setMessages([]);
+    setInputText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
+    }
+  }, [isStreaming, selectedMeetingContextId]);
+
   // Keyboard shortcut Ctrl+K / Cmd+K for new chat
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -225,7 +245,7 @@ export const AiAssistantPage: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleNewChat]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -246,26 +266,6 @@ export const AiAssistantPage: React.FC = () => {
     setInputText(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = `${Math.min(e.target.scrollHeight, 180)}px`;
-  };
-
-  // Create New Chat
-  const handleNewChat = async () => {
-    if (isStreaming) {
-      abortControllerRef.current?.abort();
-      setIsStreaming(false);
-    }
-    const newConv = await aiAssistantApi.createConversation({
-      title: 'New Conversation',
-      contextMeetingId: selectedMeetingContextId || undefined,
-    });
-    setConversations((prev) => [newConv, ...prev]);
-    setActiveConversationId(newConv.id);
-    setMessages([]);
-    setInputText('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.focus();
-    }
   };
 
   // Rename Conversation

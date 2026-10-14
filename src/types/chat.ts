@@ -136,6 +136,15 @@ export interface GetMessagesResponse {
   };
 }
 
+// 5b. POST /chat/conversations/:conversationId/messages
+export interface SendMessageResponse {
+  success: boolean;
+  message: string;
+  data: {
+    message: RawChatMessageItem;
+  };
+}
+
 // 6. GET /chat/messages/:messageId
 export interface GetMessageByIdResponse {
   success: boolean;

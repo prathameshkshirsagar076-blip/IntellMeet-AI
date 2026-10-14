@@ -218,7 +218,7 @@ export const SchedulePage: React.FC = () => {
       return;
     }
 
-    let icsContent = [
+    const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//IntellMeet AI//Meeting Schedule//EN',

@@ -98,6 +98,7 @@ export type PresenceUpdateHandler = (data: {
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 export type ConnectionStatusHandler = (status: ConnectionStatus) => void;
+export type ReconnectHandler = () => void;
 
 class ChatSocketService {
   private socket: Socket | null = null;
@@ -110,10 +111,10 @@ class ChatSocketService {
   private typingUpdateListeners: Set<TypingUpdateHandler> = new Set();
   private presenceUpdateListeners: Set<PresenceUpdateHandler> = new Set();
   private connectionStatusListeners: Set<ConnectionStatusHandler> = new Set();
+  private reconnectListeners: Set<ReconnectHandler> = new Set();
 
   private activeConversationId: string | null = null;
   private connectionStatus: ConnectionStatus = 'disconnected';
-  private hasAttemptedConnection = false;
   private isConnecting = false;
 
   private log(message: string, ...args: unknown[]) {
@@ -195,18 +196,13 @@ class ChatSocketService {
       return null;
     }
 
-    // Single-call guard: if already connected, connecting, or already attempted (unless forced)
+    // Single-call guard: if already connected or currently connecting
     if (this.socket && this.socket.connected) {
       return this.socket;
     }
 
-    if (this.isConnecting) {
+    if (this.isConnecting && !force) {
       this.log('Socket connection already in progress, skipping duplicate call.');
-      return this.socket;
-    }
-
-    if (this.hasAttemptedConnection && !force) {
-      this.log('Socket connect was already called once. Skipping duplicate call.');
       return this.socket;
     }
 
@@ -216,7 +212,6 @@ class ChatSocketService {
       return null;
     }
 
-    this.hasAttemptedConnection = true;
     this.isConnecting = true;
 
     const rawToken = token.replace(/^Bearer\s+/i, '');
@@ -233,8 +228,12 @@ class ChatSocketService {
     }
 
     const socketUrl = this.resolveSocketUrl();
+    const isAwsApiGateway = socketUrl.includes('execute-api');
+    const transports = isAwsApiGateway ? ['polling'] : ['polling', 'websocket'];
+    const upgrade = !isAwsApiGateway;
+
     this.notifyConnectionStatus('connecting');
-    this.log(`Initiating connection once to ${socketUrl || 'window origin'} on path /socket.io`);
+    this.log(`Initiating connection to ${socketUrl || 'window origin'} on path /socket.io (transports: ${transports.join(', ')}, upgrade: ${upgrade})`);
 
     this.socket = io(socketUrl, {
       path: '/socket.io',
@@ -246,9 +245,13 @@ class ChatSocketService {
         Authorization: bearerToken,
       },
       withCredentials: true,
-      transports: ['polling'],
-      reconnection: false, // Strict: never automatically loop or spam polling
-      autoConnect: false,  // Controlled single-flight connect
+      transports,
+      upgrade,
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      autoConnect: false,
       timeout: 10000,
     });
 
@@ -261,13 +264,37 @@ class ChatSocketService {
    * Explicitly resets call guard and reconnects once on-demand.
    */
   public reconnect(): Socket | null {
-    this.hasAttemptedConnection = false;
     this.disconnect();
     return this.connect(true);
   }
 
   private setupListeners() {
     if (!this.socket) return;
+
+    this.socket.io.on('reconnect_attempt', () => {
+      this.log('Attempting socket reconnection...');
+      const token = getAccessToken();
+      if (token && !isJwtExpired(token)) {
+        const rawToken = token.replace(/^Bearer\s+/i, '');
+        const bearerToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+        if (this.socket) {
+          this.socket.auth = {
+            token: rawToken,
+            Authorization: bearerToken,
+          };
+        }
+      }
+    });
+
+    this.socket.io.on('reconnect', () => {
+      this.isConnecting = false;
+      this.notifyConnectionStatus('connected');
+      this.log('Socket reconnected successfully');
+      if (this.activeConversationId) {
+        this.joinConversation(this.activeConversationId);
+      }
+      this.reconnectListeners.forEach((fn) => fn());
+    });
 
     this.socket.on('connect', () => {
       this.isConnecting = false;
@@ -285,13 +312,18 @@ class ChatSocketService {
     });
 
     this.socket.on('connect_error', (err) => {
-      this.isConnecting = false;
-      this.notifyConnectionStatus('disconnected');
       this.warn(`Connection error: ${err.message}`);
 
-      // Stop immediately on error - do not retry in loops or spam polling
-      if (this.socket) {
-        this.socket.disconnect();
+      // Only transition to disconnected if the underlying socket is not connected
+      if (!this.socket?.connected) {
+        this.isConnecting = false;
+        this.notifyConnectionStatus('disconnected');
+      }
+
+      // If token is missing or expired, clean up connection
+      const token = getAccessToken();
+      if (!token || isJwtExpired(token)) {
+        this.disconnect();
       }
     });
 
@@ -457,6 +489,11 @@ class ChatSocketService {
   public onPresenceUpdate(fn: PresenceUpdateHandler): () => void {
     this.presenceUpdateListeners.add(fn);
     return () => this.presenceUpdateListeners.delete(fn);
+  }
+
+  public onReconnect(fn: ReconnectHandler): () => void {
+    this.reconnectListeners.add(fn);
+    return () => this.reconnectListeners.delete(fn);
   }
 
   public onConnectionChange(fn: ConnectionStatusHandler): () => void {
