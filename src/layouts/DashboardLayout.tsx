@@ -22,6 +22,7 @@ import {
 } from '../components/icons';
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import '../styles/dashboard.css';
 
 // SVG Icons for Shell
@@ -605,7 +606,9 @@ export const DashboardLayout: React.FC = () => {
           }`}
           role="main"
         >
-          <Outlet />
+          <ErrorBoundary fallbackTitle="Page Content Error">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

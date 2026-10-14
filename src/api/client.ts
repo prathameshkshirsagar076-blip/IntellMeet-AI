@@ -265,7 +265,10 @@ export const apiClient = {
     }
 
     // Only redirect if currently on a protected route
-    if (window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/meetings') || window.location.pathname.startsWith('/settings')) {
+    const publicPaths = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/terms', '/privacy'];
+    const current = window.location.pathname;
+    const isPublic = publicPaths.some((p) => current === p || (p !== '/' && current.startsWith(p)));
+    if (!isPublic) {
       window.location.href = '/login';
     }
   },

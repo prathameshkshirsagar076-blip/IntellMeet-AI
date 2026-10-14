@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { TeamChatModule } from '../components/chat/TeamChatModule';
 import { usersApi } from '../api/users.api';
 import type { UserItem } from '../types/user';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 
 export const ChatPage: React.FC = () => {
   const location = useLocation();
@@ -34,13 +35,16 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="im-chat-page">
-      <TeamChatModule
-        fullHeight={true}
-        selectedRecipient={selectedRecipient}
-        onClearSelectedRecipient={() => setSelectedRecipient(null)}
-      />
+      <ErrorBoundary fallbackTitle="Direct Messaging & Chat">
+        <TeamChatModule
+          fullHeight={true}
+          selectedRecipient={selectedRecipient}
+          onClearSelectedRecipient={() => setSelectedRecipient(null)}
+        />
+      </ErrorBoundary>
     </div>
   );
 };
 
 export default ChatPage;
+
