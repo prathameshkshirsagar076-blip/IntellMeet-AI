@@ -414,12 +414,18 @@ export const LiveMeetingRoomPage: React.FC = () => {
   // Initialize stream from lobby settings if camera or mic enabled
   useEffect(() => {
     if (cameFromLobby && (initialVideo || !initialAudioMuted)) {
+      let isMounted = true;
       navigator.mediaDevices
         ?.getUserMedia({
           video: initialVideo,
           audio: !initialAudioMuted,
         })
         .then((stream) => {
+          if (!isMounted) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
+          }
+
           setMediaStream(stream);
           meetingSocketService.setLocalStream(stream);
           if (videoRef.current && initialVideo) {
@@ -431,8 +437,12 @@ export const LiveMeetingRoomPage: React.FC = () => {
         .catch((err) => {
           console.warn('[LiveMeeting] Error initializing media from lobby:', err);
         });
+
+      return () => {
+        isMounted = false;
+      };
     }
-  }, [cameFromLobby, initialVideo, initialAudioMuted]);
+  }, [cameFromLobby, meetingId, initialVideo, initialAudioMuted]);
 
   // Clean up media streams on unmount
   useEffect(() => {
