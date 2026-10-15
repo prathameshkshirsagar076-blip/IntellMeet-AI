@@ -20,7 +20,7 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
   onClose,
   triggerRef,
 }) => {
-  const { preferences, updatePreferences, showToast } = useMeetings();
+  const { preferences, updatePreferences } = useMeetings();
   const colorInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -60,41 +60,26 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
   const effectiveMode = getEffectiveThemeMode(currentThemeMode);
 
   const handleSelectMode = (mode: ThemeMode) => {
-    updatePreferences({ theme: mode });
-    showToast(
-      mode === 'dark'
-        ? '🌙 Dark Navy theme activated'
-        : mode === 'light'
-        ? '☀️ Light Canvas theme activated'
-        : '💻 System theme matching activated',
-      'info'
-    );
+    updatePreferences({ theme: mode }, { silent: true });
   };
 
   const handleSelectPreset = (presetId: ThemePresetId) => {
-    updatePreferences({ themePreset: presetId });
-    const p = THEME_PRESETS.find((x) => x.id === presetId);
-    showToast(`✨ ${p?.name || presetId} theme activated`, 'success');
+    updatePreferences({ themePreset: presetId }, { silent: true });
   };
 
   const handleSelectAccent = (accId: AccentColor) => {
-    updatePreferences({ accentColor: accId });
-    const acc = CURATED_ACCENTS.find((a) => a.id === accId);
-    showToast(
-      accId === 'preset'
-        ? 'Default preset accent restored'
-        : `Accent updated to ${acc?.label || accId}!`,
-      'success'
-    );
+    updatePreferences({ accentColor: accId }, { silent: true });
   };
 
   const handleCustomHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const hex = e.target.value;
-    updatePreferences({
-      accentColor: 'custom',
-      customAccentHex: hex,
-    });
-    showToast(`Custom accent set to ${hex}`, 'success');
+    updatePreferences(
+      {
+        accentColor: 'custom',
+        customAccentHex: hex,
+      },
+      { silent: true }
+    );
   };
 
   return (

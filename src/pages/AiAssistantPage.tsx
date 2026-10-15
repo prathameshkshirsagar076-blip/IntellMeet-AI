@@ -154,7 +154,9 @@ export const AiAssistantPage: React.FC = () => {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth > 900 : true
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMeetingContextId, setSelectedMeetingContextId] = useState<string>('');
   const [meetingDropdownOpen, setMeetingDropdownOpen] = useState(false);
@@ -515,13 +517,23 @@ export const AiAssistantPage: React.FC = () => {
       {/* 1. Left Conversation History Panel */}
       <aside className={`im-ai-history-panel ${isHistoryOpen ? '' : 'collapsed'}`}>
         <div className="im-ai-history-header">
-          <button className="im-ai-new-chat-btn" onClick={handleNewChat} title="Start new conversation (Ctrl+K)">
-            <span className="im-ai-new-chat-btn-left">
-              <PlusIcon size={16} />
-              <span>New Chat</span>
-            </span>
-            <kbd className="im-ai-kbd-shortcut">Ctrl K</kbd>
-          </button>
+          <div className="im-ai-history-header-row">
+            <button className="im-ai-new-chat-btn" onClick={handleNewChat} title="Start new conversation (Ctrl+K)">
+              <span className="im-ai-new-chat-btn-left">
+                <PlusIcon size={16} />
+                <span>New Chat</span>
+              </span>
+              <kbd className="im-ai-kbd-shortcut">Ctrl K</kbd>
+            </button>
+            <button
+              type="button"
+              className="im-ai-history-mobile-close"
+              onClick={() => setIsHistoryOpen(false)}
+              aria-label="Close conversation list"
+            >
+              ✕
+            </button>
+          </div>
 
           <div className="im-ai-search-box">
             <span className="im-ai-search-icon">
@@ -558,7 +570,14 @@ export const AiAssistantPage: React.FC = () => {
                     <div
                       key={conv.id}
                       className={`im-ai-conv-item ${isActive ? 'active' : ''}`}
-                      onClick={() => !isEditing && setActiveConversationId(conv.id)}
+                      onClick={() => {
+                        if (!isEditing) {
+                          setActiveConversationId(conv.id);
+                          if (window.innerWidth <= 900) {
+                            setIsHistoryOpen(false);
+                          }
+                        }
+                      }}
                       title={conv.title}
                     >
                       <div className="im-ai-conv-main">
@@ -619,6 +638,15 @@ export const AiAssistantPage: React.FC = () => {
           <span className="im-badge im-badge-upcoming">Grounded</span>
         </div>
       </aside>
+
+      {/* Mobile Drawer Backdrop */}
+      {isHistoryOpen && (
+        <div
+          className="im-ai-backdrop"
+          onClick={() => setIsHistoryOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* 2. Main Conversation Workspace */}
       <main className="im-ai-chat-main">

@@ -953,7 +953,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(64px, 1fr))', gap: 8 }}>
                       <div style={{ background: 'rgba(30, 41, 59, 0.6)', padding: 8, borderRadius: 6, textAlign: 'center', fontSize: 11, color: '#cbd5e1' }}>
                         ER (Host)
                       </div>

@@ -406,9 +406,11 @@ export const DashboardLayout: React.FC = () => {
             <button
               className="im-topbar-action-btn im-topbar-action-primary"
               onClick={handleStartInstantMeeting}
+              title="New Meeting"
+              aria-label="New Meeting"
             >
               <PlusIcon size={15} />
-              New Meeting
+              <span className="im-topbar-action-text">New Meeting</span>
             </button>
 
             {/* Quick Theme & Color Palette Popover */}

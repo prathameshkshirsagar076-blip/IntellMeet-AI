@@ -330,9 +330,33 @@
   .im-legal-nav-container {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
   }
   .im-legal-nav-actions {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .im-legal-main-content {
+    padding: 16px 10px 36px;
+  }
+  .im-legal-container {
+    padding: 20px 14px;
+    border-radius: 10px;
+  }
+  .im-legal-header h1 {
+    font-size: 22px;
+  }
+  .im-legal-doc-switcher {
+    width: 100%;
+    display: flex;
+  }
+  .im-legal-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 12px;
   }
 }

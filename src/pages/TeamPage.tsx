@@ -461,7 +461,7 @@ export const TeamPage: React.FC = () => {
                     {user.email}
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="im-btn im-btn-primary im-btn-sm"

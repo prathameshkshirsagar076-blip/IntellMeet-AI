@@ -724,6 +724,13 @@
   margin-top: 14px;
 }
 
+@media (max-width: 600px) {
+  .im-theme-gallery-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 .im-theme-preview-card {
   border-radius: var(--im-radius-lg);
   border: 2px solid var(--im-border);
