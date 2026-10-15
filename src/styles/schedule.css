@@ -875,3 +875,156 @@ html.dark-mode .im-schedule-focus-box {
   border-color: rgba(129, 140, 248, 0.3);
   color: #cbd5e1;
 }
+
+/* =========================================================================
+   Mobile & Tablet Responsiveness for Schedule & Calendar
+   ========================================================================= */
+
+@media (max-width: 900px) {
+  .im-schedule-insights-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .im-schedule-main-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .im-schedule-container {
+    gap: 16px;
+  }
+
+  .im-cal-toolbar {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .im-cal-month-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    border-radius: var(--im-radius-md, 10px);
+  }
+
+  .im-cal-weekdays-header,
+  .im-cal-days-grid {
+    min-width: 520px;
+  }
+
+  .im-cal-day-cell {
+    height: 96px;
+    min-height: 96px;
+    max-height: 96px;
+    padding: 4px 6px;
+  }
+
+  .im-cal-event-pill {
+    height: 20px;
+    font-size: 0.675rem;
+    padding: 1px 4px;
+  }
+
+  .im-cal-agenda-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .im-cal-preview-modal {
+    width: calc(100vw - 24px);
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .im-schedule-insights-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .im-schedule-stat-card {
+    padding: 12px 14px;
+  }
+
+  .im-cal-toolbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .im-cal-nav-group {
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .im-cal-month-title {
+    min-width: 0;
+    font-size: 1rem;
+    flex: 1;
+    text-align: center;
+  }
+
+  .im-cal-nav-btn {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+
+  .im-cal-today-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .im-cal-view-tabs {
+    width: 100%;
+    display: flex;
+  }
+
+  .im-cal-view-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 0.75rem;
+  }
+
+  .im-cal-status-legend {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.7rem;
+    gap: 8px;
+  }
+
+  .im-schedule-detail-panel {
+    padding: 14px;
+  }
+
+  .im-schedule-detail-date-title {
+    font-size: 0.95rem;
+  }
+
+  .im-schedule-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .im-schedule-card-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .im-schedule-card-actions .im-btn {
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+    justify-content: center;
+  }
+}

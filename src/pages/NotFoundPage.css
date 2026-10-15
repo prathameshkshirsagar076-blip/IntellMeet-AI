@@ -132,3 +132,26 @@
   color: #64748b;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+@media (max-width: 600px) {
+  .im-404-navbar {
+    padding: 14px 16px;
+  }
+  .im-404-container {
+    padding: 24px 16px;
+  }
+  .im-404-card {
+    padding: 32px 20px;
+    border-radius: 16px;
+  }
+  .im-404-title {
+    font-size: 26px;
+  }
+  .im-404-desc {
+    font-size: 13.5px;
+    margin-bottom: 24px;
+  }
+  .im-404-primary-btn {
+    max-width: 100%;
+  }
+}

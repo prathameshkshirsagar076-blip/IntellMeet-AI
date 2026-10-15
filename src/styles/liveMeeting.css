@@ -1288,17 +1288,58 @@
     display: none;
   }
   .zm-bottom-dock {
-    padding: 0 8px;
+    padding: 0 6px;
+    height: 60px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+  .zm-bottom-dock::-webkit-scrollbar {
+    display: none;
+  }
+  .zm-dock-left,
+  .zm-dock-center,
+  .zm-dock-right {
+    gap: 4px;
+    flex-shrink: 0;
   }
   .zm-dock-btn {
-    padding: 4px 6px;
-    min-width: 48px;
+    padding: 4px 4px;
+    min-width: 44px;
   }
   .zm-dock-btn-label {
-    font-size: 10px;
+    font-size: 9.5px;
   }
   .zm-end-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .zm-side-drawer {
+    width: 100vw;
+    max-width: 100vw;
+    top: 50px;
+    bottom: 60px;
+    right: 0;
+  }
+  .zm-gallery-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow-y: auto;
+    gap: 8px;
+    padding: 6px;
+  }
+  .zm-gallery-tile {
+    min-height: 160px;
+  }
+}
+
+@media (max-width: 400px) {
+  .zm-dock-btn {
+    min-width: 40px;
+    padding: 3px 2px;
   }
 }

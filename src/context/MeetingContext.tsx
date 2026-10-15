@@ -234,7 +234,7 @@ interface MeetingContextType {
   markAllNotificationsAsRead: () => void;
   clearAllNotifications: () => void;
   toggleActionItem: (summaryId: string, actionItemId: string) => void;
-  updatePreferences: (partial: Partial<UserPreferences>) => void;
+  updatePreferences: (partial: Partial<UserPreferences>, options?: { silent?: boolean }) => void;
   copyMeetingLink: (meeting: Meeting) => Promise<boolean>;
   getMeetingById: (id: string) => Meeting | undefined;
   getSummaryByMeetingId: (meetingId: string) => MeetingSummary | undefined;
@@ -645,10 +645,22 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, []);
 
-  const updatePreferences = useCallback((partial: Partial<UserPreferences>) => {
-    setPreferences((prev) => ({ ...prev, ...partial }));
-    showToast('Settings saved successfully', 'success');
-  }, [showToast]);
+  const updatePreferences = useCallback(
+    (partial: Partial<UserPreferences>, options?: { silent?: boolean }) => {
+      setPreferences((prev) => ({ ...prev, ...partial }));
+
+      // Do not display "Settings saved successfully" toast if silence is requested,
+      // or if only theme/appearance properties are being updated.
+      const themeKeys = new Set(['theme', 'themePreset', 'accentColor', 'customAccentHex']);
+      const keys = Object.keys(partial);
+      const isThemeOnly = keys.length > 0 && keys.every((k) => themeKeys.has(k));
+
+      if (!options?.silent && !isThemeOnly) {
+        showToast('Settings saved successfully', 'success');
+      }
+    },
+    [showToast]
+  );
 
   const copyMeetingLink = useCallback(
     async (meeting: Meeting): Promise<boolean> => {

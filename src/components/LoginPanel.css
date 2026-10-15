@@ -682,3 +682,19 @@ html.dark-mode .login-footer-links a:hover {
     margin-bottom: 20px;
   }
 }
+
+@media (max-width: 360px) {
+  .login-panel {
+    padding: 16px 12px 20px;
+  }
+  .login-top-bar {
+    gap: 6px;
+  }
+  .login-brand-name {
+    font-size: 17px;
+  }
+  .login-back-home-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
