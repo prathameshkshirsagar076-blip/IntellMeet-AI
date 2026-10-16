@@ -186,7 +186,7 @@ export const MeetingDetailPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <div>
+            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span
                   className={`im-badge ${
@@ -235,16 +235,17 @@ export const MeetingDetailPage: React.FC = () => {
 
               <h1
                 style={{
-                  fontSize: '1.625rem',
+                  fontSize: 'clamp(1.25rem, 4vw, 1.625rem)',
                   fontWeight: 800,
                   margin: '0 0 10px 0',
                   color: 'var(--im-text-primary)',
+                  wordBreak: 'break-word',
                 }}
               >
                 {meeting.title}
               </h1>
 
-              <p style={{ margin: 0, color: 'var(--im-text-secondary)', maxWidth: 650, lineHeight: 1.5 }}>
+              <p style={{ margin: 0, color: 'var(--im-text-secondary)', maxWidth: 650, lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {meeting.description || 'No description provided.'}
               </p>
             </div>
@@ -385,8 +386,19 @@ export const MeetingDetailPage: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 32, height: 32, flexShrink: 0 }}>
-                          {inv.avatar || (inv.name ? inv.name.slice(0, 2).toUpperCase() : 'U')}
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 32, height: 32, flexShrink: 0, overflow: 'hidden' }}>
+                          {inv.avatar && (inv.avatar.startsWith('http') || inv.avatar.startsWith('data:')) ? (
+                            <img
+                              src={inv.avatar}
+                              alt={inv.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            inv.avatar || (inv.name ? inv.name.slice(0, 2).toUpperCase() : 'U')
+                          )}
                         </div>
                         <div style={{ minWidth: 0, overflow: 'hidden' }}>
                           <div style={{ fontSize: '0.8125rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
@@ -439,15 +451,27 @@ export const MeetingDetailPage: React.FC = () => {
                         padding: '8px 12px',
                         borderRadius: 'var(--im-radius-md)',
                         backgroundColor: 'var(--im-bg-subtle)',
+                        gap: 10,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30 }}>
-                          {p.avatar || p.name.slice(0, 2).toUpperCase()}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30, flexShrink: 0, overflow: 'hidden' }}>
+                          {p.avatar && (p.avatar.startsWith('http') || p.avatar.startsWith('data:')) ? (
+                            <img
+                              src={p.avatar}
+                              alt={p.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            p.avatar || p.name.slice(0, 2).toUpperCase()
+                          )}
                         </div>
-                        <div>
-                          <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{p.name}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)' }}>{p.email}</div>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--im-text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p.email}</div>
                         </div>
                       </div>
                       <span
@@ -456,6 +480,7 @@ export const MeetingDetailPage: React.FC = () => {
                           fontWeight: 600,
                           color: p.role === 'host' ? 'var(--im-primary)' : 'var(--im-text-muted)',
                           textTransform: 'capitalize',
+                          flexShrink: 0,
                         }}
                       >
                         {p.role || 'Attendee'}

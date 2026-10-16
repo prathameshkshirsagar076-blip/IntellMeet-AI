@@ -2,6 +2,7 @@ export interface UserItem {
   id: string;
   name: string;
   email: string;
+  avatar?: string | null;
   normalizedEmail?: string;
   role: string;
   authProvider?: string;

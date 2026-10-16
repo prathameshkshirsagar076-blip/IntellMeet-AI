@@ -89,88 +89,80 @@ export const SettingsPage: React.FC = () => {
 
   const handleSelectThemeMode = (mode: ThemeMode) => {
     setThemeMode(mode);
-    updatePreferences({ theme: mode });
-    showToast(
-      mode === 'dark'
-        ? '🌙 Dark Navy theme activated'
-        : mode === 'light'
-        ? '☀️ Light Canvas theme activated'
-        : '💻 System theme matching activated',
-      'success'
-    );
+    updatePreferences({ theme: mode }, { silent: true });
   };
 
   const handleSelectThemePreset = (presetId: ThemePresetId) => {
     setThemePreset(presetId);
-    updatePreferences({ themePreset: presetId });
-    const p = getThemePreset(presetId);
-    showToast(`✨ ${p.name} theme preset activated!`, 'success');
+    updatePreferences({ themePreset: presetId }, { silent: true });
   };
 
   const handleSelectAccent = (color: AccentColor) => {
     setAccentColor(color);
-    updatePreferences({ accentColor: color });
-    if (color === 'preset') {
-      showToast('Theme preset default accent restored', 'info');
-    } else {
-      const match = CURATED_ACCENTS.find((c) => c.id === color);
-      showToast(`Accent color updated to ${match?.label || color}!`, 'success');
-    }
+    updatePreferences({ accentColor: color }, { silent: true });
   };
 
   const handleCustomHexChange = (hex: string) => {
     setCustomAccentHex(hex);
     setAccentColor('custom');
-    updatePreferences({
-      accentColor: 'custom',
-      customAccentHex: hex,
-    });
-    showToast(`Custom accent set to ${hex}!`, 'success');
+    updatePreferences(
+      {
+        accentColor: 'custom',
+        customAccentHex: hex,
+      },
+      { silent: true }
+    );
   };
 
   const handleToggleHighContrast = (checked: boolean) => {
     setHighContrast(checked);
-    updatePreferences({ highContrast: checked });
+    updatePreferences({ highContrast: checked }, { silent: true });
     showToast(checked ? 'High contrast enabled' : 'Standard contrast restored', 'info');
   };
 
   const handleToggleReducedMotion = (checked: boolean) => {
     setReducedMotion(checked);
-    updatePreferences({ reducedMotion: checked });
+    updatePreferences({ reducedMotion: checked }, { silent: true });
     showToast(checked ? 'Reduced motion enabled' : 'Motion animations enabled', 'info');
   };
 
   const handleResetThemeDefaults = () => {
-    updatePreferences({
-      theme: 'light',
-      themePreset: DEFAULT_THEME_PRESET_ID,
-      accentColor: 'preset',
-      customAccentHex: '#4f46e5',
-      highContrast: false,
-      reducedMotion: false,
-    });
+    updatePreferences(
+      {
+        theme: 'light',
+        themePreset: DEFAULT_THEME_PRESET_ID,
+        accentColor: 'preset',
+        customAccentHex: '#4f46e5',
+        highContrast: false,
+        reducedMotion: false,
+      },
+      { silent: true }
+    );
     setShowResetConfirmModal(false);
     showToast('🔄 Theme reset to IntellMeet Signature default settings!', 'success');
   };
 
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
-    updatePreferences({
-      theme: themeMode,
-      themePreset,
-      accentColor,
-      customAccentHex,
-      highContrast,
-      reducedMotion,
-      microphoneDevice: micDevice,
-      cameraDevice: camDevice,
-      speakerDevice,
-      autoMuteOnJoin: autoMute,
-      autoTurnOffCameraOnJoin: autoCameraOff,
-      emailReminders,
-      desktopNotifications: desktopNotifs,
-      aiSummaryAutoGenerate: autoAiSummary,
-    });
+    updatePreferences(
+      {
+        theme: themeMode,
+        themePreset,
+        accentColor,
+        customAccentHex,
+        highContrast,
+        reducedMotion,
+        microphoneDevice: micDevice,
+        cameraDevice: camDevice,
+        speakerDevice,
+        autoMuteOnJoin: autoMute,
+        autoTurnOffCameraOnJoin: autoCameraOff,
+        emailReminders,
+        desktopNotifications: desktopNotifs,
+        aiSummaryAutoGenerate: autoAiSummary,
+      },
+      { silent: true }
+    );
     showToast('All workspace preferences saved successfully!', 'success');
   };
 
@@ -607,7 +599,7 @@ export const SettingsPage: React.FC = () => {
                     <span className="im-badge im-badge-ai">✨ AI Co-Pilot Summary</span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+                  <div className="im-form-row" style={{ marginTop: 14 }}>
                     <input
                       type="text"
                       className="im-input"
@@ -763,8 +755,8 @@ export const SettingsPage: React.FC = () => {
               </h2>
             </div>
             <div className="im-card-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div className="im-form-group">
+              <div className="im-form-row" style={{ marginBottom: 16 }}>
+                <div className="im-form-group" style={{ marginBottom: 0 }}>
                   <label className="im-form-label">Display Name</label>
                   <input
                     type="text"
@@ -776,7 +768,7 @@ export const SettingsPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="im-form-group">
+                <div className="im-form-group" style={{ marginBottom: 0 }}>
                   <label className="im-form-label">Email Address</label>
                   <input
                     type="email"
@@ -789,7 +781,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="im-form-row">
                 <div className="im-form-group" style={{ marginBottom: 0 }}>
                   <label className="im-form-label">Company / Workspace</label>
                   <input

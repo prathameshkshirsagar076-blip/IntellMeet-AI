@@ -23,6 +23,7 @@ import {
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import UserAvatar from '../components/common/UserAvatar';
 import '../styles/dashboard.css';
 
 // SVG Icons for Shell
@@ -179,7 +180,6 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const displayName = user?.name || 'Workspace User';
-  const displayAvatar = user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'U');
   const displayEmail = user?.email || '';
 
   return (
@@ -406,9 +406,11 @@ export const DashboardLayout: React.FC = () => {
             <button
               className="im-topbar-action-btn im-topbar-action-primary"
               onClick={handleStartInstantMeeting}
+              title="New Meeting"
+              aria-label="New Meeting"
             >
               <PlusIcon size={15} />
-              New Meeting
+              <span className="im-topbar-action-text">New Meeting</span>
             </button>
 
             {/* Quick Theme & Color Palette Popover */}
@@ -519,7 +521,7 @@ export const DashboardLayout: React.FC = () => {
                 aria-label="Open profile menu"
                 aria-expanded={profileDropdownOpen}
               >
-                <div className="im-profile-avatar">{displayAvatar}</div>
+                <UserAvatar avatar={user?.avatar} name={displayName} className="im-profile-avatar" />
                 <span className="im-profile-name">{displayName}</span>
                 <ChevronDownIcon size={14} style={{ color: 'var(--im-text-muted)' }} />
               </button>

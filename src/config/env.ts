@@ -42,7 +42,9 @@ export const env = {
       : ''),
 
   // Authentication & SSO Client IDs (Public client credentials)
-  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  googleClientId:
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    '545957805612-mdlnkg7m528bsac197rm2lh09dhb0fuo.apps.googleusercontent.com',
   microsoftClientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '',
   samlEntityId: import.meta.env.VITE_SAML_ENTITY_ID || '',
 

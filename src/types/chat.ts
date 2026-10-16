@@ -6,6 +6,7 @@ export interface ChatParticipant {
   email: string;
   role?: string;
   isActive?: boolean;
+  avatar?: string | null;
 }
 
 export interface ChatConversation {

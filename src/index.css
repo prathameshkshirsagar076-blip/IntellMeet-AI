@@ -46,10 +46,17 @@
 html {
   min-height: 100%;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
@@ -57,14 +64,17 @@ body {
   background: var(--panel-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
 }
 
 /* #root stretches to at least full height */
 #root {
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* ---- Element resets ---- */
@@ -78,6 +88,7 @@ button {
   cursor: pointer;
   border: none;
   background: none;
+  touch-action: manipulation;
 }
 
 input,
@@ -85,10 +96,29 @@ textarea,
 select {
   font-family: inherit;
   font-size: inherit;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 img,
-svg {
+svg,
+video,
+canvas,
+iframe {
   display: block;
   max-width: 100%;
+  height: auto;
+}
+
+/* Text wrapping safeguards against horizontal overflow */
+p, h1, h2, h3, h4, h5, h6, span, a, li, label, th, td {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Utility for wide tables or grids that require touch scroll on mobile */
+.im-responsive-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }

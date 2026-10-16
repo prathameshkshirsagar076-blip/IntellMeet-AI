@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import DashboardOverviewPage from './pages/DashboardOverviewPage';
 import MeetingsPage from './pages/MeetingsPage';
 import SchedulePage from './pages/SchedulePage';
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/google/callback" element={<OAuthCallbackPage />} />
             </Route>
 
             {/* 3. Protected Dashboard Shell & Subroutes */}

@@ -357,7 +357,7 @@ export const MeetingsPage: React.FC = () => {
         </div>
 
         <div className="im-filter-controls">
-          <div style={{ position: 'relative', width: 260 }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 280 }}>
             <span
               style={{
                 position: 'absolute',
@@ -491,7 +491,18 @@ export const MeetingsPage: React.FC = () => {
                       <div className="im-avatar-stack" title={`${meeting.participants.length} attendees`}>
                         {meeting.participants.slice(0, 4).map((p, idx) => (
                           <span key={idx} className="im-avatar-pill">
-                            {p.avatar || p.name.slice(0, 2).toUpperCase()}
+                            {p.avatar && (p.avatar.startsWith('http') || p.avatar.startsWith('data:')) ? (
+                              <img
+                                src={p.avatar}
+                                alt={p.name}
+                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              p.avatar || p.name.slice(0, 2).toUpperCase()
+                            )}
                           </span>
                         ))}
                       </div>
@@ -500,7 +511,7 @@ export const MeetingsPage: React.FC = () => {
 
                   <div className="im-meeting-actions">
                     {meeting.myInvitationStatus === 'pending' && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
-                      <div style={{ display: 'inline-flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button
                           className="im-btn im-btn-primary im-btn-sm"
                           style={{ background: '#16a34a', borderColor: '#16a34a', padding: '4px 10px', fontSize: '0.75rem' }}
