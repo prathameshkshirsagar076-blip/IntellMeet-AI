@@ -42,23 +42,31 @@ function saveLocalMessages(msgs: Record<string, AiMessage[]>) {
 }
 
 export const aiAssistantApi = {
+  getLocalConversations,
+  getLocalMessages,
+  getLocalMessagesForConv(conversationId: string): AiMessage[] {
+    const all = getLocalMessages();
+    return all[conversationId] || [];
+  },
+
   /**
    * 1. GET /api/v1/ai-assistant/conversations
    * Lists all conversations for authenticated user
    */
   async getConversations(): Promise<AiConversation[]> {
+    const local = getLocalConversations();
     try {
       const res = await apiClient.get<{ success: boolean; data: AiConversation[] }>(
         '/ai-assistant/conversations'
       );
-      if (res && res.success && Array.isArray(res.data)) {
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         saveLocalConversations(res.data);
         return res.data;
       }
     } catch {
       // Remote endpoint may not exist on external AWS Lambda yet; fallback to local
     }
-    return getLocalConversations();
+    return local;
   },
 
   /**
@@ -86,23 +94,25 @@ export const aiAssistantApi = {
       lastMessagePreview: '',
     };
 
-    try {
-      const res = await apiClient.post<{ success: boolean; data: AiConversation }>(
-        '/ai-assistant/conversations',
-        newConv
-      );
-      if (res && res.success && res.data) {
-        const remoteConv = res.data;
-        const all = [remoteConv, ...getLocalConversations().filter((c) => c.id !== remoteConv.id)];
-        saveLocalConversations(all);
-        return remoteConv;
-      }
-    } catch {
-      // Local fallback
-    }
-
-    const all = [newConv, ...getLocalConversations()];
+    // Save locally first to guarantee immediate responsiveness
+    const all = [newConv, ...getLocalConversations().filter((c) => c.id !== newConv.id)];
     saveLocalConversations(all);
+
+    // Non-blocking remote sync attempt
+    apiClient
+      .post<{ success: boolean; data: AiConversation }>('/ai-assistant/conversations', newConv)
+      .then((res) => {
+        if (res && res.success && res.data) {
+          const remoteConv = res.data;
+          const current = getLocalConversations();
+          const merged = [remoteConv, ...current.filter((c) => c.id !== remoteConv.id)];
+          saveLocalConversations(merged);
+        }
+      })
+      .catch(() => {
+        // Fallback already safely stored in local state
+      });
+
     return newConv;
   },
 
@@ -111,12 +121,14 @@ export const aiAssistantApi = {
    * Retrieves conversation by ID with its messages
    */
   async getConversationMessages(conversationId: string): Promise<AiMessage[]> {
+    const allMsgs = getLocalMessages();
+    const localMsgs = allMsgs[conversationId] || [];
+
     try {
       const res = await apiClient.get<{ success: boolean; data: AiMessage[] }>(
         `/ai-assistant/conversations/${conversationId}/messages`
       );
-      if (res && res.success && Array.isArray(res.data)) {
-        const allMsgs = getLocalMessages();
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         allMsgs[conversationId] = res.data;
         saveLocalMessages(allMsgs);
         return res.data;
@@ -125,8 +137,7 @@ export const aiAssistantApi = {
       // Local fallback
     }
 
-    const allMsgs = getLocalMessages();
-    return allMsgs[conversationId] || [];
+    return localMsgs;
   },
 
   /**
@@ -151,11 +162,7 @@ export const aiAssistantApi = {
       saveLocalConversations(all);
     }
 
-    try {
-      await apiClient.patch(`/ai-assistant/conversations/${conversationId}`, updates);
-    } catch {
-      // Local copy already updated
-    }
+    apiClient.patch(`/ai-assistant/conversations/${conversationId}`, updates).catch(() => {});
 
     return updatedConv;
   },
@@ -172,11 +179,7 @@ export const aiAssistantApi = {
     delete allMsgs[conversationId];
     saveLocalMessages(allMsgs);
 
-    try {
-      await apiClient.delete(`/ai-assistant/conversations/${conversationId}`);
-    } catch {
-      // Local copy deleted
-    }
+    apiClient.delete(`/ai-assistant/conversations/${conversationId}`).catch(() => {});
 
     return true;
   },
@@ -198,17 +201,18 @@ export const aiAssistantApi = {
     allMsgs[conversationId] = convMsgs;
     saveLocalMessages(allMsgs);
 
-    // Update conversation message count and last preview
+    // Update conversation message count and last preview, and move to top
     const allConvs = getLocalConversations();
     const convIdx = allConvs.findIndex((c) => c.id === conversationId);
     if (convIdx !== -1) {
-      allConvs[convIdx] = {
+      const updated = {
         ...allConvs[convIdx],
         messageCount: convMsgs.length,
         lastMessagePreview: message.content.slice(0, 80),
         updatedAt: new Date().toISOString(),
       };
-      saveLocalConversations(allConvs);
+      const reordered = [updated, ...allConvs.filter((c) => c.id !== conversationId)];
+      saveLocalConversations(reordered);
     }
   },
 

@@ -2476,11 +2476,15 @@ body {
     display: none;
   }
   .im-content {
-    padding: 16px 12px;
+    padding: 16px 12px calc(76px + env(safe-area-inset-bottom, 0px)) 12px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow-x: hidden;
+  }
+  .im-chat-content-mode,
+  .im-main-ai-mode .im-content {
+    padding-bottom: 0 !important;
   }
   .im-page-header {
     flex-direction: column;
@@ -3861,3 +3865,93 @@ body:has(.im-team-content-mode)::-webkit-scrollbar {
     margin-left: 0;
   }
 }
+
+/* =========================================================================
+   Mobile Bottom Navigation Dock (≤ 768px)
+   ========================================================================= */
+.im-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .im-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--im-bg-surface);
+    border-top: 1px solid var(--im-border);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+    z-index: 150;
+    align-items: center;
+    justify-content: space-around;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .im-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    height: 100%;
+    color: var(--im-text-muted);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    min-height: 48px;
+    touch-action: manipulation;
+    transition: color 0.15s ease, transform 0.1s ease;
+  }
+
+  .im-bottom-nav-item:active {
+    transform: scale(0.94);
+  }
+
+  .im-bottom-nav-item.active,
+  .im-bottom-nav-item:hover {
+    color: var(--im-primary);
+    font-weight: 600;
+  }
+
+  .im-bottom-nav-fab {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--im-primary) 0%, #6366f1 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    margin-top: -16px;
+    border: 3px solid var(--im-bg-surface);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .im-bottom-nav-fab:active {
+    transform: scale(0.9);
+  }
+
+  .dark-mode .im-bottom-nav {
+    background-color: rgba(17, 24, 39, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .dark-mode .im-bottom-nav-fab {
+    border-color: #111827;
+  }
+}
+
