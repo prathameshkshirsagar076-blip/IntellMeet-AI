@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/auth.service';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
@@ -27,6 +28,7 @@ export const LoginPage: React.FC = () => {
   const [showThemePopover, setShowThemePopover] = useState(false);
   const themeBtnRef = useRef<HTMLButtonElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Validation state
@@ -35,6 +37,25 @@ export const LoginPage: React.FC = () => {
 
   // SSO Notice
   const [ssoNotice, setSsoNotice] = useState<string | null>(null);
+
+  // Check URL params for errors passed back from OAuth redirect
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const err = params.get('error');
+    const desc = params.get('error_description');
+    if (err) {
+      let friendlyMsg = desc || 'Google sign-in could not be completed.';
+      if (err === 'access_denied') {
+        friendlyMsg = 'Google sign-in was cancelled or consent was denied. Please try again.';
+      } else if (err === 'INVALID_OAUTH_STATE') {
+        friendlyMsg = 'Authentication security state expired or was invalid. Please try again.';
+      } else if (err === 'ACCOUNT_DISABLED') {
+        friendlyMsg = 'This account is currently disabled. Please contact your workspace administrator.';
+      }
+      setApiError(friendlyMsg);
+      toast.error(friendlyMsg);
+    }
+  }, [location.search]);
 
   // If already authenticated, redirect to destination
   useEffect(() => {
@@ -98,7 +119,24 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSSOClick = (provider: SSOProvider) => {
+  const handleSSOClick = async (provider: SSOProvider) => {
+    if (provider === 'google') {
+      if (isGoogleLoading || isSubmitting) return;
+      setIsGoogleLoading(true);
+      setApiError(null);
+      setSsoNotice(null);
+      try {
+        await AuthService.initiateGoogleAuth('login');
+      } catch (err: unknown) {
+        const error = err as Error;
+        const msg = error.message || 'Google Workspace sign-in is currently unavailable.';
+        setApiError(msg);
+        toast.error(msg);
+        setIsGoogleLoading(false);
+      }
+      return;
+    }
+
     setSsoNotice(
       `SSO Integration Notice: Enterprise sign-in via ${SSO_PROVIDER_NAMES[provider]} requires an active Identity Provider integration. Please use your work email and password or register a new workspace account.`
     );
@@ -307,6 +345,8 @@ export const LoginPage: React.FC = () => {
             label="Continue with Google Workspace"
             onClick={handleSSOClick}
             id="im-sso-google"
+            loading={isGoogleLoading}
+            disabled={isSubmitting || isGoogleLoading}
           />
         </div>
 

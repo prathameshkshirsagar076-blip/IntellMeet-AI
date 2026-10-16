@@ -491,7 +491,18 @@ export const MeetingsPage: React.FC = () => {
                       <div className="im-avatar-stack" title={`${meeting.participants.length} attendees`}>
                         {meeting.participants.slice(0, 4).map((p, idx) => (
                           <span key={idx} className="im-avatar-pill">
-                            {p.avatar || p.name.slice(0, 2).toUpperCase()}
+                            {p.avatar && (p.avatar.startsWith('http') || p.avatar.startsWith('data:')) ? (
+                              <img
+                                src={p.avatar}
+                                alt={p.name}
+                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              p.avatar || p.name.slice(0, 2).toUpperCase()
+                            )}
                           </span>
                         ))}
                       </div>

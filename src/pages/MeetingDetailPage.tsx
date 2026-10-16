@@ -386,8 +386,19 @@ export const MeetingDetailPage: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 32, height: 32, flexShrink: 0 }}>
-                          {inv.avatar || (inv.name ? inv.name.slice(0, 2).toUpperCase() : 'U')}
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 32, height: 32, flexShrink: 0, overflow: 'hidden' }}>
+                          {inv.avatar && (inv.avatar.startsWith('http') || inv.avatar.startsWith('data:')) ? (
+                            <img
+                              src={inv.avatar}
+                              alt={inv.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            inv.avatar || (inv.name ? inv.name.slice(0, 2).toUpperCase() : 'U')
+                          )}
                         </div>
                         <div style={{ minWidth: 0, overflow: 'hidden' }}>
                           <div style={{ fontSize: '0.8125rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
@@ -444,8 +455,19 @@ export const MeetingDetailPage: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30, flexShrink: 0 }}>
-                          {p.avatar || p.name.slice(0, 2).toUpperCase()}
+                        <div className="im-avatar-pill" style={{ marginLeft: 0, width: 30, height: 30, flexShrink: 0, overflow: 'hidden' }}>
+                          {p.avatar && (p.avatar.startsWith('http') || p.avatar.startsWith('data:')) ? (
+                            <img
+                              src={p.avatar}
+                              alt={p.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            p.avatar || p.name.slice(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div style={{ minWidth: 0, overflow: 'hidden' }}>
                           <div style={{ fontSize: '0.8125rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p.name}</div>
