@@ -5,8 +5,54 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import './styles/themePresets.css';
 
+/* ---- Gabriel Sans Cond Font Family ---- */
+@font-face {
+  font-family: 'Gabriel Sans Cond Bold';
+  src: local('Gabriel Sans Cond Bold'),
+       local('Gabriel Sans Condensed Bold'),
+       local('Gabriel-Sans-Cond-Bold'),
+       url('/fonts/GabrielSansCond-Bold.woff2') format('woff2'),
+       url('/fonts/GabrielSansCond-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gabriel Sans Cond';
+  src: local('Gabriel Sans Cond Bold'),
+       local('Gabriel Sans Condensed Bold'),
+       local('Gabriel-Sans-Cond-Bold'),
+       url('/fonts/GabrielSansCond-Bold.woff2') format('woff2'),
+       url('/fonts/GabrielSansCond-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gabriel Sans Cond';
+  src: local('Gabriel Sans Cond Medium'),
+       local('Gabriel Sans Condensed Medium'),
+       url('/fonts/GabrielSansCond-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gabriel Sans Cond';
+  src: local('Gabriel Sans Cond Regular'),
+       local('Gabriel Sans Condensed'),
+       url('/fonts/GabrielSansCond-Normal.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ---- Design Tokens ---- */
 :root {
+  --font-gabriel-cond: 'Gabriel Sans Cond Bold', 'Gabriel Sans Cond', -apple-system, BlinkMacSystemFont, sans-serif;
   /* Left panel palette */
   --panel-bg: #ffffff;
   --panel-text-primary: #0d0d1a;
