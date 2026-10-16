@@ -122,7 +122,8 @@ export const apiClient = {
         cleanEndpoint.includes('/auth/register') ||
         cleanEndpoint.includes('/auth/refresh') ||
         cleanEndpoint.includes('/auth/forgot-password') ||
-        cleanEndpoint.includes('/auth/reset-password');
+        cleanEndpoint.includes('/auth/reset-password') ||
+        cleanEndpoint.includes('/auth/google');
 
       if (response.status === 401 && !isRetry && !isAuthEndpoint) {
         const newAccessToken = await this.refreshToken();
@@ -200,6 +201,14 @@ export const apiClient = {
     }
 
     const currentRefreshToken = getRefreshToken();
+    const currentAccessToken = getAccessToken();
+
+    // If neither token nor refresh token exists, the user is unauthenticated (e.g. initial load).
+    // Do NOT treat this as a session expiration!
+    if (!currentRefreshToken && !currentAccessToken) {
+      return null;
+    }
+
     if (!currentRefreshToken) {
       this.handleSessionExpired();
       return null;
@@ -257,20 +266,37 @@ export const apiClient = {
    * Cleans up invalid or expired session and redirects cleanly to login.
    */
   handleSessionExpired() {
+    const hadSession = Boolean(getAccessToken() || getRefreshToken() || getStoredUser());
     clearAuthSession();
 
-    if (!hasNotifiedSessionExpired) {
+    if (hadSession && !hasNotifiedSessionExpired) {
       hasNotifiedSessionExpired = true;
       toast.warning('Your session has expired. Please sign in again.');
     }
 
     // Only redirect if currently on a protected route
-    const publicPaths = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/terms', '/privacy'];
+    const publicPaths = [
+      '/',
+      '/login',
+      '/signup',
+      '/forgot-password',
+      '/reset-password',
+      '/terms',
+      '/privacy',
+      '/auth/google/callback'
+    ];
     const current = window.location.pathname;
     const isPublic = publicPaths.some((p) => current === p || (p !== '/' && current.startsWith(p)));
     if (!isPublic) {
       window.location.href = '/login';
     }
+  },
+
+  /**
+   * Resets the session expiration warning flag (e.g. after fresh login).
+   */
+  resetSessionExpiredNotice() {
+    hasNotifiedSessionExpired = false;
   },
 
   get<T>(endpoint: string, options?: RequestInit): Promise<T> {
