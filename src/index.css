@@ -25,6 +25,13 @@
   --radius-lg: 14px;
   --radius-full: 9999px;
 
+  /* Mobile Safe Areas & Touch Target Tokens */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --min-touch-target: 44px;
+
   /* Transitions */
   --transition-fast: 140ms ease;
   --transition-base: 200ms ease;
@@ -122,3 +129,42 @@ p, h1, h2, h3, h4, h5, h6, span, a, li, label, th, td {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Prevent iOS Mobile Safari automatic viewport zoom on input focus */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile tap optimization */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Accessible focus visible rings */
+:focus-visible {
+  outline: 2px solid var(--accent-purple, #4f46e5);
+  outline-offset: 2px;
+}
+
+/* Respect user accessibility motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

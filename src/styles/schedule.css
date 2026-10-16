@@ -971,14 +971,15 @@ html.dark-mode .im-schedule-focus-box {
   }
 
   .im-cal-nav-btn {
-    width: 30px;
-    height: 30px;
+    width: 38px;
+    height: 38px;
     flex-shrink: 0;
   }
 
   .im-cal-today-btn {
-    padding: 4px 10px;
-    font-size: 0.75rem;
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    min-height: 38px;
     flex-shrink: 0;
   }
 
