@@ -31,6 +31,8 @@ interface SocialLoginButtonProps {
   label: string;
   onClick: (provider: SSOProvider) => void;
   id?: string;
+  loading?: boolean;
+  disabled?: boolean;
 }
 
 export const SocialLoginButton: React.FC<SocialLoginButtonProps> = ({
@@ -38,8 +40,26 @@ export const SocialLoginButton: React.FC<SocialLoginButtonProps> = ({
   label,
   onClick,
   id,
+  loading = false,
+  disabled = false,
 }) => {
   const renderIcon = () => {
+    if (loading) {
+      return (
+        <span
+          className="sso-spinner"
+          style={{
+            display: 'inline-block',
+            width: '18px',
+            height: '18px',
+            border: '2px solid rgba(0, 0, 0, 0.1)',
+            borderTopColor: '#4285F4',
+            borderRadius: '50%',
+            animation: 'im-spin 0.8s linear infinite',
+          }}
+        />
+      );
+    }
     switch (provider) {
       case 'google':
         return <GoogleIcon />;
@@ -53,13 +73,15 @@ export const SocialLoginButton: React.FC<SocialLoginButtonProps> = ({
   return (
     <button
       type="button"
-      className="login-sso-btn"
+      className={`login-sso-btn${loading ? ' is-loading' : ''}`}
       id={id}
-      onClick={() => onClick(provider)}
+      onClick={() => !disabled && !loading && onClick(provider)}
+      disabled={disabled || loading}
       aria-label={label}
+      aria-busy={loading}
     >
       <span className="sso-icon">{renderIcon()}</span>
-      <span>{label}</span>
+      <span>{loading ? 'Connecting...' : label}</span>
     </button>
   );
 };

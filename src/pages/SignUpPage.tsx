@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/auth.service';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
@@ -53,6 +54,7 @@ export const SignUpPage: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isEmailConflict, setIsEmailConflict] = useState(false);
   const [showThemePopover, setShowThemePopover] = useState(false);
@@ -176,7 +178,24 @@ export const SignUpPage: React.FC = () => {
     setRegisteredTokens(null);
   };
 
-  const handleSSOClick = (provider: SSOProvider) => {
+  const handleSSOClick = async (provider: SSOProvider) => {
+    if (provider === 'google') {
+      if (isGoogleLoading || isSubmitting) return;
+      setIsGoogleLoading(true);
+      setApiError(null);
+      setSsoNotice(null);
+      try {
+        await AuthService.initiateGoogleAuth('signup');
+      } catch (err: unknown) {
+        const error = err as Error;
+        const msg = error.message || 'Google Workspace registration is currently unavailable.';
+        setApiError(msg);
+        toast.error(msg);
+        setIsGoogleLoading(false);
+      }
+      return;
+    }
+
     setSsoNotice(
       `SSO Registration Notice: Self-service sign up with ${SSO_PROVIDER_NAMES[provider]} requires enterprise domain federation. Please complete the registration form below to provision your workspace.`
     );
@@ -607,6 +626,8 @@ export const SignUpPage: React.FC = () => {
                 label="Sign up with Google Workspace"
                 onClick={handleSSOClick}
                 id="im-signup-sso-google"
+                loading={isGoogleLoading}
+                disabled={isSubmitting || isGoogleLoading}
               />
             </div>
           </form>

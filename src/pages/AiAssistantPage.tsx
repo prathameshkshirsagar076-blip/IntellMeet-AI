@@ -15,6 +15,7 @@ import {
   BrainIcon,
   ArrowRightIcon,
 } from '../components/icons';
+import UserAvatar from '../components/common/UserAvatar';
 import '../styles/aiAssistant.css';
 
 // Custom icons
@@ -886,9 +887,11 @@ export const AiAssistantPage: React.FC = () => {
                     </div>
 
                     {isUser && (
-                      <div className="im-ai-avatar user">
-                        {user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'U')}
-                      </div>
+                      <UserAvatar
+                        avatar={user?.avatar}
+                        name={user?.name}
+                        className="im-ai-avatar user"
+                      />
                     )}
                   </div>
                 );

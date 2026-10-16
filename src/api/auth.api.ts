@@ -95,6 +95,39 @@ export const authApi = {
   async getCurrentUser(): Promise<CurrentUserResponse> {
     return apiClient.get<CurrentUserResponse>('/auth/me');
   },
+
+  /**
+   * Request Google OAuth authorization URL from backend.
+   */
+  async getGoogleAuthUrl(params?: {
+    redirectUri?: string;
+    flow?: 'login' | 'signup';
+  }): Promise<{ success: boolean; data: { authUrl: string; state: string } }> {
+    const query = new URLSearchParams({ format: 'json' });
+    if (params?.redirectUri) query.set('redirect_uri', params.redirectUri);
+    if (params?.flow) query.set('flow', params.flow);
+    return apiClient.get<{ success: boolean; data: { authUrl: string; state: string } }>(
+      `/auth/google?${query.toString()}`
+    );
+  },
+
+  /**
+   * Exchange Google authorization code for session tokens.
+   */
+  async googleCallback(payload: {
+    code: string;
+    state?: string;
+    redirect_uri?: string;
+  }): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>('/auth/google/callback', payload);
+
+    if (response?.data) {
+      const { accessToken, refreshToken, user } = response.data;
+      storeAuthSession(accessToken, refreshToken, user);
+    }
+
+    return response;
+  },
 };
 
 export default authApi;

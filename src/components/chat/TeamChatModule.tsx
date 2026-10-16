@@ -89,6 +89,22 @@ function getInitials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function renderAvatarContent(name?: string, avatar?: string | null) {
+  if (avatar && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
+    return (
+      <img
+        src={avatar}
+        alt={name || 'Avatar'}
+        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+        onError={(e) => {
+          (e.currentTarget as HTMLElement).style.display = 'none';
+        }}
+      />
+    );
+  }
+  return getInitials(name);
+}
+
 function formatChatTime(dateStr?: string | null): string {
   if (!dateStr) return '';
   try {
@@ -1560,7 +1576,7 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                               background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
                             }}
                           >
-                            {getInitials(usr.name)}
+                            {renderAvatarContent(usr.name, usr.avatar)}
                           </div>
                           <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1704,7 +1720,6 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
               conversations.map((conv) => {
                 const isSelected = selectedConv?.id === conv.id;
                 const otherName = conv.otherParticipant?.name || 'Teammate';
-                const initials = getInitials(otherName);
                 const isOnline = isOtherOnline(conv.otherParticipant?.id, conv.otherParticipant?.isActive);
 
                 return (
@@ -1730,9 +1745,10 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                             : 'var(--im-bg-surface)',
                           color: 'var(--im-text-primary)',
                           border: isSelected ? '2px solid var(--im-primary)' : '2px solid var(--im-border)',
+                          overflow: 'hidden',
                         }}
                       >
-                        {initials}
+                        {renderAvatarContent(otherName, conv.otherParticipant?.avatar)}
                       </div>
                       {isOnline && (
                         <span
@@ -1836,9 +1852,10 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                       background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
                       color: 'var(--im-text-primary)',
                       border: '2px solid var(--im-border)',
+                      overflow: 'hidden',
                     }}
                   >
-                    {getInitials(selectedConv.otherParticipant?.name || 'Teammate')}
+                    {renderAvatarContent(selectedConv.otherParticipant?.name, selectedConv.otherParticipant?.avatar)}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2285,9 +2302,10 @@ export const TeamChatModule: React.FC<TeamChatModuleProps> = ({
                           marginLeft: 0,
                           flexShrink: 0,
                           background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(124, 58, 237, 0.2))',
+                          overflow: 'hidden',
                         }}
                       >
-                        {getInitials(usr.name)}
+                        {renderAvatarContent(usr.name, usr.avatar)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

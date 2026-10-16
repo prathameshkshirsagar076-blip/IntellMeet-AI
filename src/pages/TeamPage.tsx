@@ -374,10 +374,21 @@ export const TeamPage: React.FC = () => {
                             ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(37, 99, 235, 0.18))'
                             : 'linear-gradient(135deg, rgba(2, 132, 199, 0.18), rgba(16, 185, 129, 0.18))',
                           color: 'var(--im-text-primary)',
-                          border: '2px solid var(--im-border)',
+                          overflow: 'hidden',
                         }}
                       >
-                        {initials}
+                        {user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:')) ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          initials
+                        )}
                       </div>
                     </div>
 

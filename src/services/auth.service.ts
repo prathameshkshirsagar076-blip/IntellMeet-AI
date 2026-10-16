@@ -123,6 +123,58 @@ export class AuthService {
   }
 
   /**
+   * Initiates Google OAuth authentication by redirecting to Google authorization endpoint.
+   */
+  static async initiateGoogleAuth(
+    flow: 'login' | 'signup' = 'login',
+    customRedirectUri?: string
+  ): Promise<void> {
+    const redirectUri =
+      customRedirectUri ||
+      import.meta.env.VITE_GOOGLE_CALLBACK_URL ||
+      undefined;
+
+    try {
+      const res = await authApi.getGoogleAuthUrl({ flow, redirectUri });
+      if (res?.data?.authUrl) {
+        window.location.href = res.data.authUrl;
+        return;
+      }
+    } catch {
+      // Fallback: direct navigation to backend Google auth endpoint
+    }
+    const backendBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
+    const query = new URLSearchParams({ flow });
+    if (redirectUri) {
+      query.set('redirect_uri', redirectUri);
+    }
+    const directUrl = `${backendBase || ''}/api/v1/auth/google?${query.toString()}`;
+    window.location.href = directUrl;
+  }
+
+  /**
+   * Exchanges Google callback code and stores the normalized user session.
+   */
+  static async handleGoogleCallback(payload: {
+    code: string;
+    state?: string;
+    redirect_uri?: string;
+  }): Promise<LoginResponse> {
+    const response = await authApi.googleCallback(payload);
+    if (response?.data) {
+      const normalized = normalizeAuthUser(response.data.user);
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          user: normalized,
+        },
+      };
+    }
+    return response;
+  }
+
+  /**
    * Check if user is currently authenticated with a stored profile and token.
    */
   static isAuthenticated(): boolean {
