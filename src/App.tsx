@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MeetingProvider } from './context/MeetingContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -31,6 +31,30 @@ import NotFoundPage from './pages/NotFoundPage';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './App.css';
 
+/**
+ * RootRoute serves LandingPage for ordinary visitors, but instantly renders
+ * OAuthCallbackPage inside AuthLayout if OAuth redirect parameters (code, state,
+ * or tokens) are present on the root URL (e.g. when Google redirects to root domain).
+ */
+const RootRoute: React.FC = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isOAuthCallback =
+    (searchParams.has('code') && searchParams.has('state')) ||
+    (searchParams.has('token') && searchParams.has('refreshToken')) ||
+    (searchParams.has('error') && searchParams.has('state'));
+
+  if (isOAuthCallback) {
+    return (
+      <AuthLayout>
+        <OAuthCallbackPage />
+      </AuthLayout>
+    );
+  }
+
+  return <LandingPage />;
+};
+
 export const App: React.FC = () => {
   return (
     <ErrorBoundary fallbackTitle="Application Error">
@@ -39,18 +63,19 @@ export const App: React.FC = () => {
           <ToastContainer />
           <BrowserRouter>
             <Routes>
-              {/* 1. Public Landing Page */}
-              <Route path="/" element={<LandingPage />} />
-            <Route path="/landing" element={<Navigate to="/" replace />} />
+              {/* 1. Public Landing Page / Root OAuth Interceptor */}
+              <Route path="/" element={<RootRoute />} />
+              <Route path="/landing" element={<Navigate to="/" replace />} />
 
-            {/* 2. Authentication Flow */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignUpPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/auth/google/callback" element={<OAuthCallbackPage />} />
-            </Route>
+              {/* 2. Authentication Flow */}
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignUpPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/auth/google/callback" element={<OAuthCallbackPage />} />
+                <Route path="/api/v1/auth/google/callback" element={<OAuthCallbackPage />} />
+              </Route>
 
             {/* 3. Protected Dashboard Shell & Subroutes */}
             <Route
