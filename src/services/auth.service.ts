@@ -129,10 +129,12 @@ export class AuthService {
     flow: 'login' | 'signup' = 'login',
     customRedirectUri?: string
   ): Promise<void> {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const defaultCallback = origin ? `${origin}/auth/google/callback` : undefined;
     const redirectUri =
       customRedirectUri ||
       import.meta.env.VITE_GOOGLE_CALLBACK_URL ||
-      undefined;
+      defaultCallback;
 
     try {
       const res = await authApi.getGoogleAuthUrl({ flow, redirectUri });
