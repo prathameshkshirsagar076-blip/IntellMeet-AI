@@ -28,6 +28,7 @@ import {
 } from '../utils/tokenStorage';
 import { AuthService, normalizeAuthUser } from '../services/auth.service';
 import { authApi } from '../api/auth.api';
+import apiClient from '../api/client';
 import { chatSocketService } from '../services/chatSocket.service';
 
 export interface UserProfile extends AuthUser {
@@ -104,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setAuthSessionState = useCallback(
     (newUser: AuthUser, newAccessToken: string, newRefreshToken: string) => {
+      apiClient.resetSessionExpiredNotice();
       storeAuthSession(newAccessToken, newRefreshToken, newUser);
       setUser(newUser);
       setAccessToken(newAccessToken);
