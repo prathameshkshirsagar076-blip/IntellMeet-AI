@@ -270,6 +270,68 @@ const INITIAL_PREFERENCES: UserPreferences = {
   emailReminders: true,
   desktopNotifications: true,
   aiSummaryAutoGenerate: true,
+
+  // General & Workspace
+  workspaceName: 'IntellMeet Enterprise Workspace',
+  workspaceSlug: 'intellmeet-hq',
+  language: 'en',
+  timezone: 'Asia/Kolkata (IST +05:30)',
+  timeFormat: '12h',
+  autoStartOnBoot: false,
+
+  // Profile & Status
+  jobTitle: 'Product Lead & Enterprise Architect',
+  department: 'Product & Engineering',
+  phoneNumber: '+91 98765 43210',
+  statusMessage: '🟢 Available for calls',
+  twoFactorEnabled: true,
+
+  // Meeting Defaults & Policies
+  waitingRoomEnabled: true,
+  waitingRoomMessage: 'Welcome to the meeting! The host will admit you shortly.',
+  joinBeforeHost: false,
+  endMeetingForAllOnLeave: true,
+  allowParticipantScreenShare: true,
+  allowParticipantChat: true,
+  allowParticipantReactions: true,
+  watermarkVideo: false,
+  enforceMeetingPasscode: true,
+
+  // Audio / Video Lab
+  noiseSuppression: 'studio',
+  echoCancellation: true,
+  autoGainControl: true,
+  speakerVolume: 85,
+  videoQuality: '1080p',
+  mirrorVideo: true,
+  lowLightCompensation: true,
+  virtualBackground: 'soft_blur',
+
+  // AI Intelligence
+  aiPersona: 'executive',
+  smartAssigneeDetection: true,
+  aiAutoJoinPolicy: 'recording_only',
+  liveSubtitles: false,
+  liveTranslation: false,
+  translationLanguage: 'en',
+  sentimentAnalytics: true,
+
+  // Notifications & Integrations
+  reminderTimeMinutes: 15,
+  soundAlerts: true,
+  dailyDigestEmail: true,
+  googleCalendarConnected: true,
+  slackConnected: true,
+  outlookConnected: false,
+  dndEnabled: false,
+  dndStartTime: '21:00',
+  dndEndTime: '08:00',
+
+  // Security, Privacy & Cloud
+  e2eeEnabled: true,
+  cloudStorageRegion: 'ap-south-1 (Mumbai)',
+  retentionPolicyDays: 90,
+  requireRecordingConsent: true,
 };
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);

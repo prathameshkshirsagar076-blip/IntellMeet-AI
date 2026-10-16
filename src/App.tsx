@@ -24,6 +24,7 @@ import TeamPage from './pages/TeamPage';
 import ChatPage from './pages/ChatPage';
 import AiAssistantPage from './pages/AiAssistantPage';
 import SettingsPage from './pages/SettingsPage';
+import ThemePage from './pages/ThemePage';
 import LiveMeetingRoomPage from './pages/LiveMeetingRoomPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
@@ -72,6 +73,7 @@ export const App: React.FC = () => {
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/ai-assistant" element={<AiAssistantPage />} />
               <Route path="/dashboard/ai-assistant" element={<AiAssistantPage />} />
+              <Route path="/theme" element={<ThemePage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
