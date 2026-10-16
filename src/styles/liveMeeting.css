@@ -455,12 +455,41 @@
   animation: zmScaleFade 0.3s ease;
 }
 
-.zm-center-avatar-img {
-  width: 96px;
-  height: 96px;
-  border-radius: 4px;
-  object-fit: cover;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+.zm-center-avatar-img,
+.zm-center-user-avatar img,
+.zm-center-user-avatar .im-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.zm-center-user-avatar {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.zm-gallery-avatar,
+.zm-gallery-avatar img,
+.zm-gallery-avatar .im-avatar-img {
+  border-radius: 50% !important;
+  object-fit: cover !important;
+}
+
+.zm-p-avatar.im-user-avatar {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+
+.zm-p-avatar.im-user-avatar img,
+.zm-p-avatar.im-user-avatar .im-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 /* Live Webcam Video Feed Element */

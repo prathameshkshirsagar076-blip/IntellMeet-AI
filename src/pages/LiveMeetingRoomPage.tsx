@@ -5,6 +5,8 @@ import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
 import { meetingApi } from '../api/meeting.api';
 import { meetingSocketService } from '../services/meetingSocket.service';
 import { toast as globalToast } from '../components/toast/toast';
+import { getStoredUser } from '../utils/tokenStorage';
+import { UserAvatar } from '../components/common/UserAvatar';
 import type { RemotePeer, Meeting, MeetingMessageItem, ActionItem } from '../types/meeting';
 import '../styles/liveMeeting.css';
 
@@ -23,7 +25,7 @@ interface ReactionParticle {
   leftPercent: number;
 }
 
-const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
+const RemoteVideoTile: React.FC<{ peer: RemotePeer; peerAvatar?: string }> = ({ peer, peerAvatar }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const hasVideo = (peer.isVideoOn || peer.isScreenSharing) && Boolean(peer.stream);
@@ -33,15 +35,6 @@ const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
       videoRef.current.srcObject = peer.stream;
     }
   }, [peer.stream, hasVideo, peer.isVideoOn, peer.isScreenSharing]);
-
-  const initials = peer.name
-    ? peer.name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : 'U';
 
   return (
     <div className={`zm-gallery-tile ${!peer.isAudioMuted ? 'speaking' : ''}`}>
@@ -58,22 +51,16 @@ const RemoteVideoTile: React.FC<{ peer: RemotePeer }> = ({ peer }) => {
           className="zm-live-video-element"
         />
       ) : (
-        <div
+        <UserAvatar
+          avatar={peer.avatar || peerAvatar}
+          name={peer.name}
+          size={84}
+          className="zm-gallery-avatar"
           style={{
-            width: 84,
-            height: 84,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 28,
-            fontWeight: 700,
-            color: '#fff',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            border: '2px solid rgba(255,255,255,0.15)',
           }}
-        >
-          {initials}
-        </div>
+        />
       )}
       <div className="zm-speaker-tag">
         <span className={peer.isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
@@ -113,7 +100,9 @@ export const LiveMeetingRoomPage: React.FC = () => {
   );
   const [remotePeers, setRemotePeers] = useState<RemotePeer[]>([]);
 
-  const userName = initialDisplayName || user?.name || 'IntellMeet User';
+  const storedUser = React.useMemo(() => getStoredUser(), []);
+  const userName = initialDisplayName || user?.name || storedUser?.name || 'IntellMeet User';
+  const userAvatar = user?.avatar || storedUser?.avatar;
   const meetingTitle = realMeeting?.title || (meetingId ? `Meeting: ${meetingId}` : `${userName}'s Live Meeting`);
   const meetingCode = realMeeting?.meetingCode || meetingId || '';
   const lobbyPasscode = searchParams.get('passcode') || '';
@@ -1012,22 +1001,21 @@ export const LiveMeetingRoomPage: React.FC = () => {
                         />
                       ) : (
                         <div className="zm-center-avatar-box">
-                          <div
+                          <UserAvatar
+                            avatar={
+                              activePeer.avatar ||
+                              realMeeting?.participants?.find(
+                                (p) => p.id === activePeer.userId || p.email === activePeer.email
+                              )?.avatar
+                            }
+                            name={activePeer.name}
+                            size={128}
+                            className="zm-center-user-avatar"
                             style={{
-                              width: 120,
-                              height: 120,
-                              borderRadius: '50%',
-                              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 42,
-                              fontWeight: 700,
-                              color: '#fff',
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                              border: '3px solid rgba(255,255,255,0.15)',
                             }}
-                          >
-                            {activePeer.name.slice(0, 2).toUpperCase()}
-                          </div>
+                          />
                         </div>
                       );
                     }
@@ -1054,33 +1042,18 @@ export const LiveMeetingRoomPage: React.FC = () => {
                     }
 
                     return (
-                      /* Centered User Avatar */
+                      /* Centered User Avatar when Video is Off */
                       <div className="zm-center-avatar-box">
-                        {user?.avatar && user.avatar.startsWith('http') ? (
-                          <img
-                            src={user.avatar}
-                            alt={userName}
-                            className="zm-center-avatar-img"
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: 140,
-                              height: 140,
-                              borderRadius: '50%',
-                              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 48,
-                              fontWeight: 700,
-                              color: '#ffffff',
-                              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                            }}
-                          >
-                            {userName.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
-                          </div>
-                        )}
+                        <UserAvatar
+                          avatar={userAvatar}
+                          name={userName}
+                          size={128}
+                          className="zm-center-user-avatar"
+                          style={{
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                            border: '3px solid rgba(255,255,255,0.15)',
+                          }}
+                        />
                       </div>
                     );
                   })()}
@@ -1145,8 +1118,37 @@ export const LiveMeetingRoomPage: React.FC = () => {
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12 }}>
-                          {userName} (You)
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            background: '#0f172a',
+                          }}
+                        >
+                          <UserAvatar
+                            avatar={userAvatar}
+                            name={userName}
+                            size={42}
+                            style={{ border: '2px solid rgba(255,255,255,0.2)' }}
+                          />
+                          <span
+                            style={{
+                              color: '#cbd5e1',
+                              fontSize: 11,
+                              fontWeight: 500,
+                              maxWidth: 120,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {userName} (You)
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1175,22 +1177,16 @@ export const LiveMeetingRoomPage: React.FC = () => {
                         className="zm-live-video-element"
                       />
                     ) : (
-                      <div
+                      <UserAvatar
+                        avatar={userAvatar}
+                        name={userName}
+                        size={84}
+                        className="zm-gallery-avatar"
                         style={{
-                          width: 84,
-                          height: 84,
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 28,
-                          fontWeight: 700,
-                          color: '#fff',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                          border: '2px solid rgba(255,255,255,0.15)',
                         }}
-                      >
-                        {userName.slice(0, 2).toUpperCase()}
-                      </div>
+                      />
                     )}
                     <div className="zm-speaker-tag">
                       <span className={isAudioMuted ? 'zm-speaker-mic-red' : 'zm-speaker-mic-green'}>
@@ -1201,9 +1197,14 @@ export const LiveMeetingRoomPage: React.FC = () => {
                   </div>
 
                   {/* Connected Remote Peers */}
-                  {remotePeers.map((peer) => (
-                    <RemoteVideoTile key={peer.socketId} peer={peer} />
-                  ))}
+                  {remotePeers.map((peer) => {
+                    const peerAvatar =
+                      peer.avatar ||
+                      realMeeting?.participants?.find(
+                        (p) => p.id === peer.userId || p.email === peer.email
+                      )?.avatar;
+                    return <RemoteVideoTile key={peer.socketId} peer={peer} peerAvatar={peerAvatar} />;
+                  })}
 
                   {/* Invite peer card if alone in meeting */}
                   {remotePeers.length === 0 && (
@@ -1255,9 +1256,12 @@ export const LiveMeetingRoomPage: React.FC = () => {
                   {/* You */}
                   <div className="zm-participant-row">
                     <div className="zm-participant-info">
-                      <div className="zm-p-avatar">
-                        {userName[0]?.toUpperCase() || 'U'}
-                      </div>
+                      <UserAvatar
+                        avatar={userAvatar}
+                        name={userName}
+                        size={32}
+                        className="zm-p-avatar"
+                      />
                       <div>
                         <div className="zm-p-name">
                           {userName}
@@ -1272,19 +1276,28 @@ export const LiveMeetingRoomPage: React.FC = () => {
                   </div>
 
                   {/* Connected Remote Peers */}
-                  {remotePeers.map((peer) => (
-                    <div key={peer.socketId} className="zm-participant-row">
-                      <div className="zm-participant-info">
-                        <div className="zm-p-avatar" style={{ background: '#3b82f6' }}>
-                          {peer.name[0]?.toUpperCase() || 'P'}
-                        </div>
-                        <div>
-                          <div className="zm-p-name">
-                            {peer.name}
-                            <span className="zm-p-tag">({peer.role || 'Attendee'})</span>
+                  {remotePeers.map((peer) => {
+                    const peerAvatar =
+                      peer.avatar ||
+                      realMeeting?.participants?.find(
+                        (p) => p.id === peer.userId || p.email === peer.email
+                      )?.avatar;
+                    return (
+                      <div key={peer.socketId} className="zm-participant-row">
+                        <div className="zm-participant-info">
+                          <UserAvatar
+                            avatar={peer.avatar || peerAvatar}
+                            name={peer.name}
+                            size={32}
+                            className="zm-p-avatar"
+                          />
+                          <div>
+                            <div className="zm-p-name">
+                              {peer.name}
+                              <span className="zm-p-tag">({peer.role || 'Attendee'})</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
                       <div className="zm-p-status" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>{peer.isAudioMuted ? '🔇' : '🎙️'}</span>
                         <span>{peer.isVideoOn ? '📹' : '🚫'}</span>
@@ -1317,7 +1330,8 @@ export const LiveMeetingRoomPage: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
                 <div className="zm-drawer-footer">
                   <button className="zm-drawer-btn" onClick={handleCopyLink}>
@@ -1370,6 +1384,11 @@ export const LiveMeetingRoomPage: React.FC = () => {
                       chatMessages.map((msg) => (
                         <div key={msg.id} className="zm-chat-msg">
                           <div className="zm-chat-msg-header">
+                            <UserAvatar
+                              avatar={msg.isSelf ? userAvatar : undefined}
+                              name={msg.sender}
+                              size={20}
+                            />
                             <span className="zm-chat-sender">{msg.sender}</span>
                             <span className="zm-chat-time">{msg.timestamp}</span>
                           </div>

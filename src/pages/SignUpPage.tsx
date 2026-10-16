@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AuthService } from '../services/auth.service';
+import { AuthService, initiateGoogleAuth } from '../services/auth.service';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
@@ -185,7 +185,7 @@ export const SignUpPage: React.FC = () => {
       setApiError(null);
       setSsoNotice(null);
       try {
-        await AuthService.initiateGoogleAuth('signup');
+        await (AuthService?.initiateGoogleAuth || initiateGoogleAuth)('signup');
       } catch (err: unknown) {
         const error = err as Error;
         const msg = error.message || 'Google Workspace registration is currently unavailable.';

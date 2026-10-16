@@ -19,6 +19,7 @@ import {
   UsersIcon,
   ShieldCheckIcon,
 } from '../components/icons';
+import UserAvatar from '../components/common/UserAvatar';
 
 export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -755,6 +756,43 @@ export const SettingsPage: React.FC = () => {
               </h2>
             </div>
             <div className="im-card-body">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '16px',
+                  marginBottom: 20,
+                  backgroundColor: 'var(--im-bg-subtle)',
+                  borderRadius: 'var(--im-radius-lg)',
+                  border: '1px solid var(--im-border)',
+                }}
+              >
+                <UserAvatar avatar={user?.avatar} name={user?.name} size={56} className="im-profile-avatar" />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--im-text-primary)' }}>
+                    {user?.name || 'Workspace User'}
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--im-text-muted)', marginTop: 2 }}>
+                    {user?.email || ''}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        backgroundColor: 'var(--im-primary-subtle, rgba(99, 102, 241, 0.12))',
+                        color: 'var(--im-primary, #6366f1)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {user?.authProvider === 'google' ? 'Google Workspace' : 'Enterprise SSO'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="im-form-row" style={{ marginBottom: 16 }}>
                 <div className="im-form-group" style={{ marginBottom: 0 }}>
                   <label className="im-form-label">Display Name</label>

@@ -112,10 +112,11 @@ export const authApi = {
   },
 
   /**
-   * Exchange Google authorization code for session tokens.
+   * Exchange Google authorization code or single-use session ticket for session tokens.
    */
   async googleCallback(payload: {
-    code: string;
+    code?: string;
+    ticket?: string;
     state?: string;
     redirect_uri?: string;
   }): Promise<LoginResponse> {

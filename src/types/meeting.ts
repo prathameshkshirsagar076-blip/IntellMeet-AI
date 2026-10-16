@@ -226,6 +226,7 @@ export interface RemotePeer {
   name: string;
   email: string;
   role: string;
+  avatar?: string;
   stream?: MediaStream;
   isAudioMuted?: boolean;
   isVideoOn?: boolean;

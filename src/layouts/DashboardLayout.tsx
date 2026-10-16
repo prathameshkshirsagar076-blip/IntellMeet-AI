@@ -531,16 +531,19 @@ export const DashboardLayout: React.FC = () => {
                 aria-label="Open profile menu"
                 aria-expanded={profileDropdownOpen}
               >
-                <UserAvatar avatar={user?.avatar} name={displayName} className="im-profile-avatar" />
+                <UserAvatar avatar={user?.avatar} name={displayName} size={30} className="im-profile-avatar" />
                 <span className="im-profile-name">{displayName}</span>
                 <ChevronDownIcon size={14} style={{ color: 'var(--im-text-muted)' }} />
               </button>
 
               {profileDropdownOpen && (
                 <div className="im-dropdown" role="menu">
-                  <div className="im-dropdown-header">
-                    <div className="im-dropdown-user-name">{displayName}</div>
-                    <div className="im-dropdown-user-email">{displayEmail}</div>
+                  <div className="im-dropdown-header" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <UserAvatar avatar={user?.avatar} name={displayName} size={38} className="im-dropdown-avatar" />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="im-dropdown-user-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+                      <div className="im-dropdown-user-email" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayEmail}</div>
+                    </div>
                   </div>
 
                   <button

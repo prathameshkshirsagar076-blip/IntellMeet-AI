@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMeetings } from '../context/MeetingContext';
 import { meetingApi } from '../api/meeting.api';
 import { getStoredUser } from '../utils/tokenStorage';
+import { UserAvatar } from '../components/common/UserAvatar';
 import {
   VideoIcon,
   ArrowLeftIcon,
@@ -405,20 +406,24 @@ export const JoinMeetingPage: React.FC = () => {
               />
             ) : (
               <div style={{ textAlign: 'center', padding: 16 }}>
-                <div className="im-video-placeholder-avatar">
-                  {(displayName || 'U').slice(0, 2).toUpperCase()}
-                </div>
+                <UserAvatar
+                  avatar={user?.avatar || storedUser?.avatar}
+                  name={displayName}
+                  size={96}
+                  className="im-video-placeholder-avatar"
+                  style={{ margin: '0 auto' }}
+                />
                 <div
                   style={{
-                    marginTop: 12,
+                    marginTop: 14,
                     color: '#f8fafc',
                     fontWeight: 700,
-                    fontSize: '1rem',
+                    fontSize: '1.05rem',
                   }}
                 >
                   {displayName}
                 </div>
-                <div style={{ marginTop: 2, color: '#94a3b8', fontSize: '0.8rem' }}>
+                <div style={{ marginTop: 4, color: '#94a3b8', fontSize: '0.8rem' }}>
                   {cameraError ? cameraError : 'Camera is turned off'}
                 </div>
               </div>
