@@ -5,6 +5,7 @@ import { useMeetings, mapBackendMeeting } from '../context/MeetingContext';
 import { meetingApi } from '../api/meeting.api';
 import { meetingSocketService } from '../services/meetingSocket.service';
 import { toast as globalToast } from '../components/toast/toast';
+import { BrandIcon } from '../components/icons';
 import type { RemotePeer, Meeting, MeetingMessageItem, ActionItem } from '../types/meeting';
 import '../styles/liveMeeting.css';
 
@@ -724,13 +725,27 @@ export const LiveMeetingRoomPage: React.FC = () => {
         <div className="zm-call-topbar">
           <div className="zm-call-topbar-left">
             {/* Brand Logo & Name */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginRight: 4 }}>
-              <img
-                src="/intellmeet-icon.png"
-                alt="IntellMeet"
-                style={{ width: 22, height: 22, objectFit: 'contain' }}
-              />
-              <span style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center' }}>
+            <div
+              className="zm-call-brand-container"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                marginRight: 4,
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <BrandIcon size={22} />
+              <span
+                style={{
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  letterSpacing: '-0.3px',
+                  whiteSpace: 'nowrap',
+                  userSelect: 'none',
+                }}
+              >
                 <span style={{ color: '#38bdf8' }}>Intell</span>
                 <span style={{ color: '#a855f7' }}>Meet</span>
               </span>
@@ -754,32 +769,36 @@ export const LiveMeetingRoomPage: React.FC = () => {
 
             {/* Live Elapsed Duration Indicator */}
             <div
+              className="zm-call-duration-badge"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '2px 8px',
+                gap: 5,
+                padding: '2px 7px',
                 borderRadius: 999,
                 background: 'rgba(239, 68, 68, 0.15)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 color: '#fca5a5',
-                fontSize: '0.75rem',
+                fontSize: '0.72rem',
                 fontWeight: 600,
-                letterSpacing: '0.5px',
-                marginLeft: 4,
+                letterSpacing: '0.3px',
+                marginLeft: 2,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
               title="Live Meeting Duration"
             >
               <span
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: 5,
+                  height: 5,
                   borderRadius: '50%',
                   background: '#ef4444',
                   boxShadow: '0 0 6px #ef4444',
+                  flexShrink: 0,
                 }}
               />
-              <span>{formatElapsed(elapsedSeconds)}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{formatElapsed(elapsedSeconds)}</span>
             </div>
           </div>
 

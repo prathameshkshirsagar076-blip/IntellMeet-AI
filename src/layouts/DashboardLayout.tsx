@@ -19,6 +19,7 @@ import {
   MoonIcon,
   ChatIcon,
   BrainIcon,
+  BrandIcon,
 } from '../components/icons';
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
@@ -198,11 +199,7 @@ export const DashboardLayout: React.FC = () => {
         <div className="im-sidebar-header">
           <Link to="/dashboard" className="im-sidebar-logo" title="IntellMeet — Meet Smarter With AI">
             <div className="im-sidebar-logo-icon">
-              <img
-                src="/intellmeet-icon.png"
-                alt="IntellMeet"
-                className="im-sidebar-logo-img"
-              />
+              <BrandIcon size={30} />
             </div>
             <div className="im-sidebar-logo-text">
               <div className="im-sidebar-logo-brand">
