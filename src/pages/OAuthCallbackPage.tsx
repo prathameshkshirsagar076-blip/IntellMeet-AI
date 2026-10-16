@@ -109,7 +109,21 @@ export const OAuthCallbackPage: React.FC = () => {
 
       if (code) {
         try {
-          const redirectUri = `${window.location.origin}/auth/google/callback`;
+          let stateRedirectUri: string | undefined;
+          if (state && state.includes('.')) {
+            try {
+              const payloadB64 = state.split('.')[0];
+              const jsonStr = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+              const parsedState = JSON.parse(jsonStr);
+              if (parsedState?.redirectUri && typeof parsedState.redirectUri === 'string') {
+                stateRedirectUri = parsedState.redirectUri;
+              }
+            } catch {
+              // fallback to standard callback path
+            }
+          }
+
+          const redirectUri = stateRedirectUri || `${window.location.origin}/auth/google/callback`;
           const response = await AuthService.handleGoogleCallback({
             code,
             state,
