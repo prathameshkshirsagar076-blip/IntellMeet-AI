@@ -462,14 +462,21 @@
 /* ---- Two Column Layout: Calendar + Side Schedule Detail ---- */
 .im-schedule-main-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 20px;
   align-items: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.im-schedule-left-col {
+  min-width: 0;
+  width: 100%;
 }
 
 @media (max-width: 1080px) {
   .im-schedule-main-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -887,14 +894,16 @@ html.dark-mode .im-schedule-focus-box {
   }
 
   .im-schedule-main-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
 }
 
 @media (max-width: 768px) {
   .im-schedule-container {
-    gap: 16px;
+    gap: 14px;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .im-cal-toolbar {
@@ -906,12 +915,13 @@ html.dark-mode .im-schedule-focus-box {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     width: 100%;
+    max-width: 100%;
     border-radius: var(--im-radius-md, 10px);
   }
 
   .im-cal-weekdays-header,
   .im-cal-days-grid {
-    min-width: 520px;
+    min-width: 480px;
   }
 
   .im-cal-day-cell {
@@ -944,12 +954,27 @@ html.dark-mode .im-schedule-focus-box {
 
 @media (max-width: 480px) {
   .im-schedule-insights-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 
   .im-schedule-stat-card {
-    padding: 12px 14px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .im-schedule-stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  .im-schedule-stat-value {
+    font-size: 1.15rem;
+  }
+
+  .im-schedule-stat-label {
+    font-size: 0.7rem;
   }
 
   .im-cal-toolbar {

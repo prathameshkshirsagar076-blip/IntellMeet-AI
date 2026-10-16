@@ -23,15 +23,21 @@
   border-right: 1px solid var(--im-border);
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.25s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.25s ease, opacity 0.2s ease, visibility 0.2s ease;
   z-index: 20;
+  overflow: hidden;
 }
 
 .im-ai-history-panel.collapsed {
   transform: translateX(-100%);
-  width: 0;
-  min-width: 0;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
   border-right: none;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .im-ai-history-header {
@@ -534,6 +540,9 @@
   width: 34px;
   height: 34px;
   min-width: 34px;
+  min-height: 34px;
+  max-width: 34px;
+  max-height: 34px;
   border-radius: var(--im-radius-md);
   display: flex;
   align-items: center;
@@ -541,6 +550,18 @@
   font-weight: 600;
   font-size: 0.8125rem;
   user-select: none;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.im-ai-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
 }
 
 .im-ai-avatar.assistant {
@@ -969,20 +990,27 @@
   }
 
   .im-ai-history-panel {
-    position: absolute;
+    position: fixed;
     left: 0;
-    top: 0;
+    top: 56px;
     bottom: 0;
     z-index: 100;
     width: 290px;
     max-width: 85vw;
     box-shadow: var(--im-shadow-xl);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .im-ai-history-panel.collapsed {
-    transform: translateX(-100%);
-    width: 0;
-    min-width: 0;
+    transform: translateX(-100%) !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
   }
 
   .im-ai-history-mobile-close {

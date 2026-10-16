@@ -9,16 +9,27 @@ interface BrandLogoProps {
   tagline?: string;
   className?: string;
   useImageBanner?: boolean;
+  stacked?: boolean;
+  iconSize?: number;
 }
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
   to = '/',
-  tagline = 'MEET SMARTER WITH AI',
+  tagline = 'AI-Powered Enterprise Meeting & Collaboration Platform',
   className = '',
   useImageBanner = false,
+  stacked = false,
+  iconSize,
 }) => {
+  const resolvedIconSize = iconSize || (stacked ? 64 : 36);
+
   return (
-    <Link to={to} className={`login-brand ${className}`} title="IntellMeet — Meet Smarter With AI">
+    <Link
+      to={to}
+      className={`login-brand ${stacked ? 'stacked' : ''} ${className}`}
+      title="IntellMeet — Meet Smarter With AI"
+      style={{ textDecoration: 'none' }}
+    >
       {useImageBanner ? (
         <img
           src="/intellmeet-logo.png"
@@ -28,15 +39,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       ) : (
         <>
           <div className="login-brand-logo" aria-hidden="true">
-            <img
-              src="/intellmeet-icon.png"
-              alt="IntellMeet Icon"
-              className="login-brand-logo-img"
-              onError={(e) => {
-                // If image fails for any reason, hide img to show BrandIcon SVG
-                (e.currentTarget as HTMLElement).style.display = 'none';
-              }}
-            />
+            <BrandIcon size={resolvedIconSize} />
           </div>
           <div className="login-brand-text">
             <span className="login-brand-name">

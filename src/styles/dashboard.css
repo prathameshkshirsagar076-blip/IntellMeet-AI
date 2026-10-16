@@ -744,9 +744,23 @@ body {
   background-color: var(--im-bg-surface-hover);
 }
 
+.im-user-avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
 .im-profile-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  max-width: 30px;
+  max-height: 30px;
   border-radius: 50%;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: #ffffff;
@@ -757,12 +771,30 @@ body {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.im-dropdown-avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .im-profile-avatar img,
+.im-dropdown-avatar img,
 .im-avatar-img {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -1503,6 +1535,10 @@ body {
 .im-avatar-pill {
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
   border-radius: 50%;
   border: 2px solid var(--im-bg-surface);
   background-color: #e2e8f0;
@@ -1518,8 +1554,10 @@ body {
 }
 
 .im-avatar-pill img {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -2157,17 +2195,38 @@ body {
 }
 
 .im-video-placeholder-avatar {
-  width: 90px;
-  height: 90px;
+  width: 96px;
+  height: 96px;
+  min-width: 96px;
+  min-height: 96px;
+  max-width: 96px;
+  max-height: 96px;
   border-radius: 50%;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: #ffffff;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 30px rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 30px rgba(79, 70, 229, 0.55);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+.im-video-placeholder-avatar img,
+.im-video-placeholder-avatar .im-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 .im-video-live-feed {
@@ -3954,4 +4013,144 @@ body:has(.im-team-content-mode)::-webkit-scrollbar {
     border-color: #111827;
   }
 }
+
+/* =========================================================================
+   SETTINGS PAGE SPECIALIZED STYLES
+   ========================================================================= */
+
+.im-settings-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px;
+  background-color: var(--im-bg-surface);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-lg);
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.im-settings-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.im-settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--im-radius-md);
+  border: none;
+  background: transparent;
+  color: var(--im-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--im-transition);
+}
+
+.im-settings-tab-btn:hover {
+  background-color: var(--im-bg-surface-hover);
+  color: var(--im-text-primary);
+}
+
+.im-settings-tab-btn.active {
+  background-color: var(--im-primary);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.im-setting-toggle-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--im-radius-md);
+  border: 1px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  transition: var(--im-transition);
+}
+
+.im-setting-toggle-card:hover {
+  border-color: var(--im-border-focus);
+}
+
+/* Audio VU Meter */
+.im-vu-meter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+  padding: 3px 6px;
+  background-color: var(--im-bg-subtle);
+  border-radius: var(--im-radius-sm);
+  border: 1px solid var(--im-border);
+}
+
+.im-vu-segment {
+  width: 5px;
+  border-radius: 2px;
+  transition: height 0.08s ease, background-color 0.1s ease;
+}
+
+/* Camera Test Studio Container */
+.im-camera-test-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  background: linear-gradient(135deg, #090d16 0%, #1e1b4b 100%);
+  border-radius: var(--im-radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--im-border);
+}
+
+.im-camera-grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 33.333% 33.333%;
+}
+
+/* Integration Cards */
+.im-integration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.im-integration-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  border-radius: var(--im-radius-lg);
+  border: 1px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  transition: var(--im-transition);
+}
+
+.im-integration-box:hover {
+  border-color: var(--im-primary);
+  box-shadow: var(--im-shadow-md);
+}
+
+/* Storage Bar */
+.im-storage-progress-bar {
+  height: 10px;
+  border-radius: var(--im-radius-full);
+  background-color: var(--im-bg-subtle);
+  display: flex;
+  overflow: hidden;
+  margin: 12px 0 8px 0;
+}
+
 

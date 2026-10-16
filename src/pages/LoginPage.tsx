@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AuthService } from '../services/auth.service';
+import { AuthService, initiateGoogleAuth } from '../services/auth.service';
 import BrandLogo from '../components/BrandLogo';
 import FormInput from '../components/FormInput';
 import PasswordInput from '../components/PasswordInput';
@@ -126,7 +126,7 @@ export const LoginPage: React.FC = () => {
       setApiError(null);
       setSsoNotice(null);
       try {
-        await AuthService.initiateGoogleAuth('login');
+        await (AuthService?.initiateGoogleAuth || initiateGoogleAuth)('login');
       } catch (err: unknown) {
         const error = err as Error;
         const msg = error.message || 'Google Workspace sign-in is currently unavailable.';

@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_API_TIMEOUT_MS: string;
   readonly VITE_WS_URL: string;
   readonly VITE_GOOGLE_CLIENT_ID: string;
+  readonly VITE_GOOGLE_CALLBACK_URL?: string;
+  readonly VITE_GOOGLE_AUTH_ENABLED?: string;
   readonly VITE_MICROSOFT_CLIENT_ID: string;
   readonly VITE_SAML_ENTITY_ID: string;
   readonly VITE_ENABLE_MOCK_AUTH: string;

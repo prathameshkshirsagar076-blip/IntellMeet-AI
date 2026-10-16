@@ -113,6 +113,68 @@ export interface UserPreferences {
   emailReminders: boolean;
   desktopNotifications: boolean;
   aiSummaryAutoGenerate: boolean;
+
+  // General & Workspace
+  workspaceName?: string;
+  workspaceSlug?: string;
+  language?: string;
+  timezone?: string;
+  timeFormat?: '12h' | '24h';
+  autoStartOnBoot?: boolean;
+
+  // Profile & Status
+  jobTitle?: string;
+  department?: string;
+  phoneNumber?: string;
+  statusMessage?: string;
+  twoFactorEnabled?: boolean;
+
+  // Meeting Defaults & Policies
+  waitingRoomEnabled?: boolean;
+  waitingRoomMessage?: string;
+  joinBeforeHost?: boolean;
+  endMeetingForAllOnLeave?: boolean;
+  allowParticipantScreenShare?: boolean;
+  allowParticipantChat?: boolean;
+  allowParticipantReactions?: boolean;
+  watermarkVideo?: boolean;
+  enforceMeetingPasscode?: boolean;
+
+  // Audio / Video Lab
+  noiseSuppression?: 'off' | 'low' | 'studio';
+  echoCancellation?: boolean;
+  autoGainControl?: boolean;
+  speakerVolume?: number;
+  videoQuality?: '720p' | '1080p' | '4k';
+  mirrorVideo?: boolean;
+  lowLightCompensation?: boolean;
+  virtualBackground?: string;
+
+  // AI Intelligence
+  aiPersona?: 'executive' | 'technical' | 'action_items';
+  smartAssigneeDetection?: boolean;
+  aiAutoJoinPolicy?: 'always' | 'recording_only' | 'never';
+  liveSubtitles?: boolean;
+  liveTranslation?: boolean;
+  translationLanguage?: string;
+  sentimentAnalytics?: boolean;
+
+  // Notifications & Integrations
+  reminderTimeMinutes?: number;
+  soundAlerts?: boolean;
+  dailyDigestEmail?: boolean;
+  googleCalendarConnected?: boolean;
+  slackConnected?: boolean;
+  outlookConnected?: boolean;
+  dndEnabled?: boolean;
+  dndStartTime?: string;
+  dndEndTime?: string;
+
+  // Security, Privacy & Cloud
+  e2eeEnabled?: boolean;
+  cloudStorageRegion?: string;
+  retentionPolicyDays?: number;
+  requireRecordingConsent?: boolean;
 }
 
 export interface TeamMember {
@@ -226,6 +288,7 @@ export interface RemotePeer {
   name: string;
   email: string;
   role: string;
+  avatar?: string;
   stream?: MediaStream;
   isAudioMuted?: boolean;
   isVideoOn?: boolean;

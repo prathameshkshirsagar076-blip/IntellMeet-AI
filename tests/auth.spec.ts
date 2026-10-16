@@ -239,3 +239,170 @@ test.describe('Authentication - Session, Logout, and Protected Routes', () => {
     await expect(page.locator('#im-email')).toBeVisible();
   });
 });
+
+test.describe('Authentication - Google OAuth Flow & Profile Image Bounding', () => {
+  test('Google login button initiates auth with valid redirect_uri', async ({ page }) => {
+    await page.goto('/login');
+
+    let interceptedUrl = '';
+    await page.route('**/auth/google*', async (route) => {
+      interceptedUrl = route.request().url();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            authUrl: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=mock-client-id&response_type=code',
+            state: 'mock-state.signature',
+          },
+        }),
+      });
+    });
+
+    const googleBtn = page.locator('button:has-text("Continue with Google")');
+    await expect(googleBtn).toBeVisible();
+    await googleBtn.click();
+
+    // Verify intercepted auth request passes the expected callback redirect_uri
+    expect(interceptedUrl).toContain('redirect_uri=');
+  });
+
+  test('OAuthCallbackPage handles single-use ticket, purges URL query params, and establishes session', async ({ page }) => {
+    const mockUser = {
+      id: 'usr_google_12345',
+      name: 'Yashodip Jejurkar',
+      email: 'yashodip@example.com',
+      authProvider: 'google',
+      avatar: 'https://lh3.googleusercontent.com/a/mock-high-res-photo.jpg',
+    };
+
+    await page.route('**/auth/google/callback', async (route) => {
+      const postData = route.request().postDataJSON();
+      expect(postData.ticket).toBe('mock_exchange_ticket_xyz');
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            user: mockUser,
+            accessToken: 'mock_jwt_access_token_123',
+            refreshToken: 'mock_refresh_token_456',
+          },
+        }),
+      });
+    });
+
+    // Mock getCurrentUser (/auth/me)
+    await page.route('**/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: { user: mockUser },
+        }),
+      });
+    });
+
+    // Navigate to callback page with ticket parameter
+    await page.goto('/auth/google/callback?ticket=mock_exchange_ticket_xyz');
+
+    // Should redirect to dashboard upon successful ticket exchange
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10000 });
+
+    // Verify tokens never remain in the URL query string
+    expect(page.url()).not.toContain('ticket=');
+    expect(page.url()).not.toContain('token=');
+    expect(page.url()).not.toContain('refreshToken=');
+
+    // Verify user profile is saved in localStorage
+    const savedUser = await page.evaluate(() => localStorage.getItem('intellmeet_user'));
+    expect(savedUser).toContain('Yashodip Jejurkar');
+  });
+
+  test('Profile avatar in topbar is strictly bounded and does not overflow layout', async ({ page }) => {
+    await page.goto('/login');
+
+    const mockUser = {
+      id: 'usr_google_bounded_test',
+      name: 'Yashodip Jejurkar',
+      email: 'yashodip@example.com',
+      authProvider: 'google',
+      // High-resolution image simulation
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=500&fit=crop',
+    };
+    const mockJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfZ29vZ2xlX2JvdW5kZWRfdGVzdCIsImV4cCI6MjE0NzQ4MzY0N30.mock-sig';
+
+    await page.evaluate(
+      ({ user, token }) => {
+        localStorage.setItem('intellmeet_access_token', token);
+        localStorage.setItem('intellmeet_refresh_token', token);
+        localStorage.setItem('intellmeet_user', JSON.stringify(user));
+      },
+      { user: mockUser, token: mockJwt }
+    );
+
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    const avatarContainer = page.locator('.im-profile-avatar').first();
+    await expect(avatarContainer).toBeVisible();
+
+    // Verify the bounding box of the avatar does not exceed 35px in width or height
+    const box = await avatarContainer.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.width).toBeLessThanOrEqual(35);
+      expect(box.height).toBeLessThanOrEqual(35);
+    }
+  });
+
+  test('OAuthCallbackPage handles access_denied error gracefully', async ({ page }) => {
+    await page.goto('/auth/google/callback?error=access_denied&error_description=User+denied+consent');
+
+    const errorHeading = page.getByRole('heading', { name: /Authentication Failed/i });
+    await expect(errorHeading).toBeVisible();
+
+    const returnBtn = page.getByRole('link', { name: /Return to Sign In/i });
+    await expect(returnBtn).toBeVisible();
+    await returnBtn.click();
+  });
+
+  test('JoinMeetingPage renders profile picture avatar when camera is off', async ({ page }) => {
+    const mockUser = {
+      id: 'usr_test_meet_avatar',
+      name: 'Yashodip Jejurkar',
+      email: 'yashodip@example.com',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+      role: 'admin',
+      isActive: true,
+      isEmailVerified: true,
+    };
+    const mockJwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InVzcl90ZXN0X21lZXRfYXZhdGFyIiwiZXhwIjoxOTk5OTk5OTk5fQ.signature';
+
+    await page.addInitScript(
+      ({ user, token }) => {
+        localStorage.setItem('intellmeet_access_token', token);
+        localStorage.setItem('intellmeet_refresh_token', token);
+        localStorage.setItem('intellmeet_user', JSON.stringify(user));
+      },
+      { user: mockUser, token: mockJwt }
+    );
+
+    await page.goto('/meetings/join');
+    await expect(page).toHaveURL(/\/meetings\/join/);
+
+    const placeholderAvatar = page.locator('.im-video-placeholder-avatar');
+    await expect(placeholderAvatar).toBeVisible();
+
+    const avatarImg = placeholderAvatar.locator('img.im-avatar-img');
+    await expect(avatarImg).toBeVisible();
+    await expect(avatarImg).toHaveAttribute('src', mockUser.avatar);
+  });
+});
+
+

@@ -4,9 +4,9 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
   size?: number | string;
 }
 
-export const BrandIcon: React.FC<IconProps> = ({ size = 24, className, style, ...props }) => (
+export const BrandIcon: React.FC<IconProps> = ({ size = 28, className, style, ...props }) => (
   <svg
-    viewBox="0 0 32 32"
+    viewBox="0 0 100 100"
     fill="none"
     width={size}
     height={size}
@@ -16,36 +16,69 @@ export const BrandIcon: React.FC<IconProps> = ({ size = 24, className, style, ..
     {...props}
   >
     <defs>
-      <linearGradient id="im-brand-svg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0284c7" />
-        <stop offset="50%" stopColor="#2563eb" />
-        <stop offset="100%" stopColor="#7c3aed" />
+      <radialGradient id="im-brand-sphere" cx="36%" cy="30%" r="68%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="35%" stopColor="#64748b" />
+        <stop offset="70%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </radialGradient>
+      <linearGradient id="im-brand-left-leg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#334155" />
+        <stop offset="45%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </linearGradient>
+      <linearGradient id="im-brand-ribbon-down" x1="15%" y1="0%" x2="85%" y2="100%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="25%" stopColor="#64748b" />
+        <stop offset="60%" stopColor="#334155" />
+        <stop offset="95%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </linearGradient>
+      <linearGradient id="im-brand-crease" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#09090b" />
+        <stop offset="50%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#334155" />
+      </linearGradient>
+      <linearGradient id="im-brand-ascend" x1="10%" y1="100%" x2="80%" y2="0%">
+        <stop offset="0%" stopColor="#18181b" />
+        <stop offset="30%" stopColor="#334155" />
+        <stop offset="70%" stopColor="#64748b" />
+        <stop offset="100%" stopColor="#cbd5e1" />
+      </linearGradient>
+      <linearGradient id="im-brand-apex" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="40%" stopColor="#64748b" />
+        <stop offset="75%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
       </linearGradient>
     </defs>
-    {/* Camera rounded body */}
-    <rect x="2" y="5.5" width="18" height="21" rx="5" fill="url(#im-brand-svg-grad)" />
-    {/* Camera right projection lens */}
+    {/* 1. The Dot of the 'i' (Floating sphere) */}
+    <circle cx="34" cy="14" r="8.2" fill="url(#im-brand-sphere)" />
+    {/* 2. Left Pillar (body of i & left upright of M) */}
     <path
-      d="M20 13.5l8.5-5.2c.65-.4 1.5.07 1.5.85v13.7c0 .78-.85 1.25-1.5.85L20 18.5v-5z"
-      fill="url(#im-brand-svg-grad)"
+      d="M 25 33 C 25 31, 27 30, 30 30 L 42 30 L 42 86 C 42 88.5, 40 89, 38 89 L 29 89 C 26.5 89, 25 88.5, 25 86 Z"
+      fill="url(#im-brand-left-leg)"
     />
-    {/* Sparkle star top-right */}
+    {/* 3. Descending Ribbon: Sweeps from top of left pillar to center bottom fold */}
     <path
-      d="M21.5 2.5l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9.9-2.2z"
-      fill="#60a5fa"
+      d="M 25 33 C 25 25, 33 24, 44 24 C 52 24, 57 28, 62 40 L 68 60 L 56 68 L 42 41 C 38 33, 32 32, 25 33 Z"
+      fill="url(#im-brand-ribbon-down)"
     />
-    {/* Center participant avatar */}
-    <circle cx="11" cy="13.5" r="2.5" fill="#ffffff" />
+    {/* 4. Origami Fold Under-Shadow at Valley */}
     <path
-      d="M6.8 21.5a4.2 4.2 0 0 1 8.4 0"
-      stroke="#ffffff"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      fill="none"
+      d="M 56 68 L 68 60 L 72 67 L 60 75 Z"
+      fill="url(#im-brand-crease)"
     />
-    {/* Side participant avatars */}
-    <circle cx="6" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
-    <circle cx="16" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
+    {/* 5. Ascending Ribbon: Rises from bottom valley to the top-right apex */}
+    <path
+      d="M 60 75 L 72 67 L 84 32 C 87 24, 93 25, 95 32 L 84 45 L 71 73 Z"
+      fill="url(#im-brand-ascend)"
+    />
+    {/* 6. Top-Right Apex Fold: Rolls over to form the right pillar */}
+    <path
+      d="M 77 30 C 83 23, 95 23, 95 33 L 95 86 C 95 88.5, 93 89, 90 89 L 82 89 C 80 89, 78 88.5, 78 86 L 78 45 C 78 37, 76 33, 77 30 Z"
+      fill="url(#im-brand-apex)"
+    />
   </svg>
 );
 
@@ -844,4 +877,289 @@ export const PaperclipIcon: React.FC<IconProps> = ({ size, className, ...props }
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
+
+export const MicIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+export const MicOffIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <line x1="1" y1="1" x2="23" y2="23" />
+    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+export const Volume2Icon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
+
+export const VolumeXIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+);
+
+export const SlidersIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <line x1="4" y1="21" x2="4" y2="14" />
+    <line x1="4" y1="10" x2="4" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="20" y1="21" x2="20" y2="16" />
+    <line x1="20" y1="12" x2="20" y2="3" />
+    <line x1="1" y1="14" x2="7" y2="14" />
+    <line x1="9" y1="8" x2="15" y2="8" />
+    <line x1="17" y1="16" x2="23" y2="16" />
+  </svg>
+);
+
+export const LaptopIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+    <line x1="2" y1="20" x2="22" y2="20" />
+  </svg>
+);
+
+export const SmartphoneIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+    <line x1="12" y1="18" x2="12.01" y2="18" />
+  </svg>
+);
+
+export const KeyIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M21 2l-2 2m-1.5 1.5L14 9l-1.5-1.5-3 3 1.5 1.5L9 14l-2-2-4 4a5 5 0 1 0 7-7l2-2 1.5 1.5 3-3L15 4l1.5-1.5L21 2z" />
+  </svg>
+);
+
+export const GlobeIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
+export const DownloadIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+export const Trash2Icon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+export const RefreshCwIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <polyline points="23 4 23 10 17 10" />
+    <polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+  </svg>
+);
+
+export const ExternalLinkIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
+export const CameraIcon: React.FC<IconProps> = ({ size, className, ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    className={className}
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
 

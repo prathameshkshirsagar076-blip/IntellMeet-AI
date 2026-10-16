@@ -327,16 +327,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: 0 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
   z-index: 52;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .zm-call-topbar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.zm-call-brand-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .zm-call-info-btn {
@@ -353,6 +366,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .zm-call-info-btn:hover {
@@ -368,12 +382,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zm-call-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .zm-call-topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .zm-call-top-btn {
@@ -455,12 +481,41 @@
   animation: zmScaleFade 0.3s ease;
 }
 
-.zm-center-avatar-img {
-  width: 96px;
-  height: 96px;
-  border-radius: 4px;
-  object-fit: cover;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+.zm-center-avatar-img,
+.zm-center-user-avatar img,
+.zm-center-user-avatar .im-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.zm-center-user-avatar {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.zm-gallery-avatar,
+.zm-gallery-avatar img,
+.zm-gallery-avatar .im-avatar-img {
+  border-radius: 50% !important;
+  object-fit: cover !important;
+}
+
+.zm-p-avatar.im-user-avatar {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+
+.zm-p-avatar.im-user-avatar img,
+.zm-p-avatar.im-user-avatar .im-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 /* Live Webcam Video Feed Element */
@@ -1289,15 +1344,47 @@
   .zm-wp-rail {
     display: none;
   }
+  .zm-call-topbar {
+    padding: 0 8px;
+    height: 42px;
+    gap: 4px;
+  }
+  .zm-call-topbar-left {
+    gap: 6px;
+    min-width: 0;
+  }
+  .zm-call-brand-container {
+    gap: 5px;
+  }
+  .zm-call-brand-container span {
+    font-size: 0.86rem !important;
+  }
+  .zm-call-title {
+    max-width: 90px;
+    font-size: 11px;
+  }
+  .zm-call-topbar-right {
+    gap: 2px;
+  }
+  .zm-call-top-btn {
+    padding: 4px;
+  }
+  .zm-call-zm-badge {
+    display: none;
+  }
+  .zm-dock-chevron-btn {
+    display: none !important;
+  }
   .zm-bottom-dock {
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
+    padding: 6px 6px calc(8px + env(safe-area-inset-bottom, 0px)) 6px;
     height: auto;
-    min-height: 58px;
+    min-height: 54px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    gap: 6px;
+    gap: 4px;
     justify-content: flex-start;
+    align-items: center;
   }
   .zm-bottom-dock::-webkit-scrollbar {
     display: none;
@@ -1305,27 +1392,38 @@
   .zm-dock-left,
   .zm-dock-center,
   .zm-dock-right {
-    gap: 4px;
+    gap: 3px;
     flex-shrink: 0;
+    align-items: center;
   }
   .zm-dock-btn {
-    padding: 4px 4px;
+    padding: 3px 3px;
     min-width: 44px;
+    gap: 2px;
+  }
+  .zm-dock-btn-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .zm-dock-btn-icon svg {
+    width: 20px;
+    height: 20px;
   }
   .zm-dock-btn-label {
-    font-size: 9.5px;
+    font-size: 9px;
   }
   .zm-end-btn {
-    padding: 6px 10px;
+    padding: 5px 10px;
     font-size: 11px;
     white-space: nowrap;
     flex-shrink: 0;
+    margin-left: auto;
   }
   .zm-side-drawer {
     width: 100vw;
     max-width: 100vw;
-    top: 50px;
-    bottom: 60px;
+    top: 42px;
+    bottom: 54px;
     right: 0;
   }
   .zm-gallery-grid {
@@ -1341,8 +1439,17 @@
 }
 
 @media (max-width: 400px) {
+  .zm-call-info-btn {
+    display: none;
+  }
+  .zm-call-title {
+    max-width: 65px;
+  }
   .zm-dock-btn {
-    min-width: 40px;
-    padding: 3px 2px;
+    min-width: 38px;
+    padding: 2px 2px;
+  }
+  .zm-dock-btn-label {
+    font-size: 8.5px;
   }
 }
