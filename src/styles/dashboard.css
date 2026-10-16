@@ -4014,3 +4014,143 @@ body:has(.im-team-content-mode)::-webkit-scrollbar {
   }
 }
 
+/* =========================================================================
+   SETTINGS PAGE SPECIALIZED STYLES
+   ========================================================================= */
+
+.im-settings-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px;
+  background-color: var(--im-bg-surface);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-lg);
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.im-settings-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.im-settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--im-radius-md);
+  border: none;
+  background: transparent;
+  color: var(--im-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--im-transition);
+}
+
+.im-settings-tab-btn:hover {
+  background-color: var(--im-bg-surface-hover);
+  color: var(--im-text-primary);
+}
+
+.im-settings-tab-btn.active {
+  background-color: var(--im-primary);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.im-setting-toggle-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--im-radius-md);
+  border: 1px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  transition: var(--im-transition);
+}
+
+.im-setting-toggle-card:hover {
+  border-color: var(--im-border-focus);
+}
+
+/* Audio VU Meter */
+.im-vu-meter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+  padding: 3px 6px;
+  background-color: var(--im-bg-subtle);
+  border-radius: var(--im-radius-sm);
+  border: 1px solid var(--im-border);
+}
+
+.im-vu-segment {
+  width: 5px;
+  border-radius: 2px;
+  transition: height 0.08s ease, background-color 0.1s ease;
+}
+
+/* Camera Test Studio Container */
+.im-camera-test-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  background: linear-gradient(135deg, #090d16 0%, #1e1b4b 100%);
+  border-radius: var(--im-radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--im-border);
+}
+
+.im-camera-grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 33.333% 33.333%;
+}
+
+/* Integration Cards */
+.im-integration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.im-integration-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  border-radius: var(--im-radius-lg);
+  border: 1px solid var(--im-border);
+  background-color: var(--im-bg-surface);
+  transition: var(--im-transition);
+}
+
+.im-integration-box:hover {
+  border-color: var(--im-primary);
+  box-shadow: var(--im-shadow-md);
+}
+
+/* Storage Bar */
+.im-storage-progress-bar {
+  height: 10px;
+  border-radius: var(--im-radius-full);
+  background-color: var(--im-bg-subtle);
+  display: flex;
+  overflow: hidden;
+  margin: 12px 0 8px 0;
+}
+
+

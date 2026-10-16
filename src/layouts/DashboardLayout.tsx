@@ -19,6 +19,7 @@ import {
   MoonIcon,
   ChatIcon,
   BrainIcon,
+  BrandIcon,
 } from '../components/icons';
 import NewMeetingModal from '../components/NewMeetingModal';
 import { ThemeCustomizationPopover } from '../components/theme/ThemeCustomizationPopover';
@@ -163,7 +164,7 @@ export const DashboardLayout: React.FC = () => {
   // Determine active breadcrumb title
   const getBreadcrumbTitle = () => {
     const path = location.pathname;
-    if (location.search.includes('tab=theme')) return 'Theme & Styling';
+    if (path.startsWith('/theme') || location.search.includes('tab=theme')) return 'Theme & Styling';
     if (path.startsWith('/meetings/new')) return 'Schedule Meeting';
     if (path.startsWith('/meetings/join')) return 'Join Meeting';
     if (path.startsWith('/meetings/') && path !== '/meetings') return 'Meeting Details';
@@ -198,11 +199,7 @@ export const DashboardLayout: React.FC = () => {
         <div className="im-sidebar-header">
           <Link to="/dashboard" className="im-sidebar-logo" title="IntellMeet — Meet Smarter With AI">
             <div className="im-sidebar-logo-icon">
-              <img
-                src="/intellmeet-icon.png"
-                alt="IntellMeet"
-                className="im-sidebar-logo-img"
-              />
+              <BrandIcon size={30} />
             </div>
             <div className="im-sidebar-logo-text">
               <div className="im-sidebar-logo-brand">
@@ -323,10 +320,10 @@ export const DashboardLayout: React.FC = () => {
           </NavLink>
 
           <NavLink
-            to="/settings?tab=theme"
+            to="/theme"
             onClick={() => setMobileSidebarOpen(false)}
-            className={() =>
-              `im-nav-item ${location.pathname === '/settings' && location.search.includes('tab=theme') ? 'active' : ''}`
+            className={({ isActive }) =>
+              `im-nav-item ${isActive || (location.pathname === '/settings' && location.search.includes('tab=theme')) ? 'active' : ''}`
             }
           >
             <span className="im-nav-item-icon">
@@ -549,7 +546,7 @@ export const DashboardLayout: React.FC = () => {
                   <button
                     className="im-dropdown-item"
                     onClick={() => {
-                      navigate('/settings?tab=theme');
+                      navigate('/theme');
                       setProfileDropdownOpen(false);
                     }}
                     role="menuitem"
@@ -567,7 +564,7 @@ export const DashboardLayout: React.FC = () => {
                     role="menuitem"
                   >
                     <SettingsIcon size={16} />
-                    Account Settings
+                    Workspace Settings
                   </button>
 
                   <button

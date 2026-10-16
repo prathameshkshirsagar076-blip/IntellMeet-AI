@@ -136,7 +136,7 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
         </div>
         <div className="im-theme-popover-header-actions">
           <Link
-            to="/settings?tab=theme"
+            to="/theme"
             className="im-theme-popover-link-pill"
             onClick={onClose}
             title="Open Full Theme Studio"
