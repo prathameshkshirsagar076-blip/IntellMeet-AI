@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { AuthService } from '../services/auth.service';
 import { authApi } from '../api/auth.api';
 import { normalizeAuthUser } from '../services/auth.service';
+import type { AuthUser } from '../types/auth';
 import BrandLogo from '../components/BrandLogo';
 import { toast } from '../components/toast/toast';
 import '../components/LoginPanel.css';
@@ -55,19 +56,40 @@ export const OAuthCallbackPage: React.FC = () => {
       // 2. Direct Backend Callback Flow: token & refreshToken in URL
       const token = searchParams.get('token');
       const refreshToken = searchParams.get('refreshToken');
+      const userParam = searchParams.get('user');
 
       if (token && refreshToken) {
         try {
-          // Fetch authenticated profile from /auth/me to ensure user state is established
-          const meResponse = await authApi.getCurrentUser().catch(() => null);
-          const rawUser = meResponse?.data?.user || {
+          // Parse user payload from query if available
+          let initialUser: AuthUser = normalizeAuthUser({
             name: 'Google Workspace User',
             email: '',
             authProvider: 'google',
-          };
-          const user = normalizeAuthUser(rawUser);
+          });
 
-          setAuthSessionState(user, token, refreshToken);
+          if (userParam) {
+            try {
+              const parsed = JSON.parse(decodeURIComponent(userParam));
+              initialUser = normalizeAuthUser(parsed);
+            } catch {
+              // fallback to default
+            }
+          }
+
+          // 1. Establish session in localStorage and React auth context immediately
+          setAuthSessionState(initialUser, token, refreshToken);
+
+          // 2. Fetch authenticated profile from /auth/me with the valid token to ensure complete profile data
+          try {
+            const meResponse = await authApi.getCurrentUser();
+            if (meResponse?.data?.user) {
+              const freshUser = normalizeAuthUser(meResponse.data.user);
+              setAuthSessionState(freshUser, token, refreshToken);
+            }
+          } catch (syncErr) {
+            console.warn('[OAuthCallback] Background profile sync:', syncErr);
+          }
+
           toast.success('Successfully authenticated with Google Workspace!');
           navigate('/dashboard', { replace: true });
           return;

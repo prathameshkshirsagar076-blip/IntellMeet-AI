@@ -12,7 +12,8 @@ import type {
 } from '../types/meeting';
 import { toast as globalToast } from '../components/toast/toast';
 import { applyThemeToDom, DEFAULT_THEME_PRESET_ID } from '../config/themePresets';
-import { getStoredUser } from '../utils/tokenStorage';
+import { getStoredUser, getAccessToken } from '../utils/tokenStorage';
+import { useAuth } from './AuthContext';
 import { getTodayLocalDateString } from '../utils/dateUtils';
 import { meetingApi } from '../api/meeting.api';
 
@@ -339,7 +340,13 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const openNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(true), []);
   const closeNewMeetingModal = useCallback(() => setIsNewMeetingModalOpen(false), []);
 
+  const { isAuthenticated } = useAuth();
+
   const fetchMeetings = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) {
+      return;
+    }
     try {
       const res = await meetingApi.getMeetings();
       if (res && res.data && Array.isArray(res.data.meetings)) {
@@ -352,10 +359,12 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Fetch meetings from real backend on mount
+  // Fetch meetings from real backend when user is authenticated
   useEffect(() => {
-    fetchMeetings();
-  }, [fetchMeetings]);
+    if (isAuthenticated) {
+      fetchMeetings();
+    }
+  }, [isAuthenticated, fetchMeetings]);
 
   // Sync to localStorage
   useEffect(() => {
