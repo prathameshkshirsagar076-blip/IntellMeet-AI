@@ -4,9 +4,9 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
   size?: number | string;
 }
 
-export const BrandIcon: React.FC<IconProps> = ({ size = 24, className, style, ...props }) => (
+export const BrandIcon: React.FC<IconProps> = ({ size = 28, className, style, ...props }) => (
   <svg
-    viewBox="0 0 32 32"
+    viewBox="0 0 100 100"
     fill="none"
     width={size}
     height={size}
@@ -16,36 +16,69 @@ export const BrandIcon: React.FC<IconProps> = ({ size = 24, className, style, ..
     {...props}
   >
     <defs>
-      <linearGradient id="im-brand-svg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0284c7" />
-        <stop offset="50%" stopColor="#2563eb" />
-        <stop offset="100%" stopColor="#7c3aed" />
+      <radialGradient id="im-brand-sphere" cx="36%" cy="30%" r="68%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="35%" stopColor="#64748b" />
+        <stop offset="70%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </radialGradient>
+      <linearGradient id="im-brand-left-leg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#334155" />
+        <stop offset="45%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </linearGradient>
+      <linearGradient id="im-brand-ribbon-down" x1="15%" y1="0%" x2="85%" y2="100%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="25%" stopColor="#64748b" />
+        <stop offset="60%" stopColor="#334155" />
+        <stop offset="95%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
+      </linearGradient>
+      <linearGradient id="im-brand-crease" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#09090b" />
+        <stop offset="50%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#334155" />
+      </linearGradient>
+      <linearGradient id="im-brand-ascend" x1="10%" y1="100%" x2="80%" y2="0%">
+        <stop offset="0%" stopColor="#18181b" />
+        <stop offset="30%" stopColor="#334155" />
+        <stop offset="70%" stopColor="#64748b" />
+        <stop offset="100%" stopColor="#cbd5e1" />
+      </linearGradient>
+      <linearGradient id="im-brand-apex" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#cbd5e1" />
+        <stop offset="40%" stopColor="#64748b" />
+        <stop offset="75%" stopColor="#18181b" />
+        <stop offset="100%" stopColor="#09090b" />
       </linearGradient>
     </defs>
-    {/* Camera rounded body */}
-    <rect x="2" y="5.5" width="18" height="21" rx="5" fill="url(#im-brand-svg-grad)" />
-    {/* Camera right projection lens */}
+    {/* 1. The Dot of the 'i' (Floating sphere) */}
+    <circle cx="34" cy="14" r="8.2" fill="url(#im-brand-sphere)" />
+    {/* 2. Left Pillar (body of i & left upright of M) */}
     <path
-      d="M20 13.5l8.5-5.2c.65-.4 1.5.07 1.5.85v13.7c0 .78-.85 1.25-1.5.85L20 18.5v-5z"
-      fill="url(#im-brand-svg-grad)"
+      d="M 25 33 C 25 31, 27 30, 30 30 L 42 30 L 42 86 C 42 88.5, 40 89, 38 89 L 29 89 C 26.5 89, 25 88.5, 25 86 Z"
+      fill="url(#im-brand-left-leg)"
     />
-    {/* Sparkle star top-right */}
+    {/* 3. Descending Ribbon: Sweeps from top of left pillar to center bottom fold */}
     <path
-      d="M21.5 2.5l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9.9-2.2z"
-      fill="#60a5fa"
+      d="M 25 33 C 25 25, 33 24, 44 24 C 52 24, 57 28, 62 40 L 68 60 L 56 68 L 42 41 C 38 33, 32 32, 25 33 Z"
+      fill="url(#im-brand-ribbon-down)"
     />
-    {/* Center participant avatar */}
-    <circle cx="11" cy="13.5" r="2.5" fill="#ffffff" />
+    {/* 4. Origami Fold Under-Shadow at Valley */}
     <path
-      d="M6.8 21.5a4.2 4.2 0 0 1 8.4 0"
-      stroke="#ffffff"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      fill="none"
+      d="M 56 68 L 68 60 L 72 67 L 60 75 Z"
+      fill="url(#im-brand-crease)"
     />
-    {/* Side participant avatars */}
-    <circle cx="6" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
-    <circle cx="16" cy="15.5" r="1.6" fill="rgba(255,255,255,0.85)" />
+    {/* 5. Ascending Ribbon: Rises from bottom valley to the top-right apex */}
+    <path
+      d="M 60 75 L 72 67 L 84 32 C 87 24, 93 25, 95 32 L 84 45 L 71 73 Z"
+      fill="url(#im-brand-ascend)"
+    />
+    {/* 6. Top-Right Apex Fold: Rolls over to form the right pillar */}
+    <path
+      d="M 77 30 C 83 23, 95 23, 95 33 L 95 86 C 95 88.5, 93 89, 90 89 L 82 89 C 80 89, 78 88.5, 78 86 L 78 45 C 78 37, 76 33, 77 30 Z"
+      fill="url(#im-brand-apex)"
+    />
   </svg>
 );
 
