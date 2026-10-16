@@ -23,6 +23,7 @@ import {
   ChevronLeftIcon,
   UsersIcon,
 } from '../icons';
+import UserAvatar from '../common/UserAvatar';
 
 export interface TeamChatModuleProps {
   selectedRecipient?: UserItem | null;
@@ -82,27 +83,15 @@ const InfoIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
   </svg>
 );
 
-function getInitials(name?: string): string {
-  if (!name || !name.trim()) return 'U';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function renderAvatarContent(name?: string, avatar?: string | null) {
-  if (avatar && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
-    return (
-      <img
-        src={avatar}
-        alt={name || 'Avatar'}
-        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-        onError={(e) => {
-          (e.currentTarget as HTMLElement).style.display = 'none';
-        }}
-      />
-    );
-  }
-  return getInitials(name);
+  return (
+    <UserAvatar
+      avatar={avatar}
+      name={name}
+      style={{ width: '100%', height: '100%' }}
+    />
+  );
 }
 
 function formatChatTime(dateStr?: string | null): string {

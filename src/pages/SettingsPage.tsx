@@ -24,6 +24,7 @@ import {
   CameraIcon,
   ClockIcon,
 } from '../components/icons';
+import UserAvatar from '../components/common/UserAvatar';
 
 type SettingsTab =
   | 'general'
@@ -829,23 +830,13 @@ export const SettingsPage: React.FC = () => {
                   }}
                 >
                   <div style={{ position: 'relative' }}>
-                    <div
-                      style={{
-                        width: 72,
-                        height: 72,
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--im-primary)',
-                        color: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.5rem',
-                        fontWeight: 700,
-                        border: '3px solid var(--im-border)',
-                      }}
-                    >
-                      {displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'PK'}
-                    </div>
+                    <UserAvatar
+                      avatar={user?.avatar}
+                      name={displayName}
+                      size={72}
+                      className="im-profile-avatar"
+                      style={{ border: '3px solid var(--im-border)' }}
+                    />
                     <span
                       style={{
                         position: 'absolute',

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AuthService } from '../services/auth.service';
+import { AuthService, handleGoogleCallback } from '../services/auth.service';
 import { authApi } from '../api/auth.api';
 import { normalizeAuthUser } from '../services/auth.service';
 import type { AuthUser } from '../types/auth';
@@ -53,12 +53,57 @@ export const OAuthCallbackPage: React.FC = () => {
         return;
       }
 
-      // 2. Direct Backend Callback Flow: token & refreshToken in URL
+      // 2. Secure Single-Use Ticket Flow (Recommended - No tokens in URL)
+      const ticket = searchParams.get('ticket');
+      if (ticket) {
+        try {
+          // Immediately remove ticket from URL query string to protect history
+          if (typeof window !== 'undefined' && window.history?.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+
+          const response = await (AuthService?.handleGoogleCallback || handleGoogleCallback)({ ticket });
+          if (response?.data) {
+            const { user, accessToken, refreshToken } = response.data;
+            setAuthSessionState(user, accessToken, refreshToken);
+
+            // Fetch fresh profile in background
+            try {
+              const meResponse = await authApi.getCurrentUser();
+              if (meResponse?.data?.user) {
+                const freshUser = normalizeAuthUser(meResponse.data.user);
+                setAuthSessionState(freshUser, accessToken, refreshToken);
+              }
+            } catch (syncErr) {
+              console.warn('[OAuthCallback] Background profile sync:', syncErr);
+            }
+
+            toast.success('Successfully authenticated with Google Workspace!');
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+          throw new Error('Incomplete authentication response received from server.');
+        } catch (err: unknown) {
+          const error = err as Error;
+          setStatus('error');
+          const msg = error.message || 'Failed to complete Google authentication.';
+          setErrorMessage(msg);
+          toast.error(msg);
+          return;
+        }
+      }
+
+      // 3. Direct Backend Callback Flow (Legacy fallback with immediate URL query purge)
       const token = searchParams.get('token');
       const refreshToken = searchParams.get('refreshToken');
       const userParam = searchParams.get('user');
 
       if (token && refreshToken) {
+        // Immediately sanitize URL bar so sensitive tokens do not persist in history
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         try {
           // Parse user payload from query if available
           let initialUser: AuthUser = normalizeAuthUser({
@@ -103,11 +148,15 @@ export const OAuthCallbackPage: React.FC = () => {
         }
       }
 
-      // 3. Frontend Callback Flow: code & state in URL
+      // 4. Frontend Authorization Code Flow: code & state in URL
       const code = searchParams.get('code');
       const state = searchParams.get('state') || undefined;
 
       if (code) {
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         try {
           let stateRedirectUri: string | undefined;
           if (state && state.includes('.')) {
@@ -124,7 +173,7 @@ export const OAuthCallbackPage: React.FC = () => {
           }
 
           const redirectUri = stateRedirectUri || `${window.location.origin}/auth/google/callback`;
-          const response = await AuthService.handleGoogleCallback({
+          const response = await (AuthService?.handleGoogleCallback || handleGoogleCallback)({
             code,
             state,
             redirect_uri: redirectUri,

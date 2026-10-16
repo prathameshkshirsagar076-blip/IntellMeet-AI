@@ -45,6 +45,11 @@ export const env = {
   googleClientId:
     import.meta.env.VITE_GOOGLE_CLIENT_ID ||
     '545957805612-mdlnkg7m528bsac197rm2lh09dhb0fuo.apps.googleusercontent.com',
+  googleCallbackUrl: import.meta.env.VITE_GOOGLE_CALLBACK_URL || '',
+  googleAuthEnabled: Boolean(
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    '545957805612-mdlnkg7m528bsac197rm2lh09dhb0fuo.apps.googleusercontent.com'
+  ),
   microsoftClientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '',
   samlEntityId: import.meta.env.VITE_SAML_ENTITY_ID || '',
 
@@ -58,5 +63,31 @@ export const env = {
   legalEmail: import.meta.env.VITE_LEGAL_EMAIL || 'legal@intellmeet-ai.internal',
   privacyEmail: import.meta.env.VITE_PRIVACY_EMAIL || 'privacy@intellmeet-ai.internal',
 } as const;
+
+/**
+ * Diagnostic environment validation helper to catch misconfigurations early.
+ */
+export function validateFrontendEnv(): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  if (!env.backendUrl && !env.apiBaseUrl) {
+    warnings.push('Neither VITE_BACKEND_URL nor VITE_API_BASE_URL is configured.');
+  }
+
+  if (!env.googleClientId) {
+    warnings.push('VITE_GOOGLE_CLIENT_ID is not configured.');
+  }
+
+  if (env.isProd) {
+    if (env.apiBaseUrl.includes('localhost') || env.backendUrl.includes('localhost')) {
+      warnings.push('Production build is using localhost URL for API endpoints.');
+    }
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+  };
+}
 
 export default env;
