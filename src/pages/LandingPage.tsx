@@ -16,6 +16,7 @@ import {
   VideoIcon,
   ShieldCheckIcon,
   CheckCircleIcon,
+  BrandIcon,
 } from '../components/icons';
 import '../components/LandingPage.css';
 
@@ -205,11 +206,7 @@ export const LandingPage: React.FC = () => {
           <div className="lp-nav-left">
             <Link to="/" className="lp-brand-logo" title="IntellMeet — Meet Smarter With AI">
               <div className="lp-brand-icon" aria-hidden="true">
-                <img
-                  src="/intellmeet-icon.png"
-                  alt="IntellMeet Logo"
-                  className="lp-brand-icon-img"
-                />
+                <BrandIcon size={28} />
               </div>
               <div className="lp-brand-text-block">
                 <span className="lp-brand-name">
@@ -1246,11 +1243,7 @@ export const LandingPage: React.FC = () => {
             <div className="lp-footer-brand-col">
               <div className="lp-brand-logo footer-logo">
                 <div className="lp-brand-icon">
-                  <img
-                    src="/intellmeet-icon.png"
-                    alt="IntellMeet Logo"
-                    className="lp-brand-icon-img"
-                  />
+                  <BrandIcon size={32} />
                 </div>
                 <div className="lp-brand-text-block">
                   <span className="lp-brand-name">
