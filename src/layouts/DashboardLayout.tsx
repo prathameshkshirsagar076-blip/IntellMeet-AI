@@ -229,6 +229,7 @@ export const DashboardLayout: React.FC = () => {
           <NavLink
             to="/dashboard"
             end
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -240,6 +241,7 @@ export const DashboardLayout: React.FC = () => {
           <NavLink
             to="/meetings"
             end
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -250,6 +252,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/schedule"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -260,6 +263,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/history"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -270,6 +274,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/ai-notes"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -283,6 +288,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/team"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -293,6 +299,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/chat"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) => `im-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="im-nav-item-icon">
@@ -303,6 +310,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/ai-assistant"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) =>
               `im-nav-item ${isActive || location.pathname.startsWith('/dashboard/ai-assistant') ? 'active' : ''}`
             }
@@ -316,6 +324,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/settings?tab=theme"
+            onClick={() => setMobileSidebarOpen(false)}
             className={() =>
               `im-nav-item ${location.pathname === '/settings' && location.search.includes('tab=theme') ? 'active' : ''}`
             }
@@ -328,6 +337,7 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/settings"
+            onClick={() => setMobileSidebarOpen(false)}
             className={({ isActive }) =>
               `im-nav-item ${isActive && !location.search.includes('tab=theme') ? 'active' : ''}`
             }
@@ -613,6 +623,67 @@ export const DashboardLayout: React.FC = () => {
           </ErrorBoundary>
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Dock (≤ 768px, hidden in chat/ai modes to maximize screen estate) */}
+      {!location.pathname.startsWith('/chat') &&
+        !location.pathname.startsWith('/ai-assistant') &&
+        !location.pathname.startsWith('/dashboard/ai-assistant') && (
+          <nav className="im-bottom-nav" aria-label="Mobile Navigation Dock">
+            <NavLink
+              to="/dashboard"
+              end
+              className={({ isActive }) => `im-bottom-nav-item ${isActive ? 'active' : ''}`}
+              aria-label="Dashboard"
+            >
+              <LayoutDashboardIcon size={19} />
+              <span>Dashboard</span>
+            </NavLink>
+
+            <NavLink
+              to="/meetings"
+              end
+              className={({ isActive }) => `im-bottom-nav-item ${isActive ? 'active' : ''}`}
+              aria-label="Meetings"
+            >
+              <VideoIcon size={19} />
+              <span>Meetings</span>
+            </NavLink>
+
+            <button
+              type="button"
+              className="im-bottom-nav-fab"
+              onClick={handleStartInstantMeeting}
+              title="Instant New Meeting"
+              aria-label="Start instant new meeting"
+            >
+              <PlusIcon size={20} />
+            </button>
+
+            <NavLink
+              to="/ai-assistant"
+              className={({ isActive }) =>
+                `im-bottom-nav-item ${
+                  isActive || location.pathname.startsWith('/dashboard/ai-assistant') ? 'active' : ''
+                }`
+              }
+              aria-label="AI Assistant"
+            >
+              <BrainIcon size={19} />
+              <span>AI Chat</span>
+            </NavLink>
+
+            <button
+              type="button"
+              className={`im-bottom-nav-item ${mobileSidebarOpen ? 'active' : ''}`}
+              onClick={() => setMobileSidebarOpen((prev) => !prev)}
+              aria-label="Open navigation menu drawer"
+              aria-expanded={mobileSidebarOpen}
+            >
+              <MenuBurgerIcon size={19} />
+              <span>Menu</span>
+            </button>
+          </nav>
+        )}
 
       {/* Zoom-Style Instant New Meeting Modal */}
       <NewMeetingModal

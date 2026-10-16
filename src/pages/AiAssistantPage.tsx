@@ -150,9 +150,20 @@ export const AiAssistantPage: React.FC = () => {
   const { user } = useAuth();
   const { meetings, summaries, showToast } = useMeetings();
 
-  const [conversations, setConversations] = useState<AiConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string>('');
-  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [conversations, setConversations] = useState<AiConversation[]>(() => {
+    return aiAssistantApi.getLocalConversations();
+  });
+  const [activeConversationId, setActiveConversationId] = useState<string>(() => {
+    const local = aiAssistantApi.getLocalConversations();
+    return local[0]?.id || '';
+  });
+  const [messages, setMessages] = useState<AiMessage[]>(() => {
+    const local = aiAssistantApi.getLocalConversations();
+    if (local[0]?.id) {
+      return aiAssistantApi.getLocalMessagesForConv(local[0].id);
+    }
+    return [];
+  });
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(() =>
@@ -177,40 +188,54 @@ export const AiAssistantPage: React.FC = () => {
   const meetingDropdownRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Initial Load of Conversations
+  // 1. Initial Load of Conversations (Hydrate from remote or fallback)
   useEffect(() => {
+    let isMounted = true;
     const loadConvs = async () => {
       const convList = await aiAssistantApi.getConversations();
-      setConversations(convList);
+      if (!isMounted) return;
+
       if (convList.length > 0) {
-        setActiveConversationId(convList[0].id);
-      } else {
-        // Create initial default conversation
-        const initial = await aiAssistantApi.createConversation({ title: 'Welcome to IntellMeet AI' });
-        setConversations([initial]);
-        setActiveConversationId(initial.id);
+        setConversations(convList);
+        setActiveConversationId((prev) => prev || convList[0].id);
       }
     };
     loadConvs();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // 2. Load Messages for Active Conversation
+  // 2. Load Messages when Active Conversation ID changes
   useEffect(() => {
     if (!activeConversationId) return;
 
+    let isMounted = true;
     const loadMsgs = async () => {
       const msgs = await aiAssistantApi.getConversationMessages(activeConversationId);
-      setMessages(msgs);
+      if (!isMounted) return;
 
-      // Sync active conversation's attached meeting context
-      const activeConv = conversations.find((c) => c.id === activeConversationId);
-      if (activeConv && activeConv.contextMeetingId) {
-        setSelectedMeetingContextId(activeConv.contextMeetingId);
-      } else {
-        setSelectedMeetingContextId('');
-      }
+      setMessages((prev) => {
+        // Do not overwrite if currently streaming for this conversation
+        const hasStreaming = prev.some((m) => m.status === 'streaming');
+        if (hasStreaming) return prev;
+        return msgs;
+      });
     };
     loadMsgs();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeConversationId]);
+
+  // 3. Sync active conversation's attached meeting context
+  useEffect(() => {
+    const activeConv = conversations.find((c) => c.id === activeConversationId);
+    if (activeConv?.contextMeetingId) {
+      setSelectedMeetingContextId(activeConv.contextMeetingId);
+    } else {
+      setSelectedMeetingContextId('');
+    }
   }, [activeConversationId, conversations]);
 
   // Scroll to bottom on new messages
@@ -233,6 +258,7 @@ export const AiAssistantPage: React.FC = () => {
     setMessages([]);
     setInputText('');
     if (textareaRef.current) {
+      textareaRef.current.value = '';
       textareaRef.current.style.height = 'auto';
       textareaRef.current.focus();
     }
@@ -308,13 +334,16 @@ export const AiAssistantPage: React.FC = () => {
   // Send Message Logic
   const handleSendMessage = useCallback(
     async (textToSend?: string) => {
-      const prompt = (textToSend || inputText).trim();
+      const rawDomValue = textareaRef.current?.value || '';
+      const prompt = (
+        textToSend !== undefined ? textToSend : (inputText.trim() ? inputText : rawDomValue)
+      ).trim();
       if (!prompt || isStreaming) return;
 
       let convId = activeConversationId;
       if (!convId) {
         const newConv = await aiAssistantApi.createConversation({ title: prompt.slice(0, 30) });
-        setConversations((prev) => [newConv, ...prev]);
+        setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
         setActiveConversationId(newConv.id);
         convId = newConv.id;
       }
@@ -342,7 +371,10 @@ export const AiAssistantPage: React.FC = () => {
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setInputText('');
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      if (textareaRef.current) {
+        textareaRef.current.value = '';
+        textareaRef.current.style.height = 'auto';
+      }
       setIsStreaming(true);
 
       // Save user message
@@ -429,6 +461,17 @@ export const AiAssistantPage: React.FC = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsStreaming(false);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.status === 'streaming'
+            ? {
+                ...m,
+                content: m.content ? `${m.content}\n\n⚠️ Generation stopped.` : '⚠️ Generation stopped.',
+                status: 'error',
+              }
+            : m
+        )
+      );
       showToast('Generation stopped', 'info');
     }
   };

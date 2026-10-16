@@ -554,6 +554,7 @@
   }
   .im-new-meeting-modal {
     max-height: 96vh;
+    max-height: 96dvh;
     border-radius: 12px;
     width: 100%;
     max-width: calc(100vw - 16px);
@@ -591,5 +592,6 @@
   .im-nmm-cancel-btn {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
   }
 }

@@ -9,6 +9,41 @@ import {
 import type { ThemeMode, ThemePresetId, AccentColor } from '../../types/meeting';
 import { SunIcon, MoonIcon, PaletteIcon } from '../icons';
 
+const MonitorIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+  </svg>
+);
+
+const CloseIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 interface ThemeCustomizationPopoverProps {
   isOpen?: boolean;
   onClose: () => void;
@@ -82,6 +117,8 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
     );
   };
 
+  const activePreset = THEME_PRESETS.find((p) => p.id === currentPresetId);
+
   return (
     <div
       ref={popoverRef}
@@ -92,33 +129,38 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
       {/* Popover Header */}
       <div className="im-theme-popover-header">
         <div className="im-theme-popover-header-title">
-          <PaletteIcon size={16} style={{ color: 'var(--im-primary)' }} />
+          <div className="im-theme-popover-header-icon">
+            <PaletteIcon size={15} />
+          </div>
           <span>Theme & Appearance</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="im-theme-popover-header-actions">
           <Link
             to="/settings?tab=theme"
-            className="im-theme-popover-link"
+            className="im-theme-popover-link-pill"
             onClick={onClose}
+            title="Open Full Theme Studio"
           >
-            Customize / All Themes →
+            <span>Theme Studio</span>
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              width={10}
+              height={10}
+              aria-hidden="true"
+            >
+              <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </Link>
           <button
             type="button"
+            className="im-theme-popover-close-btn"
             onClick={onClose}
             aria-label="Close theme customizer"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--im-text-muted)',
-              fontSize: '18px',
-              lineHeight: 1,
-              padding: '2px 4px',
-              borderRadius: '4px',
-            }}
           >
-            &times;
+            <CloseIcon size={14} />
           </button>
         </div>
       </div>
@@ -126,11 +168,11 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
       {/* Popover Scrollable Body */}
       <div className="im-theme-popover-body">
         {/* Section 1: Appearance Mode */}
-        <div>
+        <div className="im-popover-section">
           <div className="im-popover-section-label">
             <span>Appearance Mode</span>
-            <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>
-              {currentThemeMode === 'system' ? 'Auto (OS Sync)' : currentThemeMode}
+            <span className="im-popover-badge">
+              {currentThemeMode === 'system' ? 'Auto (OS)' : currentThemeMode}
             </span>
           </div>
 
@@ -159,18 +201,18 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
               onClick={() => handleSelectMode('system')}
               aria-pressed={currentThemeMode === 'system'}
             >
-              <span style={{ fontSize: '0.85rem' }}>💻</span>
+              <MonitorIcon size={15} />
               <span>Auto</span>
             </button>
           </div>
         </div>
 
         {/* Section 2: Enterprise Theme Presets (8 Presets) */}
-        <div>
+        <div className="im-popover-section">
           <div className="im-popover-section-label">
-            <span>Theme Presets (8)</span>
-            <span style={{ fontWeight: 500 }}>
-              {THEME_PRESETS.find((p) => p.id === currentPresetId)?.name.split(' ')[0]}
+            <span>Theme Presets ({THEME_PRESETS.length})</span>
+            <span className="im-popover-badge">
+              {activePreset?.name.replace('IntellMeet ', '')}
             </span>
           </div>
 
@@ -203,7 +245,13 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
                   <span className="im-popover-preset-name">
                     {preset.name.replace('IntellMeet ', '')}
                   </span>
-                  {isSelected && <span className="im-popover-preset-check">✓</span>}
+                  {isSelected && (
+                    <span className="im-popover-preset-check" aria-hidden="true">
+                      <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                        <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
+                      </svg>
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -211,10 +259,10 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
         </div>
 
         {/* Section 3: Accent Color Customization */}
-        <div>
+        <div className="im-popover-section">
           <div className="im-popover-section-label">
             <span>Accent Highlight</span>
-            <span style={{ fontWeight: 500 }}>
+            <span className="im-popover-badge im-popover-badge-mono">
               {currentAccent === 'preset'
                 ? 'Preset Default'
                 : currentAccent === 'custom'
@@ -227,16 +275,11 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
             {/* Preset Default Chip */}
             <button
               type="button"
-              className={`im-accent-swatch-chip ${currentAccent === 'preset' ? 'active' : ''}`}
-              style={{
-                backgroundColor: 'var(--im-bg-surface-hover)',
-                border: '1px solid var(--im-border)',
-                color: 'var(--im-text-primary)',
-              }}
+              className={`im-accent-swatch-chip im-accent-swatch-def ${currentAccent === 'preset' ? 'active' : ''}`}
               onClick={() => handleSelectAccent('preset')}
               title="Reset to Theme Preset Default"
             >
-              <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>DEF</span>
+              <span>DEF</span>
             </button>
 
             {/* Curated Colors */}
@@ -253,7 +296,7 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
                   aria-label={`Select ${acc.label} accent`}
                 >
                   {isSelected && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" width={12} height={12}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" width={11} height={11}>
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
@@ -267,12 +310,9 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
               title="Pick custom hex color"
             >
               <span
+                className="im-custom-color-preview-dot"
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
                   backgroundColor: preferences.customAccentHex || '#ec4899',
-                  border: '1px solid rgba(0,0,0,0.15)',
                 }}
               />
               <span>Hex Picker</span>
@@ -287,21 +327,6 @@ export const ThemeCustomizationPopover: React.FC<ThemeCustomizationPopoverProps>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Popover Footer */}
-      <div className="im-theme-popover-footer">
-        <span style={{ fontSize: '0.72rem', color: 'var(--im-text-muted)' }}>
-          Syncs across all workspace windows
-        </span>
-        <Link
-          to="/settings?tab=theme"
-          className="im-theme-popover-link"
-          style={{ fontSize: '0.75rem', fontWeight: 700 }}
-          onClick={onClose}
-        >
-          Full Theme Studio →
-        </Link>
       </div>
     </div>
   );

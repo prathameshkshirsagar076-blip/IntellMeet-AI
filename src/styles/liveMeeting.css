@@ -5,6 +5,7 @@
 .zm-live-meeting-viewport {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
   background-color: #121212;
@@ -607,6 +608,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   flex-shrink: 0;
   z-index: 52;
   position: relative;
@@ -1288,12 +1290,13 @@
     display: none;
   }
   .zm-bottom-dock {
-    padding: 0 6px;
-    height: 60px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
+    height: auto;
+    min-height: 58px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    gap: 4px;
+    gap: 6px;
     justify-content: flex-start;
   }
   .zm-bottom-dock::-webkit-scrollbar {

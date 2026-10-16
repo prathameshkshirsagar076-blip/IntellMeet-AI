@@ -104,6 +104,21 @@ export const LandingPage: React.FC = () => {
     }
   }, []);
 
+  // If redirected to root with OAuth callback parameters (e.g. from Google or proxy),
+  // forward immediately to OAuthCallbackPage to complete the authentication lifecycle.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const hasCodeAndState = Boolean(params.get('code') && params.get('state'));
+    const hasTokens = Boolean(params.get('token') && params.get('refreshToken'));
+    const hasOAuthError = Boolean(
+      params.get('error') && (params.get('state') || params.get('code'))
+    );
+
+    if (hasCodeAndState || hasTokens || hasOAuthError) {
+      navigate(`/auth/google/callback${location.search}`, { replace: true });
+    }
+  }, [location.search, navigate]);
+
   // Handle URL hash on initial load
   useEffect(() => {
     if (location.hash) {
