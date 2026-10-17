@@ -61,3 +61,30 @@ export interface AiModelInfo {
   badge: string;
   description: string;
 }
+
+export interface TopicNote {
+  topic: string;
+  notes: string;
+  speakers?: string[];
+}
+
+export interface AiMeetingNoteData {
+  id?: string;
+  _id?: string;
+  meetingId: string;
+  userId?: string;
+  title: string;
+  date: string;
+  durationMinutes?: number;
+  agenda: string[];
+  topics: TopicNote[];
+  decisions: string[];
+  nextSteps: string[];
+  contentMarkdown: string;
+  isDraft: boolean;
+  isConfirmedByUser: boolean;
+  lastEditedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+

@@ -1,12 +1,16 @@
-import { apiClient } from './client';
-import { env } from '../config/env';
-import { getAccessToken, getStoredUser } from '../utils/tokenStorage';
-import type { AiConversation, AiMessage, AiCitation } from '../types/aiAssistant';
+import { apiClient, ApiError } from './client';
+import type {
+  AiConversation,
+  AiMessage,
+  AiCitation,
+  AiMeetingNoteData
+} from '../types/aiAssistant';
+import type { MeetingSummary, ActionItem } from '../types/meeting';
 
 const STORAGE_KEY_CONVERSATIONS = 'intellmeet_ai_conversations_v1';
 const STORAGE_KEY_MESSAGES = 'intellmeet_ai_messages_v1';
 
-// In-browser fallback persistence for offline / serverless decoupling
+// In-browser cache for fast rendering and offline resilience
 function getLocalConversations(): AiConversation[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CONVERSATIONS);
@@ -50,28 +54,28 @@ export const aiAssistantApi = {
   },
 
   /**
-   * 1. GET /api/v1/ai-assistant/conversations
-   * Lists all conversations for authenticated user
+   * 1. GET /api/v1/ai/conversations
+   * Retrieves user conversations from real backend
    */
   async getConversations(): Promise<AiConversation[]> {
     const local = getLocalConversations();
     try {
       const res = await apiClient.get<{ success: boolean; data: AiConversation[] }>(
-        '/ai-assistant/conversations'
+        '/ai/conversations'
       );
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         saveLocalConversations(res.data);
         return res.data;
       }
-    } catch {
-      // Remote endpoint may not exist on external AWS Lambda yet; fallback to local
+    } catch (err) {
+      console.warn('[aiAssistantApi] Could not fetch remote conversations, using cache:', err);
     }
     return local;
   },
 
   /**
-   * 2. POST /api/v1/ai-assistant/conversations
-   * Creates a new conversation
+   * 2. POST /api/v1/ai/conversations
+   * Creates a new conversation in database
    */
   async createConversation(options: {
     title?: string;
@@ -79,12 +83,28 @@ export const aiAssistantApi = {
     contextMeetingId?: string;
     contextMeetingTitle?: string;
   } = {}): Promise<AiConversation> {
-    const user = getStoredUser();
-    const newConv: AiConversation = {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: AiConversation }>(
+        '/ai/conversations',
+        options
+      );
+      if (res && res.success && res.data) {
+        const created = res.data;
+        const current = getLocalConversations();
+        const merged = [created, ...current.filter((c) => c.id !== created.id)];
+        saveLocalConversations(merged);
+        return created;
+      }
+    } catch (err) {
+      console.warn('[aiAssistantApi] Failed to create conversation on backend:', err);
+    }
+
+    // Local fallback if offline
+    const fallbackConv: AiConversation = {
       id: `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      userId: user?.id || 'usr_local',
+      userId: 'usr_local',
       title: options.title || 'New Conversation',
-      model: options.model || 'IntellMeet-4.0',
+      model: options.model || 'gpt-4o-mini',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isPinned: false,
@@ -93,56 +113,33 @@ export const aiAssistantApi = {
       messageCount: 0,
       lastMessagePreview: '',
     };
-
-    // Save locally first to guarantee immediate responsiveness
-    const all = [newConv, ...getLocalConversations().filter((c) => c.id !== newConv.id)];
-    saveLocalConversations(all);
-
-    // Non-blocking remote sync attempt
-    apiClient
-      .post<{ success: boolean; data: AiConversation }>('/ai-assistant/conversations', newConv)
-      .then((res) => {
-        if (res && res.success && res.data) {
-          const remoteConv = res.data;
-          const current = getLocalConversations();
-          const merged = [remoteConv, ...current.filter((c) => c.id !== remoteConv.id)];
-          saveLocalConversations(merged);
-        }
-      })
-      .catch(() => {
-        // Fallback already safely stored in local state
-      });
-
-    return newConv;
+    const current = getLocalConversations();
+    saveLocalConversations([fallbackConv, ...current]);
+    return fallbackConv;
   },
 
   /**
-   * 3. GET /api/v1/ai-assistant/conversations/:id
-   * Retrieves conversation by ID with its messages
+   * 3. GET /api/v1/ai/conversations/:id/messages
    */
   async getConversationMessages(conversationId: string): Promise<AiMessage[]> {
     const allMsgs = getLocalMessages();
-    const localMsgs = allMsgs[conversationId] || [];
-
     try {
       const res = await apiClient.get<{ success: boolean; data: AiMessage[] }>(
-        `/ai-assistant/conversations/${conversationId}/messages`
+        `/ai/conversations/${conversationId}/messages`
       );
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         allMsgs[conversationId] = res.data;
         saveLocalMessages(allMsgs);
         return res.data;
       }
     } catch {
-      // Local fallback
+      // Return local cache
     }
-
-    return localMsgs;
+    return allMsgs[conversationId] || [];
   },
 
   /**
-   * 4. PATCH /api/v1/ai-assistant/conversations/:id
-   * Updates title, pinned state, or metadata
+   * 4. PATCH /api/v1/ai/conversations/:id
    */
   async updateConversation(
     conversationId: string,
@@ -153,23 +150,30 @@ export const aiAssistantApi = {
     let updatedConv: AiConversation | null = null;
 
     if (idx !== -1) {
-      all[idx] = {
-        ...all[idx],
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
+      all[idx] = { ...all[idx], ...updates, updatedAt: new Date().toISOString() };
       updatedConv = all[idx];
       saveLocalConversations(all);
     }
 
-    apiClient.patch(`/ai-assistant/conversations/${conversationId}`, updates).catch(() => {});
+    try {
+      const res = await apiClient.patch<{ success: boolean; data: AiConversation }>(
+        `/ai/conversations/${conversationId}`,
+        updates
+      );
+      if (res && res.success && res.data) {
+        updatedConv = res.data;
+        const current = getLocalConversations();
+        saveLocalConversations(current.map((c) => (c.id === conversationId ? res.data : c)));
+      }
+    } catch {
+      // Handled via local cache
+    }
 
     return updatedConv;
   },
 
   /**
-   * 5. DELETE /api/v1/ai-assistant/conversations/:id
-   * Deletes a conversation and its messages
+   * 5. DELETE /api/v1/ai/conversations/:id
    */
   async deleteConversation(conversationId: string): Promise<boolean> {
     const all = getLocalConversations().filter((c) => c.id !== conversationId);
@@ -179,7 +183,11 @@ export const aiAssistantApi = {
     delete allMsgs[conversationId];
     saveLocalMessages(allMsgs);
 
-    apiClient.delete(`/ai-assistant/conversations/${conversationId}`).catch(() => {});
+    try {
+      await apiClient.delete(`/ai/conversations/${conversationId}`);
+    } catch {
+      // Handled
+    }
 
     return true;
   },
@@ -201,7 +209,6 @@ export const aiAssistantApi = {
     allMsgs[conversationId] = convMsgs;
     saveLocalMessages(allMsgs);
 
-    // Update conversation message count and last preview, and move to top
     const allConvs = getLocalConversations();
     const convIdx = allConvs.findIndex((c) => c.id === conversationId);
     if (convIdx !== -1) {
@@ -217,232 +224,270 @@ export const aiAssistantApi = {
   },
 
   /**
-   * 7. Stream AI Assistant message response
+   * 7. Real AI Chat Completion via backend POST /api/v1/ai/chat
+   * Transmits response progressively to onChunk callback for natural typing UX.
    */
   async streamResponse(params: {
     conversationId: string;
     userMessage: string;
-    systemPrompt: string;
+    systemPrompt?: string;
+    contextMeetingId?: string;
+    model?: string;
+    provider?: 'gemini' | 'openai';
     citations?: AiCitation[];
     signal?: AbortSignal;
     onChunk: (chunkText: string) => void;
     onComplete: (fullText: string, citations?: AiCitation[]) => void;
     onError: (errorMsg: string) => void;
   }): Promise<void> {
-    const { conversationId, userMessage, systemPrompt, citations, signal, onChunk, onComplete, onError } = params;
-
-    // Check if backend endpoint is accessible
-    const base = env.apiBaseUrl.replace(/\/+$/, '');
-    const streamUrl = `${base}/ai-assistant/conversations/${conversationId}/messages/stream`;
-    const token = getAccessToken();
-
-    let remoteStreamStarted = false;
+    const {
+      conversationId,
+      userMessage,
+      systemPrompt,
+      contextMeetingId,
+      model,
+      provider,
+      citations: defaultCitations,
+      signal,
+      onChunk,
+      onComplete,
+      onError,
+    } = params;
 
     try {
-      const response = await fetch(streamUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          content: userMessage,
-          systemPrompt,
-        }),
-        signal,
-      });
-
-      if (response.ok && response.body) {
-        remoteStreamStarted = true;
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let fullText = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const text = decoder.decode(value, { stream: true });
-          const lines = text.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === '[DONE]') {
-                break;
-              }
-              try {
-                const parsed = JSON.parse(dataStr);
-                const chunk = parsed.delta || parsed.content || '';
-                fullText += chunk;
-                onChunk(chunk);
-              } catch {
-                fullText += dataStr;
-                onChunk(dataStr);
-              }
-            }
-          }
-        }
-
-        onComplete(fullText, citations);
-        return;
-      }
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') {
+      if (signal?.aborted) {
         onError('Generation stopped by user.');
         return;
       }
-      // If remote stream failed before starting, proceed to client-grounded synthesis
-    }
 
-    if (!remoteStreamStarted) {
-      // Client-grounded progressive synthesizer
-      // Simulates real-time progressive token generation based on grounded intelligence
-      try {
-        await simulateProgressiveGeneration({
-          query: userMessage,
+      // Real backend API call to AI co-pilot
+      const res = await apiClient.post<{
+        success: boolean;
+        message: string;
+        data: {
+          answer: string;
+          citations?: AiCitation[];
+          userMessage: AiMessage;
+          assistantMessage: AiMessage;
+        };
+      }>(
+        '/ai/chat',
+        {
+          message: userMessage,
+          conversationId: conversationId.startsWith('conv_') ? undefined : conversationId,
+          contextMeetingId: contextMeetingId || undefined,
           systemPrompt,
-          citations,
-          signal,
-          onChunk,
-          onComplete,
-        });
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') {
-          onError('Generation stopped.');
-        } else {
-          onError((err as Error)?.message || 'An error occurred during response generation.');
-        }
+          model,
+          provider,
+        },
+        { signal }
+      );
+
+      if (!res?.data?.answer) {
+        throw new Error(res?.message || 'Empty response received from AI service.');
       }
+
+      const realAnswer = res.data.answer;
+      const resolvedCitations = res.data.citations && res.data.citations.length > 0
+        ? res.data.citations
+        : defaultCitations;
+
+      // Render the real answer with a smooth token typing cadence
+      const chunks = splitIntoNaturalChunks(realAnswer);
+      let accumulated = '';
+
+      for (let i = 0; i < chunks.length; i++) {
+        if (signal?.aborted) {
+          onError('Generation stopped by user.');
+          return;
+        }
+
+        const chunk = chunks[i];
+        accumulated += chunk;
+        onChunk(chunk);
+
+        // Variable delay based on punctuation and line breaks
+        const delay = chunk.includes('\n') ? 22 : chunk.length > 4 ? 14 : 8;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      onComplete(accumulated, resolvedCitations);
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError' || signal?.aborted) {
+        onError('Generation stopped by user.');
+        return;
+      }
+
+      if (err instanceof ApiError) {
+        if (err.status === 501 || err.code === 'OPENAI_NOT_CONFIGURED') {
+          onError('OpenAI API key is not configured. Please set OPENAI_API_KEY in backend .env or select Google Gemini.');
+          return;
+        }
+        if (err.status === 501 || err.code === 'GEMINI_NOT_CONFIGURED') {
+          onError('Google Gemini API key is not configured. Please set GEMINI_API_KEY in backend .env or select OpenAI.');
+          return;
+        }
+        if (err.status === 429 || err.code === 'GEMINI_RATE_LIMIT' || err.code === 'OPENAI_RATE_LIMIT') {
+          onError('AI rate limit or API quota exceeded. Please wait a moment before trying again.');
+          return;
+        }
+        if (err.status === 502 || err.code === 'GEMINI_AUTH_FAILED' || err.code === 'OPENAI_AUTH_FAILED') {
+          onError('AI provider authentication failed. Please verify your backend API credentials.');
+          return;
+        }
+        if (err.status === 504 || err.code === 'GEMINI_TIMEOUT' || err.code === 'OPENAI_TIMEOUT') {
+          onError('AI request timed out. Please check your connection and retry.');
+          return;
+        }
+        onError(err.message || 'AI request failed.');
+        return;
+      }
+
+      onError((err as Error)?.message || 'Failed to generate response. Please try again.');
     }
   },
-};
 
-/**
- * Intelligent progressive client-side generator.
- * Generates an accurate, grounded Markdown response token by token,
- * ensuring streaming UX is fully realistic and responsive.
- */
-async function simulateProgressiveGeneration(params: {
-  query: string;
-  systemPrompt: string;
-  citations?: AiCitation[];
-  signal?: AbortSignal;
-  onChunk: (chunk: string) => void;
-  onComplete: (full: string, citations?: AiCitation[]) => void;
-}): Promise<void> {
-  const { query, systemPrompt, citations, signal, onChunk, onComplete } = params;
-
-  const responseText = synthesizeGroundedResponse(query, systemPrompt);
-
-  // Progressive token streaming with variable typing cadence
-  const chunks = splitIntoNaturalChunks(responseText);
-  let accumulated = '';
-
-  for (let i = 0; i < chunks.length; i++) {
-    if (signal?.aborted) {
-      throw new DOMException('Aborted by user', 'AbortError');
+  /**
+   * 8. AI Meeting Summaries API
+   */
+  async getMeetingSummary(meetingId: string): Promise<MeetingSummary | null> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: MeetingSummary }>(
+        `/ai/meetings/${meetingId}/summary`
+      );
+      if (res && res.success && res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      if ((err as ApiError)?.status !== 404) {
+        console.warn(`[aiAssistantApi] Could not fetch summary for meeting ${meetingId}:`, err);
+      }
     }
+    return null;
+  },
 
-    const chunk = chunks[i];
-    accumulated += chunk;
-    onChunk(chunk);
+  async generateMeetingSummary(
+    meetingId: string,
+    options: { forceRegenerate?: boolean; model?: string; provider?: 'gemini' | 'openai' } | boolean = false
+  ): Promise<MeetingSummary> {
+    const payload = typeof options === 'boolean'
+      ? { forceRegenerate: options }
+      : { forceRegenerate: Boolean(options.forceRegenerate), model: options.model, provider: options.provider };
 
-    // Fast, natural streaming delay (15-35ms per token/chunk)
-    const delay = chunk.includes('\n') ? 35 : chunk.length > 4 ? 20 : 12;
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
+    const res = await apiClient.post<{ success: boolean; message?: string; data: MeetingSummary }>(
+      `/ai/meetings/${meetingId}/summary`,
+      payload
+    );
+    if (!res || !res.data) {
+      throw new Error(res?.message || 'Failed to generate meeting summary');
+    }
+    return res.data;
+  },
 
-  onComplete(accumulated, citations);
-}
+  /**
+   * 9. AI Meeting Notes API
+   */
+  async getMeetingNotes(meetingId: string): Promise<AiMeetingNoteData | null> {
+    try {
+      const res = await apiClient.get<{ success: boolean; message?: string; data: AiMeetingNoteData }>(
+        `/ai/meetings/${meetingId}/notes`
+      );
+      if (res && res.success && res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      if ((err as ApiError)?.status !== 404) {
+        console.warn(`[aiAssistantApi] Could not fetch notes for meeting ${meetingId}:`, err);
+      }
+    }
+    return null;
+  },
+
+  async generateMeetingNotes(
+    meetingId: string,
+    options: { forceRegenerate?: boolean; model?: string; provider?: 'gemini' | 'openai' } | boolean = false
+  ): Promise<AiMeetingNoteData> {
+    const payload = typeof options === 'boolean'
+      ? { forceRegenerate: options }
+      : { forceRegenerate: Boolean(options.forceRegenerate), model: options.model, provider: options.provider };
+
+    const res = await apiClient.post<{ success: boolean; message?: string; data: AiMeetingNoteData }>(
+      `/ai/meetings/${meetingId}/notes`,
+      payload
+    );
+    if (!res || !res.data) {
+      throw new Error(res?.message || 'Failed to generate meeting notes');
+    }
+    return res.data;
+  },
+
+  async saveMeetingNotes(meetingId: string, updates: Partial<AiMeetingNoteData>): Promise<AiMeetingNoteData> {
+    const res = await apiClient.put<{ success: boolean; message?: string; data: AiMeetingNoteData }>(
+      `/ai/meetings/${meetingId}/notes`,
+      updates
+    );
+    if (!res || !res.data) {
+      throw new Error(res?.message || 'Failed to save meeting notes');
+    }
+    return res.data;
+  },
+
+  /**
+   * 10. AI Action Items API
+   */
+  async getMeetingActionItems(meetingId: string): Promise<ActionItem[]> {
+    try {
+      const res = await apiClient.get<{ success: boolean; message?: string; data: ActionItem[] }>(
+        `/ai/meetings/${meetingId}/action-items`
+      );
+      if (res && res.success && Array.isArray(res.data)) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn(`[aiAssistantApi] Could not fetch action items for meeting ${meetingId}:`, err);
+    }
+    return [];
+  },
+
+  async generateMeetingActionItems(
+    meetingId: string,
+    options: { forceRegenerate?: boolean; model?: string; provider?: 'gemini' | 'openai' } | boolean = false
+  ): Promise<ActionItem[]> {
+    const payload = typeof options === 'boolean'
+      ? { forceRegenerate: options }
+      : { forceRegenerate: Boolean(options.forceRegenerate), model: options.model, provider: options.provider };
+
+    const res = await apiClient.post<{ success: boolean; message?: string; data: ActionItem[] }>(
+      `/ai/meetings/${meetingId}/action-items`,
+      payload
+    );
+    if (!res || !res.data) {
+      throw new Error(res?.message || 'Failed to extract action items');
+    }
+    return res.data;
+  },
+
+  async toggleActionItem(meetingId: string, itemId: string, completed?: boolean): Promise<ActionItem> {
+    const res = await apiClient.patch<{ success: boolean; message?: string; data: ActionItem }>(
+      `/ai/meetings/${meetingId}/action-items/${itemId}`,
+      { completed }
+    );
+    if (!res || !res.data) {
+      throw new Error(res?.message || 'Failed to update action item status');
+    }
+    return res.data;
+  },
+
+  async deleteActionItem(meetingId: string, itemId: string): Promise<boolean> {
+    const res = await apiClient.delete<{ success: boolean }>(
+      `/ai/meetings/${meetingId}/action-items/${itemId}`
+    );
+    return Boolean(res?.success);
+  },
+};
 
 function splitIntoNaturalChunks(text: string): string[] {
   const regex = /\S+|\s+/g;
   const matches = text.match(regex);
   return matches || [text];
-}
-
-/**
- * Synthesizes grounded enterprise response directly from prompt context.
- */
-function synthesizeGroundedResponse(query: string, systemPrompt: string): string {
-  const q = query.toLowerCase().trim();
-
-  // 1. Meeting Summary request
-  if (q.includes('summarize') || q.includes('summary')) {
-    if (systemPrompt.includes('MOST RECENT MEETING:') || systemPrompt.includes('ACTIVE TARGET MEETING:')) {
-      return `### 📋 Meeting Executive Summary\n\nBased on your synchronized meeting records in IntellMeet:\n\n` +
-        `> **Overview:** The session covered key quarterly milestones, product deployment readiness, and attendee coordination across engineering and product teams.\n\n` +
-        `#### 🎯 Key Discussion Points\n` +
-        `- **Sprint Deliverables:** Final review of scheduled feature branches, automated test suites, and database migrations.\n` +
-        `- **Room Dynamics:** Full-screen responsive layouts, camera & audio device verification, and instant meeting lobby flows.\n` +
-        `- **Enterprise Alignment:** Ensured high-contrast compliance, theme persistence, and JWT session handling.\n\n` +
-        `#### ✅ Key Decisions\n` +
-        `1. Scheduled deployment branch freeze prior to final customer acceptance review.\n` +
-        `2. Approved unified 5/10/20 rows pagination on all tabular views.\n\n` +
-        `#### 📌 Pending Action Items\n` +
-        `- [ ] Complete end-to-end integration testing for real-time video docks (@Host)\n` +
-        `- [ ] Distribute AI Meeting summary notes to absent participants (@Organizer)\n\n` +
-        `*Would you like me to draft an email update or extract these items into a calendar invite?*`;
-    }
-
-    return `### 📋 Meeting Summary Request\n\nCurrently, there are no recorded AI summaries for this specific query in your workspace.\n\n` +
-      `**How to generate summaries:**\n` +
-      `1. Navigate to **[Meetings](/meetings)** or **[Schedule](/schedule)** to run your call.\n` +
-      `2. Once completed, IntellMeet's AI engine automatically creates an executive outline.\n` +
-      `3. View your finalized summaries in **[AI Notes & Summaries](/ai-notes)**.\n\n` +
-      `You can also attach a specific meeting context using the **Attach Meeting Context** button above!`;
-  }
-
-  // 2. Action items request
-  if (q.includes('action item') || q.includes('task') || q.includes('pending')) {
-    return `### 📌 Workspace Action Items & Deliverables\n\nHere is the status of action items extracted from your meetings:\n\n` +
-      `| Status | Task Description | Assignee | Due Date |\n` +
-      `| :--- | :--- | :--- | :--- |\n` +
-      `| 🟡 **Pending** | Complete end-to-end integration testing for live room | @Host | Next Sprint |\n` +
-      `| 🟡 **Pending** | Review user permissions & enterprise SAML settings | @Security Lead | Friday |\n` +
-      `| 🟢 **Completed** | Implement uniform calendar day grid & overlap fix | @Frontend Team | Oct 14 |\n` +
-      `| 🟢 **Completed** | Add professional pagination to Meetings Management page | @Dev Team | Today |\n\n` +
-      `> 💡 **Tip:** You can check off and manage these tasks directly from the **[AI Notes & Summaries](/ai-notes)** page.`;
-  }
-
-  // 3. Prepare for next meeting / Agenda
-  if (q.includes('prepare') || q.includes('agenda') || q.includes('next meeting')) {
-    return `### 🗓️ Proposed Meeting Agenda & Preparation Guide\n\nHere is an executive agenda drafted for your upcoming session:\n\n` +
-      `#### **Objective:** Align team priorities, unblock current deliverables, and review sprint roadmap.\n\n` +
-      `**Suggested Time Allocation:**\n` +
-      `1. **Welcome & Context (5 mins):**\n` +
-      `   - Verify camera & audio in the **Lobby** before joining.\n` +
-      `   - Brief recap of previous action items.\n` +
-      `2. **Core Discussion & Progress Review (20 mins):**\n` +
-      `   - Feature demo and architectural review.\n` +
-      `   - Review blockers and cross-team dependencies.\n` +
-      `3. **Decisions & Commitments (15 mins):**\n` +
-      `   - Assign clear owners and deadlines to all new action items.\n` +
-      `   - Confirm dates for the next review sync.\n` +
-      `4. **Q&A & Wrap-Up (5 mins):**\n` +
-      `   - Summary capture will trigger automatically upon call end.\n\n` +
-      `*Would you like me to adjust the duration or add specific discussion topics?*`;
-  }
-
-  // 4. IntellMeet Features & How-To
-  if (q.includes('how to') || q.includes('theme') || q.includes('schedule') || q.includes('feature') || q.includes('intellmeet')) {
-    return `### ⚡ IntellMeet Workspace Capabilities\n\nIntellMeet provides a comprehensive suite for modern hybrid collaboration:\n\n` +
-      `- **📅 Scheduling:** Visit **[My Schedule](/schedule)** to click on any date on the calendar timetable and schedule sessions with automatic date-locking.\n` +
-      `- **🎥 Meeting Lobby:** Preview your camera, microphone, and audio devices before entering any room via **[Join Meeting](/meetings/join)**.\n` +
-      `- **✨ AI Notes:** Autonomous post-meeting summaries, key decisions, and interactive task trackers at **[AI Notes](/ai-notes)**.\n` +
-      `- **👥 Team Directory:** View member roles (Admin, Host, Member) and online availability at **[Team & People](/team)**.\n` +
-      `- **🎨 Theme & Personalization:** 8 enterprise themes, dark mode, and custom HEX colors at **[Theme & Styling](/settings?tab=theme)**.\n\n` +
-      `What specific workflow can I assist you with?`;
-  }
-
-  // Default intelligent assistant response
-  return `### 👋 Welcome to IntellMeet AI Assistant\n\nI am your dedicated enterprise meeting co-pilot. I can assist you with:\n\n` +
-    `1. **Meeting Summaries:** Condensing past meeting discussions, outlines, and key decisions.\n` +
-    `2. **Action Item Tracking:** Listing pending tasks, assignees, and deadlines.\n` +
-    `3. **Agenda & Preparation:** Drafting professional agendas and talking points for upcoming calls.\n` +
-    `4. **IntellMeet Navigation:** Guiding you through calendar scheduling, room controls, theme customization, and team settings.\n\n` +
-    `You asked: *"${query}"*\n\n` +
-    `Let me know how you would like to proceed, or choose one of the suggested prompts to get started immediately!`;
 }

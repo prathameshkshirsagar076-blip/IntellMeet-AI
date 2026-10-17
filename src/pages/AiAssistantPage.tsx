@@ -146,9 +146,74 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   },
 ];
 
+export interface AiModelOption {
+  id: string;
+  provider: 'gemini' | 'openai';
+  name: string;
+  badge: string;
+  isFree?: boolean;
+  description: string;
+}
+
+export const AVAILABLE_AI_MODELS: AiModelOption[] = [
+  {
+    id: 'gemini-2.5-flash',
+    provider: 'gemini',
+    name: 'Gemini 2.5 Flash',
+    badge: 'Free Tier',
+    isFree: true,
+    description: 'Google AI Studio ultra-fast free model (1M token context, high speed)',
+  },
+  {
+    id: 'gpt-4o',
+    provider: 'openai',
+    name: 'GPT-4o',
+    badge: 'Flagship',
+    description: 'OpenAI flagship reasoning model for deep executive synthesis',
+  },
+  {
+    id: 'gpt-4o-mini',
+    provider: 'openai',
+    name: 'GPT-4o mini',
+    badge: 'Efficient',
+    description: 'Fast, lightweight OpenAI model for quick answers & actions',
+  },
+];
+
+const STORAGE_KEY_SELECTED_MODEL = 'intellmeet_ai_selected_model_v1';
+
 export const AiAssistantPage: React.FC = () => {
   const { user } = useAuth();
   const { meetings, summaries, showToast } = useMeetings();
+
+  const [selectedModelId, setSelectedModelId] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_SELECTED_MODEL);
+      if (!stored || stored === 'gemini-1.5-flash') {
+        return 'gemini-2.5-flash';
+      }
+      return stored;
+    } catch {
+      return 'gemini-2.5-flash';
+    }
+  });
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedModelOption = useMemo(() => {
+    return AVAILABLE_AI_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_AI_MODELS[0];
+  }, [selectedModelId]);
+
+  const handleSelectModel = (modelId: string) => {
+    setSelectedModelId(modelId);
+    try {
+      localStorage.setItem(STORAGE_KEY_SELECTED_MODEL, modelId);
+    } catch {
+      // Ignore localStorage error
+    }
+    const opt = AVAILABLE_AI_MODELS.find((m) => m.id === modelId);
+    showToast(`AI model switched to ${opt?.name || modelId}`, 'info');
+  };
 
   const [conversations, setConversations] = useState<AiConversation[]>(() => {
     return aiAssistantApi.getLocalConversations();
@@ -285,6 +350,9 @@ export const AiAssistantPage: React.FC = () => {
       if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
         setExportDropdownOpen(false);
       }
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -408,6 +476,9 @@ export const AiAssistantPage: React.FC = () => {
         conversationId: convId,
         userMessage: prompt,
         systemPrompt,
+        contextMeetingId: selectedMeetingContextId || undefined,
+        model: selectedModelOption.id,
+        provider: selectedModelOption.provider,
         citations,
         signal: controller.signal,
         onChunk: (chunk: string) => {
@@ -453,6 +524,7 @@ export const AiAssistantPage: React.FC = () => {
       summaries,
       user,
       selectedMeetingContextId,
+      selectedModelOption,
     ]
   );
 
@@ -705,9 +777,73 @@ export const AiAssistantPage: React.FC = () => {
               <PanelToggleIcon size={16} />
             </button>
 
-            <div className="im-ai-model-badge">
-              <span className="im-ai-model-indicator-dot" />
-              <span>IntellMeet-4.0</span>
+            {/* Interactive Model & Provider Selector */}
+            <div style={{ position: 'relative' }} ref={modelDropdownRef}>
+              <button
+                type="button"
+                className="im-ai-model-badge interactive"
+                onClick={() => setModelDropdownOpen((prev) => !prev)}
+                title="Select AI Model & Provider (Google Gemini or OpenAI)"
+                aria-expanded={modelDropdownOpen}
+              >
+                <span className={`im-ai-model-indicator-dot ${selectedModelOption.provider}`} />
+                <span className="im-ai-model-name">{selectedModelOption.name}</span>
+                {selectedModelOption.isFree && (
+                  <span className="im-badge im-badge-free">FREE</span>
+                )}
+                <ChevronDownIcon size={12} />
+              </button>
+
+              {modelDropdownOpen && (
+                <div
+                  className="im-dropdown-menu im-ai-model-dropdown"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: '100%',
+                    marginTop: 6,
+                    width: 320,
+                    zIndex: 100,
+                  }}
+                >
+                  <div className="im-dropdown-header">
+                    <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--im-text-primary)' }}>Select AI Model</span>
+                    <span style={{ fontSize: 11, color: 'var(--im-text-muted)', display: 'block', marginTop: 2 }}>
+                      Choose between Google Gemini Free Tier and OpenAI
+                    </span>
+                  </div>
+                  <div className="im-dropdown-divider" style={{ margin: '6px 0' }} />
+                  {AVAILABLE_AI_MODELS.map((m) => {
+                    const isSelected = m.id === selectedModelId;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={`im-ai-model-option-btn ${isSelected ? 'selected' : ''}`}
+                        onClick={() => {
+                          handleSelectModel(m.id);
+                          setModelDropdownOpen(false);
+                        }}
+                      >
+                        <div className="im-ai-model-option-left">
+                          <div className="im-ai-model-option-row">
+                            <span className="im-ai-model-option-title">{m.name}</span>
+                            <span className={`im-badge ${m.isFree ? 'im-badge-free' : 'im-badge-upcoming'}`}>
+                              {m.badge}
+                            </span>
+                          </div>
+                          <span className="im-ai-model-option-desc">{m.description}</span>
+                        </div>
+                        {isSelected && (
+                          <span className="im-ai-model-option-check">
+                            <CheckIcon size={14} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Linked Meeting Context Pill */}
@@ -884,6 +1020,18 @@ export const AiAssistantPage: React.FC = () => {
                           <div className="im-ai-markdown">
                             <RenderMarkdown content={message.content} />
                             {message.status === 'streaming' && <span className="im-ai-streaming-cursor" />}
+                            {message.status === 'error' && (
+                              <div style={{ marginTop: 8 }}>
+                                <button
+                                  type="button"
+                                  className="im-btn im-btn-secondary im-btn-sm"
+                                  onClick={handleRegenerate}
+                                  style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                                >
+                                  ↻ Retry
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
