@@ -338,12 +338,112 @@
   color: var(--im-text-primary);
 }
 
+.im-ai-model-badge.interactive {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.im-ai-model-badge.interactive:hover {
+  background-color: var(--im-bg-surface);
+  border-color: var(--im-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
 .im-ai-model-indicator-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background-color: var(--im-success);
   box-shadow: 0 0 6px var(--im-success);
+}
+
+.im-ai-model-indicator-dot.gemini {
+  background-color: #3b82f6;
+  box-shadow: 0 0 6px #60a5fa;
+}
+
+.im-ai-model-indicator-dot.openai {
+  background-color: #10b981;
+  box-shadow: 0 0 6px #34d399;
+}
+
+.im-badge-free {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.im-ai-model-dropdown {
+  background-color: var(--im-bg-surface);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.im-ai-model-option-btn {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--im-radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  gap: 8px;
+}
+
+.im-ai-model-option-btn:hover {
+  background-color: var(--im-bg-subtle);
+  border-color: var(--im-border);
+}
+
+.im-ai-model-option-btn.selected {
+  background-color: var(--im-primary-light);
+  border-color: var(--im-primary);
+}
+
+.im-ai-model-option-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.im-ai-model-option-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.im-ai-model-option-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--im-text-primary);
+}
+
+.im-ai-model-option-desc {
+  font-size: 0.72rem;
+  color: var(--im-text-muted);
+  line-height: 1.3;
+}
+
+.im-ai-model-option-check {
+  color: var(--im-primary);
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
 }
 
 .im-ai-context-chip {
