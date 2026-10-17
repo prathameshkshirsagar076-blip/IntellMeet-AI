@@ -40,6 +40,8 @@ export interface ActionItem {
   assignee: string;
   completed: boolean;
   dueDate?: string;
+  priority?: 'low' | 'medium' | 'high';
+  description?: string;
 }
 
 export interface MeetingSummary {
@@ -52,7 +54,10 @@ export interface MeetingSummary {
   keyPoints: string[];
   actionItems: ActionItem[];
   decisions: string[];
-  sentiment?: 'Productive' | 'Action-Oriented' | 'Strategic' | 'Collaborative';
+  keyTakeaways?: string[];
+  outstandingIssues?: string[];
+  followUpRecommendations?: string[];
+  sentiment?: 'Productive' | 'Action-Oriented' | 'Strategic' | 'Collaborative' | 'Informative';
 }
 
 export interface AppNotification {
